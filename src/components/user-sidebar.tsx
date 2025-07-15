@@ -15,10 +15,11 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarRail,
+    // SidebarRail,
     SidebarTrigger,
 } from "./ui/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ScrollArea } from "./ui/scroll-area";
 
 // Sample chat history data
 const initialChatHistories = [
@@ -103,81 +104,60 @@ export default function ChatHistorySidebar({ onSelectChat, selectedChat }: ChatH
                 </div> */}
                     </SidebarHeader>
 
-                    <SidebarContent>
-                        <SidebarGroup>
-                            <SidebarGroupLabel>Recent Chat History</SidebarGroupLabel>
-                            <SidebarGroupContent>
-                                <SidebarMenu>
-                                    {filteredChats.map((chat) => (
-                                        <SidebarMenuItem key={chat.id}>
-                                            <SidebarMenuButton asChild isActive={selectedChat === chat.id} onClick={() => onSelectChat(chat.id)}>
-                                                <div className="flex items-center w-full gap-3">
-                                                    {editingId === chat.id ? (
-                                                        <input
-                                                            className="font-medium truncate border rounded px-1 py-0.5 w-full"
-                                                            value={editValue}
-                                                            autoFocus
-                                                            onChange={e => setEditValue(e.target.value)}
-                                                            onBlur={() => handleRename(chat.id)}
-                                                            onKeyDown={e => {
-                                                                if (e.key === "Enter") handleRename(chat.id)
-                                                                if (e.key === "Escape") setEditingId(null)
-                                                            }}
-                                                            placeholder="Rename chat title"
-                                                            aria-label="Rename chat title"
-                                                        />
-                                                    ) : (
-                                                        <>
-                                                            <span className="font-medium truncate">{chat.title}</span>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="p-1 ml-auto rounded-full"
-                                                                tabIndex={-1}
-                                                                onClick={e => {
-                                                                    e.stopPropagation()
-                                                                    setEditingId(chat.id)
-                                                                    setEditValue(chat.title)
+                    <SidebarContent className="flex-1 h-full p-0">
+                        <ScrollArea className="h-full p-4">
+                            <SidebarGroup>
+                                <SidebarGroupLabel>Recent Chat History</SidebarGroupLabel>
+                                <SidebarGroupContent>
+                                    <SidebarMenu>
+                                        {filteredChats.map((chat) => (
+                                            <SidebarMenuItem key={chat.id}>
+                                                <SidebarMenuButton asChild isActive={selectedChat === chat.id} onClick={() => onSelectChat(chat.id)}>
+                                                    <div className="flex items-center w-full gap-3">
+                                                        {editingId === chat.id ? (
+                                                            <input
+                                                                className="font-medium truncate border rounded px-1 py-0.5 w-full"
+                                                                value={editValue}
+                                                                autoFocus
+                                                                onChange={e => setEditValue(e.target.value)}
+                                                                onBlur={() => handleRename(chat.id)}
+                                                                onKeyDown={e => {
+                                                                    if (e.key === "Enter") handleRename(chat.id)
+                                                                    if (e.key === "Escape") setEditingId(null)
                                                                 }}
-                                                            >
-                                                                <Pencil className="w-4 h-4" />
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </SidebarMenuButton>
-                                        </SidebarMenuItem>
-                                    ))}
-                                </SidebarMenu>
-                            </SidebarGroupContent>
-                        </SidebarGroup>
+                                                                placeholder="Rename chat title"
+                                                                aria-label="Rename chat title"
+                                                            />
+                                                        ) : (
+                                                            <>
+                                                                <span className="font-medium truncate">{chat.title}</span>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="p-1 ml-auto rounded-full"
+                                                                    tabIndex={-1}
+                                                                    onClick={e => {
+                                                                        e.stopPropagation()
+                                                                        setEditingId(chat.id)
+                                                                        setEditValue(chat.title)
+                                                                    }}
+                                                                >
+                                                                    <Pencil className="w-4 h-4" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </SidebarMenuButton>
+                                            </SidebarMenuItem>
+                                        ))}
+                                    </SidebarMenu>
+                                </SidebarGroupContent>
+                            </SidebarGroup>
+                        </ScrollArea>
                     </SidebarContent>
-
-                    {/* <SidebarFooter>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                            <div className="flex items-center gap-2">
-                                <Settings className="w-5 h-5" />
-                                <span>Settings</span>
-                            </div>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                            <div className="flex items-center gap-2">
-                                <LogOut className="w-5 h-5" />
-                                <span>Logout</span>
-                            </div>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarFooter> */}
-
-                    <SidebarRail />
                 </Sidebar>
                 <SidebarTrigger />
             </ThemeProvider>
-        </div>
+        </div >
     )
 }

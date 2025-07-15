@@ -123,7 +123,7 @@ export default function ChatInterface({ selectedChatId }: ChatInterfaceProps) {
                 </div> */}
 
                 {/* Messages */}
-                <ScrollArea className="flex-1 p-4">
+                <ScrollArea className="scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-700 flex-1 h-full p-4 overflow-y-auto">
                     <div className="space-y-4">
                         {messages.map((message) => (
                             <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
