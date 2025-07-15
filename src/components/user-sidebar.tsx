@@ -1,10 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Users, Plus } from "lucide-react"
-// import {Search, Settings, LogOut } from "lucide-react"
-// import { Avatar } from "./ui/avatar"
-// import { Input } from "./ui/input"
+import { Users, Plus, Pencil } from "lucide-react"
 import { Button } from "./ui/button"
 // import { Badge } from "./ui/badge"
 import {
@@ -23,39 +20,55 @@ import {
 } from "./ui/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 
-// Sample user data
-const users = [
+// Sample chat history data
+const initialChatHistories = [
     {
         id: "1",
-        name: "Emma Thompson"
+        title: "Emma Thompson"
     },
     {
         id: "2",
-        name: "James Wilson"
+        title: "James Wilson"
     },
     {
         id: "3",
-        name: "Sophia Martinez"
+        title: "Sophia Martinez"
     },
     {
         id: "4",
-        name: "Liam Johnson"
+        title: "Liam Johnson"
     },
     {
         id: "5",
-        name: "Olivia Davis"
+        title: "Olivia Davis"
     },
 ]
 
-type UserSidebarProps = {
-    onSelectUser: (userId: string) => void
-    selectedUser: string | null
+type ChatHistorySidebarProps = {
+    onSelectChat: (chatId: string) => void
+    selectedChat: string | null
 }
 
-export default function UserSidebar({ onSelectUser, selectedUser }: UserSidebarProps) {
+export default function ChatHistorySidebar({ onSelectChat, selectedChat }: ChatHistorySidebarProps) {
+    const [chatHistories, setChatHistories] = useState(initialChatHistories)
     const [searchQuery] = useState("")
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editValue, setEditValue] = useState("")
 
-    const filteredUsers = users.filter((user) => user.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    const filteredChats = chatHistories.filter((chat) => chat.title.toLowerCase().includes(searchQuery.toLowerCase()))
+
+    const handleAddChat = () => {
+        const newId = (Math.max(0, ...chatHistories.map(c => parseInt(c.id))) + 1).toString()
+        const newChat = { id: newId, title: `New Chat ${newId}` }
+        setChatHistories([newChat, ...chatHistories])
+        setEditingId(newId)
+        setEditValue(newChat.title)
+    }
+
+    const handleRename = (id: string) => {
+        setChatHistories(chats => chats.map(chat => chat.id === id ? { ...chat, title: editValue } : chat))
+        setEditingId(null)
+    }
 
     return (
         <div>
@@ -73,7 +86,7 @@ export default function UserSidebar({ onSelectUser, selectedUser }: UserSidebarP
                                 <h2 className="font-semibold">Trivandrum Chat</h2>
                             </div>
                             <SidebarTrigger />
-                            <Button variant="ghost" size="icon" className="rounded-full">
+                            <Button variant="ghost" size="icon" className="rounded-full" onClick={handleAddChat}>
                                 <Plus className="w-5 h-5" />
                             </Button>
                         </div>
@@ -95,11 +108,42 @@ export default function UserSidebar({ onSelectUser, selectedUser }: UserSidebarP
                             <SidebarGroupLabel>Recent Chat History</SidebarGroupLabel>
                             <SidebarGroupContent>
                                 <SidebarMenu>
-                                    {filteredUsers.map((user) => (
-                                        <SidebarMenuItem key={user.id}>
-                                            <SidebarMenuButton asChild isActive={selectedUser === user.id} onClick={() => onSelectUser(user.id)}>
+                                    {filteredChats.map((chat) => (
+                                        <SidebarMenuItem key={chat.id}>
+                                            <SidebarMenuButton asChild isActive={selectedChat === chat.id} onClick={() => onSelectChat(chat.id)}>
                                                 <div className="flex items-center w-full gap-3">
-                                                    <span className="font-medium truncate">{user.name}</span>
+                                                    {editingId === chat.id ? (
+                                                        <input
+                                                            className="font-medium truncate border rounded px-1 py-0.5 w-full"
+                                                            value={editValue}
+                                                            autoFocus
+                                                            onChange={e => setEditValue(e.target.value)}
+                                                            onBlur={() => handleRename(chat.id)}
+                                                            onKeyDown={e => {
+                                                                if (e.key === "Enter") handleRename(chat.id)
+                                                                if (e.key === "Escape") setEditingId(null)
+                                                            }}
+                                                            placeholder="Rename chat title"
+                                                            aria-label="Rename chat title"
+                                                        />
+                                                    ) : (
+                                                        <>
+                                                            <span className="font-medium truncate">{chat.title}</span>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="p-1 ml-auto rounded-full"
+                                                                tabIndex={-1}
+                                                                onClick={e => {
+                                                                    e.stopPropagation()
+                                                                    setEditingId(chat.id)
+                                                                    setEditValue(chat.title)
+                                                                }}
+                                                            >
+                                                                <Pencil className="w-4 h-4" />
+                                                            </Button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </SidebarMenuButton>
                                         </SidebarMenuItem>

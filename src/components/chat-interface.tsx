@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 // import { Avatar } from "./ui/avatar"
@@ -9,29 +9,6 @@ import { Send } from "lucide-react"
 // import { Paperclip, Mic, Image } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
 
-const users = [
-    {
-        id: "1",
-        name: "Emma Thompson"
-    },
-    {
-        id: "2",
-        name: "James Wilson"
-    },
-    {
-        id: "3",
-        name: "Sophia Martinez"
-    },
-    {
-        id: "4",
-        name: "Liam Johnson"
-    },
-    {
-        id: "5",
-        name: "Olivia Davis"
-    },
-]
-
 type Message = {
     id: string
     content: string
@@ -39,23 +16,34 @@ type Message = {
 }
 
 type ChatInterfaceProps = {
-    selectedUser?: string | null
+    selectedChatId: string | null
 }
-// [role=assistant]:bg-gray-100 data-[role=user]:bg-blue-500
-export default function ChatInterface({ selectedUser }: ChatInterfaceProps) {
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: "1",
-            content: "Hello! How can I help you today?",
-            sender: "assistant",
-        },
-    ])
+
+export default function ChatInterface({ selectedChatId }: ChatInterfaceProps) {
+    const [chatHistories, setChatHistories] = useState<Record<string, Message[]>>({})
     const [inputValue, setInputValue] = useState("")
     const [isTyping, setIsTyping] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
-    // Find the selected user from our data
-    const selectedUserData = selectedUser ? users.find((user) => user.id === selectedUser) : null
+    // Ensure a default message for new chats
+    useEffect(() => {
+        if (selectedChatId && !chatHistories[selectedChatId]) {
+            setChatHistories(prev => ({
+                ...prev,
+                [selectedChatId]: [
+                    {
+                        id: "1",
+                        content: "Hello! How can I help you today?",
+                        sender: "assistant",
+                    },
+                ],
+            }))
+        }
+    }, [selectedChatId, chatHistories])
+
+    const messages = useMemo(() => (
+        selectedChatId && chatHistories[selectedChatId] ? chatHistories[selectedChatId] : []
+    ), [selectedChatId, chatHistories])
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -66,30 +54,31 @@ export default function ChatInterface({ selectedUser }: ChatInterfaceProps) {
     }, [messages, scrollToBottom])
 
     const handleSendMessage = () => {
-        if (inputValue.trim() === "") return
+        if (!selectedChatId || inputValue.trim() === "") return
 
-        // Add user message
         const userMessage: Message = {
             id: Date.now().toString(),
             content: inputValue,
             sender: "user",
         }
 
-        setMessages((prev) => [...prev, userMessage])
+        setChatHistories(prev => ({
+            ...prev,
+            [selectedChatId]: [...(prev[selectedChatId] || []), userMessage],
+        }))
         setInputValue("")
-
-        // Simulate assistant typing
         setIsTyping(true)
 
-        // Simulate assistant response after a delay
         setTimeout(() => {
             const assistantMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 content: `I received your message: "${inputValue}"`,
                 sender: "assistant",
             }
-
-            setMessages((prev) => [...prev, assistantMessage])
+            setChatHistories(prev => ({
+                ...prev,
+                [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage],
+            }))
             setIsTyping(false)
         }, 1500)
     }
