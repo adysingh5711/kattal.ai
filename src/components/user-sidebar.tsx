@@ -19,7 +19,9 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarRail,
+    SidebarTrigger,
 } from "./ui/sidebar"
+import { ThemeProvider } from "@/components/theme-provider"
 
 // Sample user data
 const users = [
@@ -56,18 +58,26 @@ export default function UserSidebar({ onSelectUser, selectedUser }: UserSidebarP
     const filteredUsers = users.filter((user) => user.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
     return (
-        <Sidebar>
-            <SidebarHeader>
-                <div className="flex items-center justify-between p-2">
-                    <div className="flex items-center gap-2">
-                        <Users className="w-5 h-5" />
-                        <h2 className="font-semibold">Trivandrum Chat</h2>
-                    </div>
-                    <Button variant="ghost" size="icon" className="rounded-full">
-                        <Plus className="w-5 h-5" />
-                    </Button>
-                </div>
-                {/* <div className="px-2 pb-2">
+        <div>
+            <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+            >
+                <Sidebar>
+                    <SidebarHeader>
+                        <div className="flex items-center justify-between p-2">
+                            <div className="flex items-center gap-2">
+                                <Users className="w-5 h-5" />
+                                <h2 className="font-semibold">Trivandrum Chat</h2>
+                            </div>
+                            <SidebarTrigger />
+                            <Button variant="ghost" size="icon" className="rounded-full">
+                                <Plus className="w-5 h-5" />
+                            </Button>
+                        </div>
+                        {/* <div className="px-2 pb-2">
                     <div className="relative">
                         <Search className="left-2 top-1/2 text-muted-foreground absolute w-4 h-4 -translate-y-1/2" />
                         <Input
@@ -78,28 +88,28 @@ export default function UserSidebar({ onSelectUser, selectedUser }: UserSidebarP
                         />
                     </div>
                 </div> */}
-            </SidebarHeader>
+                    </SidebarHeader>
 
-            <SidebarContent>
-                <SidebarGroup>
-                    <SidebarGroupLabel>Recent Chat History</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {filteredUsers.map((user) => (
-                                <SidebarMenuItem key={user.id}>
-                                    <SidebarMenuButton asChild isActive={selectedUser === user.id} onClick={() => onSelectUser(user.id)}>
-                                        <div className="flex items-center w-full gap-3">
-                                            <span className="font-medium truncate">{user.name}</span>
-                                        </div>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-            </SidebarContent>
+                    <SidebarContent>
+                        <SidebarGroup>
+                            <SidebarGroupLabel>Recent Chat History</SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenu>
+                                    {filteredUsers.map((user) => (
+                                        <SidebarMenuItem key={user.id}>
+                                            <SidebarMenuButton asChild isActive={selectedUser === user.id} onClick={() => onSelectUser(user.id)}>
+                                                <div className="flex items-center w-full gap-3">
+                                                    <span className="font-medium truncate">{user.name}</span>
+                                                </div>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    ))}
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    </SidebarContent>
 
-            {/* <SidebarFooter>
+                    {/* <SidebarFooter>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild>
@@ -120,7 +130,10 @@ export default function UserSidebar({ onSelectUser, selectedUser }: UserSidebarP
                 </SidebarMenu>
             </SidebarFooter> */}
 
-            <SidebarRail />
-        </Sidebar>
+                    <SidebarRail />
+                </Sidebar>
+                <SidebarTrigger />
+            </ThemeProvider>
+        </div>
     )
 }
