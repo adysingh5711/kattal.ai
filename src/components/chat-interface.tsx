@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from "react"
 import { Button } from "./ui/button"
-import { Input } from "./ui/input"
 // import { Avatar } from "./ui/avatar"
 import { ScrollArea } from "./ui/scroll-area"
 import { Send } from "lucide-react"
@@ -30,6 +29,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
         const [isTyping, setIsTyping] = useState(false)
         const messagesEndRef = useRef<HTMLDivElement>(null)
         const inputRef = useRef<HTMLInputElement>(null)
+        const textareaRef = inputRef as React.MutableRefObject<HTMLTextAreaElement | null>;
 
         useImperativeHandle(ref, () => ({
             focusInput: () => {
@@ -145,7 +145,12 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                             : "bg-muted rounded-bl-none"
                                             }`}
                                     >
-                                        <p>{message.content}</p>
+                                        <p>{message.content.split('\n').map((line, idx, arr) => (
+                                            <>
+                                                {line}
+                                                {idx < arr.length - 1 && <br />}
+                                            </>
+                                        ))}</p>
                                         <div
                                             className={`text-xs mt-1 ${message.sender === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
                                                 }`}
@@ -186,15 +191,43 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                             <Image className="w-5 h-5" />
                         </Button> */}
                             <div className="relative flex-1">
-                                <Input
-                                    ref={inputRef}
+                                <textarea
+                                    ref={textareaRef}
                                     value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
+                                    onChange={e => {
+                                        setInputValue(e.target.value)
+                                        // Auto-grow
+                                        const el = e.target as HTMLTextAreaElement
+                                        el.style.height = 'auto';
+                                        el.style.height = Math.min(el.scrollHeight, el.parentElement?.offsetHeight ? el.parentElement.offsetHeight * 0.4 : 200) + 'px';
+                                    }}
                                     placeholder="Type a message..."
-                                    className="pr-10 rounded-full"
-                                    onKeyDown={(e) => {
+                                    className="pr-10 rounded-2xl resize-none w-full min-h-[40px] max-h-[40vh] bg-background border border-input px-4 py-2 text-base shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-colors"
+                                    style={{
+                                        overflowY: 'auto',
+                                        height: 'auto',
+                                        maxHeight: '40vh',
+                                        lineHeight: '1.5',
+                                    }}
+                                    rows={1}
+                                    onKeyDown={e => {
                                         if (e.key === "Enter") {
-                                            handleSendMessage()
+                                            if (e.ctrlKey) {
+                                                handleSendMessage();
+                                                e.preventDefault();
+                                            } else {
+                                                // Insert newline (Enter or Shift+Enter)
+                                                const target = e.target as HTMLTextAreaElement;
+                                                const start = target.selectionStart || 0;
+                                                const end = target.selectionEnd || 0;
+                                                const newValue = inputValue.slice(0, start) + "\n" + inputValue.slice(end);
+                                                setInputValue(newValue);
+                                                // Move cursor after newline
+                                                setTimeout(() => {
+                                                    target.selectionStart = target.selectionEnd = start + 1;
+                                                }, 0);
+                                                e.preventDefault();
+                                            }
                                         }
                                     }}
                                 />
