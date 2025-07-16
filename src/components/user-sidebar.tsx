@@ -17,58 +17,48 @@ import {
     SidebarMenuItem,
     // SidebarRail,
     SidebarTrigger,
+    useSidebar,
 } from "./ui/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ScrollArea } from "./ui/scroll-area";
 
-// Sample chat history data
-const initialChatHistories = [
-    {
-        id: "1",
-        title: "Emma Thompson"
-    },
-    {
-        id: "2",
-        title: "James Wilson"
-    },
-    {
-        id: "3",
-        title: "Sophia Martinez"
-    },
-    {
-        id: "4",
-        title: "Liam Johnson"
-    },
-    {
-        id: "5",
-        title: "Olivia Davis"
-    },
-]
-
 type ChatHistorySidebarProps = {
     onSelectChat: (chatId: string) => void
     selectedChat: string | null
+    chatHistories: { id: string, title: string }[]
+    setChatHistories: (chats: { id: string, title: string }[]) => void
+    addChat: () => void
 }
 
-export default function ChatHistorySidebar({ onSelectChat, selectedChat }: ChatHistorySidebarProps) {
-    const [chatHistories, setChatHistories] = useState(initialChatHistories)
+export default function ChatHistorySidebar({ onSelectChat, selectedChat, chatHistories, setChatHistories, addChat }: ChatHistorySidebarProps) {
+    // Remove internal chatHistories state
     const [searchQuery] = useState("")
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editValue, setEditValue] = useState("")
+    const sidebar = useSidebar();
 
     const filteredChats = chatHistories.filter((chat) => chat.title.toLowerCase().includes(searchQuery.toLowerCase()))
 
-    const handleAddChat = () => {
-        const newId = (Math.max(0, ...chatHistories.map(c => parseInt(c.id))) + 1).toString()
-        const newChat = { id: newId, title: `New Chat ${newId}` }
-        setChatHistories([newChat, ...chatHistories])
-        setEditingId(newId)
-        setEditValue(newChat.title)
-    }
+    // Remove handleAddChat, use addChat from props
 
     const handleRename = (id: string) => {
-        setChatHistories(chats => chats.map(chat => chat.id === id ? { ...chat, title: editValue } : chat))
+        setChatHistories(chatHistories.map(chat => chat.id === id ? { ...chat, title: editValue } : chat))
         setEditingId(null)
+    }
+
+    const handleNewChat = () => {
+        addChat();
+        // Close sidebar if on mobile
+        if (sidebar.isMobile) {
+            sidebar.setOpenMobile(false);
+        }
+    }
+
+    const handleSelectChat = (chatId: string) => {
+        onSelectChat(chatId);
+        if (sidebar.isMobile) {
+            sidebar.setOpenMobile(false);
+        }
     }
 
     return (
@@ -87,7 +77,7 @@ export default function ChatHistorySidebar({ onSelectChat, selectedChat }: ChatH
                                 <h2 className="font-semibold">Trivandrum Chat</h2>
                             </div>
                             <SidebarTrigger />
-                            <Button variant="ghost" size="icon" className="rounded-full" onClick={handleAddChat}>
+                            <Button variant="ghost" size="icon" className="rounded-full" onClick={handleNewChat}>
                                 <Plus className="w-5 h-5" />
                             </Button>
                         </div>
@@ -112,7 +102,7 @@ export default function ChatHistorySidebar({ onSelectChat, selectedChat }: ChatH
                                     <SidebarMenu>
                                         {filteredChats.map((chat) => (
                                             <SidebarMenuItem key={chat.id}>
-                                                <SidebarMenuButton asChild isActive={selectedChat === chat.id} onClick={() => onSelectChat(chat.id)}>
+                                                <SidebarMenuButton asChild isActive={selectedChat === chat.id} onClick={() => handleSelectChat(chat.id)}>
                                                     <div className="flex items-center w-full gap-3">
                                                         {editingId === chat.id ? (
                                                             <input

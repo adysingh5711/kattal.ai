@@ -1,15 +1,56 @@
 "use client"
 
-import { useState } from "react"
-import ChatInterface from "@/components/chat-interface"
+import { useState, useEffect, useCallback, useRef } from "react"
+import ChatInterface, { ChatInterfaceHandle } from "@/components/chat-interface"
 import ChatHistorySidebar from "@/components/user-sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ModeToggle } from "@/components/mode-toggle";
 
-export default function Home() {
-    const [selectedChat, setSelectedChat] = useState<string | null>(null)
+// Move initial chat list here
+const initialChatHistories = [
+    { id: "1", title: "Emma Thompson" },
+    { id: "2", title: "James Wilson" },
+    { id: "3", title: "Sophia Martinez" },
+    { id: "4", title: "Liam Johnson" },
+    { id: "5", title: "Olivia Davis" },
+]
 
+export default function Home() {
+    const [chatHistories, setChatHistories] = useState(initialChatHistories)
+    const [selectedChat, setSelectedChat] = useState<string | null>(null)
+    const chatInterfaceRef = useRef<ChatInterfaceHandle>(null)
+
+    // Add chat and select it, then focus input
+    const addChat = useCallback(() => {
+        const newId = (Math.max(0, ...chatHistories.map(c => parseInt(c.id))) + 1).toString()
+        const newChat = { id: newId, title: `New Chat ${newId}` }
+        setChatHistories([newChat, ...chatHistories])
+        setSelectedChat(newId)
+        // Focus input after state updates
+        setTimeout(() => {
+            chatInterfaceRef.current?.focusInput()
+        }, 0)
+        return newId
+    }, [chatHistories])
+
+    // On mount, if no chat is selected, create and select a new chat and focus input
+    useEffect(() => {
+        if (!selectedChat) {
+            addChat()
+        }
+    }, [selectedChat, addChat])
+
+    // Focus input when chat is selected
+    useEffect(() => {
+        if (selectedChat) {
+            setTimeout(() => {
+                chatInterfaceRef.current?.focusInput()
+            }, 0)
+        }
+    }, [selectedChat])
+
+    // Pass addChat to sidebar for use in "New Chat" button
     return (
         <main className="flex min-h-screen">
             <ThemeProvider
@@ -22,12 +63,18 @@ export default function Home() {
                     <ModeToggle />
                 </div>
                 <SidebarProvider>
-                    <div className="mt-6">
-                        <ChatHistorySidebar onSelectChat={setSelectedChat} selectedChat={selectedChat} />
+                    <div className="mt-6 ml-4">
+                        <ChatHistorySidebar
+                            onSelectChat={setSelectedChat}
+                            selectedChat={selectedChat}
+                            chatHistories={chatHistories}
+                            setChatHistories={setChatHistories}
+                            addChat={addChat}
+                        />
                     </div>
                     <div className="flex items-center justify-center flex-1 p-4">
                         <div className="w-full max-w-4xl h-[80vh] shadow-xl rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 mt-[50px]">
-                            <ChatInterface selectedChatId={selectedChat} />
+                            <ChatInterface ref={chatInterfaceRef} selectedChatId={selectedChat} />
                         </div>
                     </div>
                 </SidebarProvider>
