@@ -18,6 +18,7 @@
         "name": "next"
       }
     ],
+    "forceConsistentCasingInFileNames": true, //This will help prevent issues related to file name casing differences across operating systems
     "paths": {
       "@/*": ["./src/*"]
     }

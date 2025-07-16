@@ -133,3 +133,10 @@
 .animate-delay-300 {
   animation-delay: 300ms;
 }
+
+.chat-textarea {
+  overflow-y: auto;
+  height: auto;
+  max-height: 40vh;
+  line-height: 1.5;
+}

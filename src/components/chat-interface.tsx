@@ -30,6 +30,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
         const messagesEndRef = useRef<HTMLDivElement>(null)
         const inputRef = useRef<HTMLInputElement>(null)
         const textareaRef = inputRef as React.MutableRefObject<HTMLTextAreaElement | null>;
+        const chatContainerRef = useRef<HTMLDivElement>(null)
 
         useImperativeHandle(ref, () => ({
             focusInput: () => {
@@ -68,9 +69,12 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
         const handleSendMessage = () => {
             if (!selectedChatId || inputValue.trim() === "") return
 
+            // Trim trailing spaces and newlines
+            const trimmedContent = inputValue.replace(/\s+$/, '')
+
             const userMessage: Message = {
                 id: Date.now().toString(),
-                content: inputValue,
+                content: trimmedContent,
                 sender: "user",
             }
 
@@ -81,10 +85,15 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
             setInputValue("")
             setIsTyping(true)
 
+            // Reset textarea height
+            if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto';
+            }
+
             setTimeout(() => {
                 const assistantMessage: Message = {
                     id: (Date.now() + 1).toString(),
-                    content: `I received your message: "${inputValue}"`,
+                    content: `I received your message: "${trimmedContent}"`,
                     sender: "assistant",
                 }
                 setChatHistories(prev => ({
@@ -96,7 +105,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
         }
 
         return (
-            <div className="bg-background flex flex-col h-full">
+            <div ref={chatContainerRef} className="bg-background flex flex-col h-full">
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="system"
@@ -135,7 +144,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     </div> */}
 
                     {/* Messages */}
-                    <ScrollArea className="scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-700 flex-1 h-full p-4 overflow-y-auto">
+                    <ScrollArea className="flex-1 h-full p-4 overflow-y-auto">
                         <div className="space-y-4">
                             {messages.map((message) => (
                                 <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
@@ -182,7 +191,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     </ScrollArea>
 
                     {/* Input */}
-                    <div className="p-4 border-t">
+                    <div className="p-4">
                         <div className="flex items-center gap-2">
                             {/* <Button variant="outline" size="icon" className="rounded-full">
                             <Paperclip className="w-5 h-5" />
@@ -196,18 +205,21 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                     value={inputValue}
                                     onChange={e => {
                                         setInputValue(e.target.value)
-                                        // Auto-grow
+                                        // Auto-grow with 40% of chat window height limit
                                         const el = e.target as HTMLTextAreaElement
                                         el.style.height = 'auto';
-                                        el.style.height = Math.min(el.scrollHeight, el.parentElement?.offsetHeight ? el.parentElement.offsetHeight * 0.4 : 200) + 'px';
+
+                                        // Calculate 40% of chat container height
+                                        const chatHeight = chatContainerRef.current?.offsetHeight || 600;
+                                        const maxHeight = chatHeight * 0.4;
+
+                                        el.style.height = Math.min(el.scrollHeight, maxHeight) + 'px';
                                     }}
                                     placeholder="Type a message..."
-                                    className="pr-10 rounded-2xl resize-none w-full min-h-[40px] max-h-[40vh] bg-background border border-input px-4 py-2 text-base shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-colors"
+                                    className="chat-textarea pr-10 rounded-2xl resize-none w-full min-h-[40px] bg-background border border-input px-4 py-2 text-base shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-colors overflow-hidden"
                                     style={{
-                                        overflowY: 'auto',
-                                        height: 'auto',
-                                        maxHeight: '40vh',
-                                        lineHeight: '1.5',
+                                        scrollbarWidth: 'none',
+                                        msOverflowStyle: 'none'
                                     }}
                                     rows={1}
                                     onKeyDown={e => {
@@ -225,6 +237,11 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                                 // Move cursor after newline
                                                 setTimeout(() => {
                                                     target.selectionStart = target.selectionEnd = start + 1;
+                                                    // Trigger resize
+                                                    target.style.height = 'auto';
+                                                    const chatHeight = chatContainerRef.current?.offsetHeight || 600;
+                                                    const maxHeight = chatHeight * 0.4;
+                                                    target.style.height = Math.min(target.scrollHeight, maxHeight) + 'px';
                                                 }, 0);
                                                 e.preventDefault();
                                             }

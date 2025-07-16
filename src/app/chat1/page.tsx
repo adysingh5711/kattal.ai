@@ -50,6 +50,25 @@ export default function Home() {
         }
     }, [selectedChat])
 
+    // Custom handler to always focus input on tab click
+    const handleSelectChat = useCallback((chatId: string) => {
+        setSelectedChat(prev => {
+            if (prev !== chatId) {
+                return chatId;
+            } else {
+                // If re-clicking the same tab, still focus input
+                setTimeout(() => {
+                    chatInterfaceRef.current?.focusInput();
+                }, 0);
+                return prev;
+            }
+        });
+        // Always focus input (also covers first click)
+        setTimeout(() => {
+            chatInterfaceRef.current?.focusInput();
+        }, 0);
+    }, []);
+
     // Pass addChat to sidebar for use in "New Chat" button
     return (
         <main className="flex min-h-screen">
@@ -65,7 +84,7 @@ export default function Home() {
                 <SidebarProvider>
                     <div className="mt-6 ml-4">
                         <ChatHistorySidebar
-                            onSelectChat={setSelectedChat}
+                            onSelectChat={handleSelectChat}
                             selectedChat={selectedChat}
                             chatHistories={chatHistories}
                             setChatHistories={setChatHistories}
