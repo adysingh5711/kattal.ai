@@ -7,6 +7,7 @@ import WordReveal from "@/components/word-reveal";
 import { SoundWaveAnimation } from '@/components/sound-wave-animation';
 import { ThemeProvider } from "@/components/theme-provider"
 import { ModeToggle } from "@/components/mode-toggle";
+import Balancer from 'react-wrap-balancer';
 
 
 export default function Home() {
@@ -42,24 +43,27 @@ export default function Home() {
 
         <main className="flex flex-col gap-[36px] row-start-2 items-center z-10">
           <div className="text-center">
-            <SplitText
-              text="Know Your District,"
-              className="sm:text-6xl inline text-4xl font-bold text-center text-white"
-              onLetterAnimationComplete={() => { }}
-            />
-            <SplitText
-              text="Instantly"
-              className={`${pacifico.className} text-center inline text-4xl font-bold sm:text-6xl`}
-              splitType="words"
-              wordClassName="bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-indigo-400 to-sky-300 dark:from-indigo-400 via-white/90 to-rose-400"
-              onLetterAnimationComplete={() => { }}
-            />
+            <Balancer>
+              <SplitText
+                text="Know Your District,"
+                className="sm:text-6xl inline text-4xl font-bold text-center text-white"
+                onLetterAnimationComplete={() => { }}
+              />
+              <SplitText
+                text="Instantly"
+                className={`${pacifico.className} text-center inline text-4xl font-bold sm:text-6xl`}
+                splitType="words"
+                wordClassName="bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-indigo-400 to-sky-300 dark:from-indigo-400 via-white/90 to-rose-400"
+                onLetterAnimationComplete={() => { }}
+              />
+            </Balancer>
           </div>
-
-          <WordReveal
-            text="Understand development, services, and statistics through natural conversation."
-            className={`${playfair.className} text-center italic text-yellow-300 text-lg leading-relaxed z-100`}
-          />
+          <Balancer>
+            <WordReveal
+              text="Understand development, services, and statistics through natural conversation."
+              className={`${playfair.className} text-center italic text-yellow-300 text-lg leading-relaxed z-100`}
+            />
+          </Balancer>
 
           <div className="sm:flex-row flex flex-col items-center gap-4">
             <a

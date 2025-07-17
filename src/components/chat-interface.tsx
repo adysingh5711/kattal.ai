@@ -224,29 +224,34 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                     rows={1}
                                     onKeyDown={e => {
                                         if (e.key === "Enter") {
-                                            if (e.ctrlKey) {
-                                                handleSendMessage();
-                                                e.preventDefault();
-                                            } else {
-                                                // Insert newline (Enter or Shift+Enter)
+                                            if (e.shiftKey) {
+                                                // Shift+Enter inserts newline
                                                 const target = e.target as HTMLTextAreaElement;
                                                 const start = target.selectionStart || 0;
                                                 const end = target.selectionEnd || 0;
                                                 const newValue = inputValue.slice(0, start) + "\n" + inputValue.slice(end);
                                                 setInputValue(newValue);
-                                                // Move cursor after newline
+
                                                 setTimeout(() => {
                                                     target.selectionStart = target.selectionEnd = start + 1;
-                                                    // Trigger resize
+                                                    // Resize textarea if needed
                                                     target.style.height = 'auto';
                                                     const chatHeight = chatContainerRef.current?.offsetHeight || 600;
                                                     const maxHeight = chatHeight * 0.4;
                                                     target.style.height = Math.min(target.scrollHeight, maxHeight) + 'px';
                                                 }, 0);
-                                                e.preventDefault();
+
+                                                e.preventDefault(); // prevent form submit or other default
+                                            } else {
+                                                // Enter or Ctrl+Enter sends message
+                                                if (e.ctrlKey || !e.shiftKey) {
+                                                    handleSendMessage();
+                                                    e.preventDefault();
+                                                }
                                             }
                                         }
                                     }}
+
                                 />
                                 {/* <Button variant="ghost" size="icon" className="right-1 top-1/2 absolute -translate-y-1/2 rounded-full">
                                 <Mic className="w-5 h-5" />
