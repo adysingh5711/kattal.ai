@@ -44,6 +44,28 @@ export default function Home() {
         }
     }, [selectedChat])
 
+    // Listen for chat title update events
+    useEffect(() => {
+        const handleUpdateChatTitle = (event: CustomEvent) => {
+            const { chatId, title } = event.detail;
+            if (chatId && title) {
+                setChatHistories(prev =>
+                    prev.map(chat =>
+                        chat.id === chatId ? { ...chat, title } : chat
+                    )
+                );
+            }
+        };
+
+        // Add event listener
+        window.addEventListener('updateChatTitle', handleUpdateChatTitle as EventListener);
+
+        // Clean up
+        return () => {
+            window.removeEventListener('updateChatTitle', handleUpdateChatTitle as EventListener);
+        };
+    }, []);
+
     // Custom handler to always focus input on tab click
     const handleSelectChat = useCallback((chatId: string) => {
         setSelectedChat(prev => {

@@ -29,13 +29,12 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
         const [inputValue, setInputValue] = useState("")
         const [isTyping, setIsTyping] = useState(false)
         const messagesEndRef = useRef<HTMLDivElement>(null)
-        const inputRef = useRef<HTMLInputElement>(null)
-        const textareaRef = inputRef as React.RefObject<HTMLTextAreaElement>;
+        const textareaRef = useRef<HTMLTextAreaElement>(null)
         const chatContainerRef = useRef<HTMLDivElement>(null)
 
         useImperativeHandle(ref, () => ({
             focusInput: () => {
-                inputRef.current?.focus()
+                textareaRef.current?.focus()
             }
         }))
 
@@ -77,6 +76,23 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                 id: Date.now().toString(),
                 content: trimmedContent,
                 sender: "user",
+            }
+
+            // Check if this is the first user message in this chat
+            const isFirstUserMessage = !chatHistories[selectedChatId]?.some(msg => msg.sender === "user")
+
+            // If it's the first user message, update the chat title
+            if (isFirstUserMessage) {
+                // Extract first four words for the chat title
+                const words = trimmedContent.split(/\s+/)
+                const titleWords = words.slice(0, 4)
+                const newTitle = titleWords.join(' ')
+
+                // Dispatch a custom event to update the chat title
+                const updateTitleEvent = new CustomEvent('updateChatTitle', {
+                    detail: { chatId: selectedChatId, title: newTitle }
+                })
+                window.dispatchEvent(updateTitleEvent)
             }
 
             setChatHistories(prev => ({
@@ -162,10 +178,10 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                             }`}
                                     >
                                         <p>{message.content.split('\n').map((line, idx, arr) => (
-                                            <>
+                                            <span key={`${message.id}-line-${idx}`}>
                                                 {line}
                                                 {idx < arr.length - 1 && <br />}
-                                            </>
+                                            </span>
                                         ))}</p>
                                         <div
                                             className={`text-xs mt-1 ${message.sender === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
