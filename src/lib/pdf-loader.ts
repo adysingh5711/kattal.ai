@@ -9,42 +9,32 @@ export async function getChunkedDocsFromPDF() {
     try {
         let allDocs: Document[] = [];
 
-        // Check if PDF_PATH is a directory or a specific file
-        if (env.PDF_PATH.includes('*')) {
-            // Handle directory with multiple PDFs
-            const dirPath = env.PDF_PATH.replace('/*', '');
+        // Get file paths
+        const files = getFilePaths();
+        console.log(`Found ${files.length} PDF files`);
 
-            if (fs.existsSync(dirPath)) {
-                const files = fs.readdirSync(dirPath)
-                    .filter(file => file.toLowerCase().endsWith('.pdf'))
-                    .map(file => path.join(dirPath, file));
+        if (files.length === 0) {
+            throw new Error(`No PDF files found at path: ${env.PDF_PATH}`);
+        }
 
-                console.log(`Found ${files.length} PDF files in ${dirPath}`);
+        // Process each PDF file
+        for (const file of files) {
+            try {
+                console.log(`Processing PDF: ${file}`);
 
-                // Process each PDF file
-                for (const file of files) {
-                    try {
-                        console.log(`Processing PDF: ${file}`);
-                        const loader = new PDFLoader(file);
-                        const docs = await loader.load();
-                        allDocs = [...allDocs, ...docs];
-                    } catch (fileError) {
-                        console.error(`Error processing PDF ${file}:`, fileError);
-                        // Continue with other files even if one fails
-                    }
-                }
-            } else {
-                throw new Error(`Directory not found: ${dirPath}`);
+                // Use PDFLoader with specific options for better cross-platform compatibility
+                const loader = new PDFLoader(file, {
+                    splitPages: true,
+                    pdfjs: () => import("pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js")
+                });
+
+                const docs = await loader.load();
+                console.log(`Loaded ${docs.length} pages from ${path.basename(file)}`);
+                allDocs = [...allDocs, ...docs];
+            } catch (fileError) {
+                console.error(`Error processing PDF ${file}:`, fileError);
+                // Continue with other files even if one fails
             }
-        } else {
-            // Handle single PDF file
-            if (!fs.existsSync(env.PDF_PATH)) {
-                throw new Error(`PDF file not found: ${env.PDF_PATH}`);
-            }
-
-            console.log(`Processing single PDF: ${env.PDF_PATH}`);
-            const loader = new PDFLoader(env.PDF_PATH);
-            allDocs = await loader.load();
         }
 
         if (allDocs.length === 0) {
@@ -53,10 +43,22 @@ export async function getChunkedDocsFromPDF() {
 
         console.log(`Successfully loaded ${allDocs.length} document sections`);
 
-        // From the docs https://www.pinecone.io/learn/chunking-strategies/
+        // Enhanced text splitter for multilingual content
         const textSplitter = new RecursiveCharacterTextSplitter({
             chunkSize: 1000,
             chunkOverlap: 200,
+            separators: [
+                '\n\n',
+                '\n',
+                '।', // Malayalam sentence separator
+                '.',
+                '!',
+                '?',
+                ';',
+                ':',
+                ' ',
+                ''
+            ]
         });
 
         const chunkedDocs = await textSplitter.splitDocuments(allDocs);
@@ -67,5 +69,19 @@ export async function getChunkedDocsFromPDF() {
         console.error("PDF docs chunking failed:", e);
         const errorMessage = e instanceof Error ? e.message : 'Unknown error';
         throw new Error(`PDF docs chunking failed: ${errorMessage}`);
+    }
+}
+
+function getFilePaths(): string[] {
+    if (env.PDF_PATH.includes('*')) {
+        const dirPath = env.PDF_PATH.replace('/*', '');
+        if (fs.existsSync(dirPath)) {
+            return fs.readdirSync(dirPath)
+                .filter(file => file.toLowerCase().endsWith('.pdf'))
+                .map(file => path.join(dirPath, file));
+        }
+        return [];
+    } else {
+        return fs.existsSync(env.PDF_PATH) ? [env.PDF_PATH] : [];
     }
 }

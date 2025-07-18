@@ -6,8 +6,8 @@ dotenv.config();
 const envSchema = z.object({
     OPENAI_API_KEY: z.string().trim().min(1, 'OPENAI_API_KEY is required'),
     OPENROUTER_API_KEY: z.string().trim().min(1, 'OPENROUTER_API_KEY is required'),
-    PINECONE_API_KEY: z.string().trim().min(1, 'PINECONE_API_KEY is required'),
     AWS_API_KEY: z.string().trim().min(1, 'AWS_API_KEY is required'),
+    PINECONE_API_KEY: z.string().trim().min(1, 'PINECONE_API_KEY is required'),
     PINECONE_ENVIRONMENT: z.string().trim().min(1, 'PINECONE_ENVIRONMENT is required'),
     PINECONE_INDEX_NAME: z.string().trim().min(1, 'PINECONE_INDEX_NAME is required'),
     PDF_PATH: z.string().trim().min(1, 'PDF_PATH is required'),
