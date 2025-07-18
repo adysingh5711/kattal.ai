@@ -9,7 +9,7 @@ async function createIndex(client: Pinecone, indexName: string) {
     try {
         await client.createIndex({
             name: indexName,
-            dimension: 1536,
+            dimension: 768, // Changed from 1536 to 768 for Ollama's nomic-embed-text model
             metric: "cosine",
             spec: {
                 serverless: {

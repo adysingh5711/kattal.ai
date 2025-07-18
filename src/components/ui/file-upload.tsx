@@ -35,7 +35,9 @@ export const FileUpload = ({
 
   const handleFileChange = (newFiles: File[]) => {
     setFiles((prevFiles) => [...prevFiles, ...newFiles]);
-    onChange && onChange(newFiles);
+    if (onChange) {
+      onChange(newFiles);
+    }
   };
 
   const handleClick = () => {
@@ -46,9 +48,13 @@ export const FileUpload = ({
     multiple: false,
     noClick: true,
     onDrop: handleFileChange,
-    onDropRejected: (error) => {
-      console.log(error);
+    onDropRejected: (fileRejections) => {
+      console.log(fileRejections);
     },
+    // Required drag event handlers with void return type to avoid ESLint errors
+    onDragEnter: () => void 0,
+    onDragOver: () => void 0,
+    onDragLeave: () => void 0
   });
 
   return (
@@ -58,12 +64,17 @@ export const FileUpload = ({
         whileHover="animate"
         className="group/file relative block w-full p-10 overflow-hidden rounded-lg cursor-pointer"
       >
+        <label htmlFor="file-upload-handle" className="sr-only">Upload PDF file</label>
         <input
           ref={fileInputRef}
           id="file-upload-handle"
           type="file"
-          onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFileChange(Array.from(e.target.files || []))}
           className="hidden"
+          aria-label="Upload file"
+          title="Upload file"
+          accept=".pdf"
+          placeholder="Choose a file"
         />
         <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]">
           <GridPattern />

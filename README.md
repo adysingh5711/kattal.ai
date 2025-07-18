@@ -14,9 +14,21 @@ This is a Next.js application that allows users to chat with their PDF documents
 ### Prerequisites
 
 - Node.js 18+ and npm
-- OpenAI API key
+- Ollama installed locally (for embeddings)
 - Pinecone API key
 - PDF document to process
+
+### Ollama Setup
+
+1. Install Ollama from [https://ollama.com/download](https://ollama.com/download)
+
+2. After installation, pull the required embedding model:
+
+```bash
+ollama pull nomic-embed-text
+```
+
+3. Ensure Ollama is running in the background before starting the application. The default URL is http://localhost:11434.
 
 ### Environment Setup
 
@@ -24,7 +36,6 @@ This is a Next.js application that allows users to chat with their PDF documents
 
 ```bash
 # Required from external tools
-OPENAI_API_KEY=your_openai_api_key
 PINECONE_API_KEY=your_pinecone_api_key
 
 # Usually for free pinecone account env is "us-west4-gcp-free"
@@ -33,12 +44,14 @@ PINECONE_ENVIRONMENT=your_pinecone_environment
 # The index can be created directly or will be created when you run prepare-data npm command
 PINECONE_INDEX_NAME=your_index_name
 
-# Path to your PDF file
-PDF_PATH=path/to/your/document.pdf
+# Path to your PDF file(s)
+PDF_PATH=path/to/your/documents/*.pdf
 
 # Pinecone index creation requires time so hence we wait for 3 minutes
 INDEX_INIT_TIMEOUT=240000
 ```
+
+Note: The OPENAI_API_KEY is still required for chat completions but not for embeddings, which now use Ollama locally.
 
 ### Installation
 
@@ -67,7 +80,7 @@ npm run dev
 ## How It Works
 
 1. The PDF document is loaded and split into chunks using LangChain's document loaders and text splitters.
-2. Each chunk is embedded using OpenAI's embedding model and stored in Pinecone.
+2. Each chunk is embedded using Ollama's local embedding model (nomic-embed-text) and stored in Pinecone.
 3. When a user asks a question, the application:
    - Retrieves relevant document chunks from Pinecone based on the question
    - Passes the retrieved context along with the question to the LLM
@@ -78,7 +91,7 @@ npm run dev
 - Next.js 14+ with App Router
 - LangChain for document processing and RAG (Retrieval Augmented Generation)
 - Pinecone for vector storage
-- OpenAI for embeddings and chat completions
+- Ollama for local embeddings
 - Tailwind CSS for styling
 - shadcn/ui components
 
