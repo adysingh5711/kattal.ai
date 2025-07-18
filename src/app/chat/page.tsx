@@ -5,16 +5,10 @@ import ChatInterface, { ChatInterfaceHandle } from "@/components/chat-interface"
 import ChatHistorySidebar from "@/components/user-sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
-import { ModeToggle } from "@/components/mode-toggle";
+import { ModeToggle } from "@/components/mode-toggle"
 
 // Move initial chat list here
-const initialChatHistories = [
-    { id: "1", title: "Emma Thompson" },
-    { id: "2", title: "James Wilson" },
-    { id: "3", title: "Sophia Martinez" },
-    { id: "4", title: "Liam Johnson" },
-    { id: "5", title: "Olivia Davis" },
-]
+const initialChatHistories: { id: string; title: string }[] = []
 
 export default function Home() {
     const [chatHistories, setChatHistories] = useState(initialChatHistories)

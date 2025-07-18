@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callChain } from "@/lib/langchain";
-import { Message } from "ai";
+
+// Define our own Message type to match what's being sent from the client
+interface Message {
+    role: "user" | "assistant";
+    content: string;
+}
 
 const formatMessage = (message: Message) => {
-    return `${message.role === "user" ? "Human" : "Assistant"}: ${message.content
-        }`;
+    return `${message.role === "user" ? "Human" : "Assistant"}: ${message.content}`;
 };
 
 export async function POST(req: NextRequest) {
@@ -23,16 +27,17 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const streamingTextResponse = callChain({
+        const result = await callChain({
             question,
             chatHistory: formattedPreviousMessages.join("\n"),
         });
 
-        return streamingTextResponse;
+        return NextResponse.json(result);
     } catch (error) {
         console.error("Internal server error ", error);
-        return NextResponse.json("Error: Something went wrong. Try again!", {
-            status: 500,
-        });
+        return NextResponse.json(
+            { error: "Something went wrong. Try again!" },
+            { status: 500 }
+        );
     }
 }

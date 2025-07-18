@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PDF Chat Application
+
+This is a Next.js application that allows users to chat with their PDF documents using AI. The application uses LangChain, Pinecone for vector storage, and OpenAI for embeddings and chat completions.
+
+## Features
+
+- Chat interface with AI assistant
+- PDF document processing and embedding
+- Vector search using Pinecone
+- Responsive UI with dark/light mode support
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ and npm
+- OpenAI API key
+- Pinecone API key
+- PDF document to process
+
+### Environment Setup
+
+1. Copy the `.env` file and fill in the required values:
+
+```bash
+# Required from external tools
+OPENAI_API_KEY=your_openai_api_key
+PINECONE_API_KEY=your_pinecone_api_key
+
+# Usually for free pinecone account env is "us-west4-gcp-free"
+PINECONE_ENVIRONMENT=your_pinecone_environment
+
+# The index can be created directly or will be created when you run prepare-data npm command
+PINECONE_INDEX_NAME=your_index_name
+
+# Path to your PDF file
+PDF_PATH=path/to/your/document.pdf
+
+# Pinecone index creation requires time so hence we wait for 3 minutes
+INDEX_INIT_TIMEOUT=240000
+```
+
+### Installation
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Prepare the PDF data:
+
+```bash
+npm run prepare:data
+```
+
+This will process your PDF document, create chunks, generate embeddings, and store them in Pinecone.
+
+3. Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000/chat](http://localhost:3000/chat) with your browser to start chatting with your PDF document.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How It Works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. The PDF document is loaded and split into chunks using LangChain's document loaders and text splitters.
+2. Each chunk is embedded using OpenAI's embedding model and stored in Pinecone.
+3. When a user asks a question, the application:
+   - Retrieves relevant document chunks from Pinecone based on the question
+   - Passes the retrieved context along with the question to the LLM
+   - Returns the AI's response to the user
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- Next.js 14+ with App Router
+- LangChain for document processing and RAG (Retrieval Augmented Generation)
+- Pinecone for vector storage
+- OpenAI for embeddings and chat completions
+- Tailwind CSS for styling
+- shadcn/ui components
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Customization
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- To use a different PDF document, update the `PDF_PATH` in your `.env` file and run `npm run prepare:data` again.
+- To modify the chat interface, edit the components in `src/components/`.
+- To change the AI model or parameters, update the configuration in `src/lib/llm.ts`.

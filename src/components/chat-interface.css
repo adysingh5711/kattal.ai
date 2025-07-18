@@ -1,0 +1,45 @@
+/* Chat interface styles */
+.chat-textarea {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.chat-textarea::-webkit-scrollbar {
+    display: none;
+}
+
+.typing-indicator {
+    display: flex;
+    gap: 4px;
+}
+
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: rgba(156, 163, 175, 0.5);
+}
+
+.typing-dot:nth-child(1) {
+    animation: bounce 1.4s infinite 0ms;
+}
+
+.typing-dot:nth-child(2) {
+    animation: bounce 1.4s infinite 150ms;
+}
+
+.typing-dot:nth-child(3) {
+    animation: bounce 1.4s infinite 300ms;
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-4px);
+    }
+}

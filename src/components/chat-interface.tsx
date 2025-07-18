@@ -7,6 +7,7 @@ import { ScrollArea } from "./ui/scroll-area"
 import { Send } from "lucide-react"
 // import { Paperclip, Mic, Image } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
+import "./chat-interface.css"
 
 type Message = {
     id: string
@@ -29,7 +30,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
         const [isTyping, setIsTyping] = useState(false)
         const messagesEndRef = useRef<HTMLDivElement>(null)
         const inputRef = useRef<HTMLInputElement>(null)
-        const textareaRef = inputRef as React.MutableRefObject<HTMLTextAreaElement | null>;
+        const textareaRef = inputRef as React.RefObject<HTMLTextAreaElement>;
         const chatContainerRef = useRef<HTMLDivElement>(null)
 
         useImperativeHandle(ref, () => ({
@@ -66,7 +67,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
             scrollToBottom()
         }, [messages, scrollToBottom])
 
-        const handleSendMessage = () => {
+        const handleSendMessage = async () => {
             if (!selectedChatId || inputValue.trim() === "") return
 
             // Trim trailing spaces and newlines
@@ -90,18 +91,54 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                 textareaRef.current.style.height = 'auto';
             }
 
-            setTimeout(() => {
+            try {
+                // Get current chat history for context
+                const currentMessages = chatHistories[selectedChatId] || []
+                const allMessages = [...currentMessages, userMessage]
+
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages: allMessages.map(msg => ({
+                            role: msg.sender === 'user' ? 'user' : 'assistant',
+                            content: msg.content
+                        }))
+                    }),
+                })
+
+                if (!response.ok) {
+                    throw new Error('Failed to get response')
+                }
+
+                const data = await response.json()
+
                 const assistantMessage: Message = {
                     id: (Date.now() + 1).toString(),
-                    content: `I received your message: "${trimmedContent}"`,
+                    content: data.text || "Sorry, I couldn't process your request.",
                     sender: "assistant",
                 }
+
                 setChatHistories(prev => ({
                     ...prev,
                     [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage],
                 }))
+            } catch (error) {
+                console.error('Error sending message:', error)
+                const errorMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    content: "Sorry, there was an error processing your request. Please try again.",
+                    sender: "assistant",
+                }
+                setChatHistories(prev => ({
+                    ...prev,
+                    [selectedChatId]: [...(prev[selectedChatId] || []), errorMessage],
+                }))
+            } finally {
                 setIsTyping(false)
-            }, 1500)
+            }
         }
 
         return (
@@ -112,36 +149,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     enableSystem
                     disableTransitionOnChange
                 >
-                    {/* Header */}
-                    {/* <div className="flex items-center p-4 border-b">
-                        {selectedUserData ? (
-                            <>
-                                <Avatar className="w-10 h-10 mr-3">
-                                    <img
-                                    src={selectedUserData.avatar || "/placeholder.svg"}
-                                    alt={selectedUserData.name}
-                                    className="object-cover w-full h-full"
-                                />
-                                </Avatar>
-                                <div>
-                                    <h2 className="font-semibold">{selectedUserData.name}</h2>
-                                    <p className="text-muted-foreground text-xs capitalize">{selectedUserData.status}</p>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <Avatar className="w-10 h-10 mr-3">
-                                    <div className="bg-primary text-primary-foreground flex items-center justify-center w-full h-full font-semibold rounded-full">
-                                        AI
-                                    </div>
-                                </Avatar>
-                                <div>
-                                    <h2 className="font-semibold">AI Assistant</h2>
-                                    <p className="text-muted-foreground text-xs">Always online</p>
-                                </div>
-                            </>
-                        )}
-                    </div> */}
 
                     {/* Messages */}
                     <ScrollArea className="flex-1 h-full p-4 overflow-y-auto">
@@ -217,10 +224,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                     }}
                                     placeholder="Type a message..."
                                     className="chat-textarea pr-10 rounded-2xl resize-none w-full min-h-[40px] bg-background border border-input px-4 py-2 text-base shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-colors overflow-hidden"
-                                    style={{
-                                        scrollbarWidth: 'none',
-                                        msOverflowStyle: 'none'
-                                    }}
                                     rows={1}
                                     onKeyDown={e => {
                                         if (e.key === "Enter") {
