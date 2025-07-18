@@ -35,7 +35,9 @@ export const FileUpload = ({
 
   const handleFileChange = (newFiles: File[]) => {
     setFiles((prevFiles) => [...prevFiles, ...newFiles]);
-    onChange && onChange(newFiles);
+    if (onChange) {
+      onChange(newFiles);
+    }
   };
 
   const handleClick = () => {
@@ -46,9 +48,13 @@ export const FileUpload = ({
     multiple: false,
     noClick: true,
     onDrop: handleFileChange,
-    onDropRejected: (error) => {
-      console.log(error);
+    onDropRejected: (fileRejections) => {
+      console.log(fileRejections);
     },
+    // Adding required props to satisfy TypeScript
+    onDragEnter: () => { },
+    onDragOver: () => { },
+    onDragLeave: () => { },
   });
 
   return (
@@ -62,9 +68,15 @@ export const FileUpload = ({
           ref={fileInputRef}
           id="file-upload-handle"
           type="file"
-          onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFileChange(Array.from(e.target.files || []))}
           className="hidden"
+          aria-label="Upload file"
+          title="Upload file"
+          aria-describedby="file-upload-description"
         />
+        <span id="file-upload-description" className="sr-only">
+          Click or drag and drop to upload PDF files
+        </span>
         <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent)]">
           <GridPattern />
         </div>
