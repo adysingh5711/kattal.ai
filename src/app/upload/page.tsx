@@ -5,8 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ModeToggle } from "@/components/mode-toggle";
 // import { default as LetterGlitch } from "@/components/LetterGlitch/LetterGlitch";
 
-
-const upload = () => {
+const Upload: React.FC = () => {
     return (
         <div className="overflow-x-clip item-align-center justify-center">
             <ThemeProvider
@@ -29,4 +28,4 @@ const upload = () => {
     )
 }
 
-export default upload
+export default Upload
