@@ -7,6 +7,7 @@ import { ScrollArea } from "./ui/scroll-area"
 import { Send } from "lucide-react"
 // import { Paperclip, Mic, Image } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
+import { MarkdownRenderer } from "./markdown-renderer"
 import "./chat-interface.css"
 
 type Message = {
@@ -177,12 +178,19 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                             : "bg-muted rounded-bl-none"
                                             }`}
                                     >
-                                        <p>{message.content.split('\n').map((line, idx, arr) => (
-                                            <span key={`${message.id}-line-${idx}`}>
-                                                {line}
-                                                {idx < arr.length - 1 && <br />}
-                                            </span>
-                                        ))}</p>
+                                        {message.sender === "assistant" ? (
+                                            <MarkdownRenderer
+                                                content={message.content}
+                                                className="text-foreground"
+                                            />
+                                        ) : (
+                                            <p>{message.content.split('\n').map((line, idx, arr) => (
+                                                <span key={`${message.id}-line-${idx}`}>
+                                                    {line}
+                                                    {idx < arr.length - 1 && <br />}
+                                                </span>
+                                            ))}</p>
+                                        )}
                                         <div
                                             className={`text-xs mt-1 ${message.sender === "user" ? "text-primary-foreground/70" : "text-muted-foreground"
                                                 }`}
