@@ -6,6 +6,7 @@ import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { getVectorStore } from "./vector-store";
 import { getPinecone } from "./pinecone-client";
 import { streamingModel, nonStreamingModel } from "./llm";
+import { QA_TEMPLATE } from "./prompt-templates";
 
 type callChainArgs = {
     question: string;
@@ -32,9 +33,9 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             rephrasePrompt: historyAwarePrompt,
         });
 
-        // Create QA chain
+        // Create QA chain with enhanced prompt template
         const qaPrompt = ChatPromptTemplate.fromMessages([
-            ["system", "Answer the user's questions based on the below context:\n\n{context}"],
+            ["system", QA_TEMPLATE],
             new MessagesPlaceholder("chat_history"),
             ["user", "{input}"],
         ]);
