@@ -12,41 +12,44 @@ import Balancer from 'react-wrap-balancer';
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]  hide-scrollbar h-screen">
+    <div className="home-page grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]  hide-scrollbar h-screen">
       <ThemeProvider
         attribute="class"
-        defaultTheme="system"
-        enableSystem
+        // defaultTheme="light"
+        // enableSystem={false} // disable system preference
+        forcedTheme="light"
         disableTransitionOnChange
       >
-        <div className="top-6 right-6 absolute z-50">
+        {/* <div className="top-6 right-6 absolute z-50">
           <ModeToggle />
-        </div>
+        </div> */}
 
         <div className="absolute z-0 w-full h-screen">
           {/* SoundWave Overlap */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none mt-[85%] sm:mt-[28%] overflow-clip z-20">
+          {/* <div className="absolute inset-0 flex items-center justify-center pointer-events-none mt-[85%] sm:mt-[28%] overflow-clip z-20">
             <SoundWaveAnimation />
-          </div>
+          </div> */}
           {/* Overlay Box to Improve Readability */}
-          <div className="absolute inset-0 bg-black"></div>
-          <Image
-            src="/Trivandrum.jpg"
-            alt="Trivandrum"
-            fill
-            className="opacity-60 dark:opacity-40 z-0 object-cover"
-            priority
-          />
+          <div className="absolute inset-0 bg-transparent flex items-end justify-center">
+            <Image
+              src="/BanyanTree.png"
+              alt="BanyanTree"
+              width={1200}
+              height={300}
+              className="opacity-100 dark:opacity-40 z-0 object-cover"
+              priority
+            />
+          </div>
 
         </div>
 
 
         <main className="flex flex-col gap-[36px] row-start-2 items-center z-10">
-          <div className="text-center">
+          <div className="home-text-primary text-center">
             <Balancer>
               <SplitText
                 text="Know Your District,"
-                className="sm:text-6xl inline text-4xl font-bold text-center text-white"
+                className="sm:text-6xl inline text-4xl font-bold text-center text-white home-text-shadow"
                 onLetterAnimationComplete={() => { }}
               />
               <SplitText
@@ -61,76 +64,21 @@ export default function Home() {
           <Balancer>
             <WordReveal
               text="Understand development, services, and statistics through natural conversation."
-              className={`${playfair.className} text-center italic text-yellow-300 text-lg leading-relaxed z-100`}
+              className={`${playfair.className} text-center italic oklch(0.2 0.08 45) sm:text-yellow-300 text-lg leading-relaxed z-100`}
             />
           </Balancer>
 
           <div className="sm:flex-row flex flex-col items-center gap-4">
             <a
-              className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm z-10 sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
+              className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-primary text-primary-foreground gap-2 hover:bg-primary/90 font-medium text-sm z-10 sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto shadow-lg hover:shadow-xl transition-all duration-200"
               href="/chat"
               target=""
               rel="noopener noreferrer"
             >
               Start Chatting
             </a>
-            {/* <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a> */}
           </div>
         </main>
-        {/* <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="hover:underline hover:underline-offset-4 flex items-center gap-2"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="hover:underline hover:underline-offset-4 flex items-center gap-2"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="hover:underline hover:underline-offset-4 flex items-center gap-2"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer> */}
       </ThemeProvider>
     </div >
   );

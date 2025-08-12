@@ -19,6 +19,7 @@ const SplitText = ({
     textAlign = "center",
     onLetterAnimationComplete,
     wordClassName = "",
+    style = undefined,
 }) => {
     const ref = useRef(null);
     const animationCompletedRef = useRef(false);
@@ -150,6 +151,7 @@ const SplitText = ({
                 wordWrap: "break-word",
                 lineHeight: 2,
                 overflow: "visible",
+                ...(style || {}),
             }}
         >
             {text}

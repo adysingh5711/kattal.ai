@@ -5,6 +5,24 @@ import { env } from "./env";
 import fs from 'fs';
 import path from 'path';
 import * as mammoth from 'mammoth';
+// Backward-compat shim: allow using mammoth.extract similar to convertToHtml with explicit types
+type HtmlConversionInput = {
+    buffer: Buffer;
+    convertImage?: ReturnType<typeof mammoth.images.imgElement>;
+};
+type HtmlConversionResult = {
+    value: string;
+    messages: unknown[];
+};
+type MammothCompat = {
+    convertToHtml?: (input: HtmlConversionInput) => Promise<HtmlConversionResult>;
+    extract?: (input: HtmlConversionInput) => Promise<HtmlConversionResult>;
+    images: typeof mammoth.images;
+};
+const mammothAny = mammoth as unknown as MammothCompat;
+if (!mammothAny.extract && mammothAny.convertToHtml) {
+    mammothAny.extract = (input: HtmlConversionInput) => mammothAny.convertToHtml!(input);
+}
 import pdf2pic from "pdf2pic";
 
 // Vision model for image/chart analysis
@@ -14,12 +32,12 @@ const visionModel = new ChatOpenAI({
     openAIApiKey: env.OPENAI_API_KEY,
 });
 
-interface ProcessedContent {
-    textContent: string;
-    tables: string[];
-    images: string[];
-    charts: string[];
-    metadata: Record<string, any>;
+interface VisualAnalysis {
+    visualDescription: string;
+    hasVisuals: boolean;
+    hasTables: boolean;
+    hasCharts: boolean;
+    contentTypes: string[];
 }
 
 export async function processDocumentMultimodal(filePath: string): Promise<Document[]> {
@@ -61,6 +79,13 @@ async function processPDFMultimodal(filePath: string): Promise<Document[]> {
             const pageImage = await convert(pageNum);
             const imagePath = pageImage.path;
 
+            if (!imagePath) {
+                console.warn(`No image path returned for page ${pageNum}; skipping visual analysis.`);
+                // Fallback to text-only for this page
+                docs.push(textDocs[i]);
+                continue;
+            }
+
             // Analyze image with GPT-4o-mini vision
             const visualAnalysis = await analyzePageVisually(imagePath, textContent);
 
@@ -101,8 +126,8 @@ async function processWordMultimodal(filePath: string): Promise<Document[]> {
     const textResult = await mammoth.extractRawText({ buffer });
     const textContent = textResult.value || '';
 
-    // Extract images and convert to base64 for analysis
-    const imageResult = await mammoth.extract({
+    // Extract images and convert to base64 for analysis (using mammoth.extract shim)
+    const imageResult = await mammothAny.extract!({
         buffer,
         convertImage: mammoth.images.imgElement(function (image) {
             return image.read("base64").then(function (imageBuffer) {
@@ -130,7 +155,7 @@ async function processWordMultimodal(filePath: string): Promise<Document[]> {
     })];
 }
 
-async function analyzePageVisually(imagePath: string, textContent: string): Promise<any> {
+async function analyzePageVisually(imagePath: string, textContent: string): Promise<VisualAnalysis> {
     try {
         const imageBuffer = fs.readFileSync(imagePath);
         const base64Image = imageBuffer.toString('base64');
@@ -148,18 +173,18 @@ Provide a structured analysis focusing on information NOT captured in the text.`
 
         const response = await visionModel.invoke([
             {
-                type: "text",
-                text: prompt
-            },
-            {
-                type: "image_url",
-                image_url: {
-                    url: `data:image/png;base64,${base64Image}`
-                }
+                role: "user",
+                content: [
+                    { type: "text", text: prompt },
+                    {
+                        type: "image_url",
+                        image_url: { url: `data:image/png;base64,${base64Image}` }
+                    }
+                ]
             }
         ]);
 
-        const analysis = response.content as string;
+        const analysis = normalizeModelContentToText(response.content);
 
         return {
             visualDescription: analysis,
@@ -181,7 +206,7 @@ Provide a structured analysis focusing on information NOT captured in the text.`
     }
 }
 
-async function analyzeWordDocument(htmlContent: string, textContent: string): Promise<any> {
+async function analyzeWordDocument(htmlContent: string, textContent: string): Promise<VisualAnalysis> {
     // Simple analysis for Word docs - can be enhanced with vision models
     const hasImages = htmlContent.includes('<img');
     const hasTables = textContent.includes('\t') || htmlContent.includes('<table');
@@ -195,7 +220,7 @@ async function analyzeWordDocument(htmlContent: string, textContent: string): Pr
     };
 }
 
-function createEnhancedContent(textContent: string, visualAnalysis: any): string {
+function createEnhancedContent(textContent: string, visualAnalysis: VisualAnalysis): string {
     const sections = [
         `TEXT CONTENT:\n${textContent}`,
     ];
@@ -216,4 +241,20 @@ function extractContentTypes(analysis: string): string[] {
     if (lower.includes('image') || lower.includes('diagram')) types.push('images');
 
     return types;
+}
+
+// Helper to normalize ChatOpenAI content field to plain string
+function normalizeModelContentToText(content: unknown): string {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+        // LangChain may return an array of content parts
+        return content
+            .map((part: any) => (typeof part === 'string' ? part : part?.text || ''))
+            .join('\n');
+    }
+    if (content && typeof content === 'object') {
+        const maybe = (content as any).text || (content as any).content || '';
+        return typeof maybe === 'string' ? maybe : JSON.stringify(content);
+    }
+    return '';
 }

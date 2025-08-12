@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trivandrum Chat",
+  title: "Kaattal AI",
   description: "Know Your District, Instantly",
 };
 

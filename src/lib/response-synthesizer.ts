@@ -19,6 +19,8 @@ export interface ResponseSynthesis {
     completeness: 'complete' | 'partial' | 'needs_followup';
 }
 
+type ResponseStyle = 'analytical' | 'explanatory' | 'comparative' | 'narrative';
+
 export interface SourceAttribution {
     source: string;
     relevance: number;
@@ -202,15 +204,18 @@ Build 2-4 logical steps that flow naturally from question to answer.`;
         return Math.min(1.0, relevance);
     }
 
-    private inferUsageContext(doc: Document, contentType: string): string {
-        const contextMap = {
-            'text': 'background information and context',
-            'table': 'statistical data and numerical evidence',
-            'chart': 'trends and visual data analysis',
-            'image': 'visual evidence and illustrations'
+    private inferUsageContext(
+        doc: Document,
+        contentType: 'text' | 'table' | 'chart' | 'image'
+    ): string {
+        const contextMap: Record<'text' | 'table' | 'chart' | 'image', string> = {
+            text: 'background information and context',
+            table: 'statistical data and numerical evidence',
+            chart: 'trends and visual data analysis',
+            image: 'visual evidence and illustrations'
         };
 
-        return contextMap[contentType] || 'supporting information';
+        return contextMap[contentType] ?? 'supporting information';
     }
 
     private async generateHumanLikeResponse(
@@ -218,10 +223,10 @@ Build 2-4 logical steps that flow naturally from question to answer.`;
         analysis: QueryAnalysis,
         documents: Document[],
         reasoningSteps: ReasoningStep[],
-        responseStyle: string,
+        responseStyle: ResponseStyle,
         sourceAttributions: SourceAttribution[]
     ): Promise<string> {
-        const stylePrompts = {
+        const stylePrompts: Record<ResponseStyle, string> = {
             analytical: "Provide a structured, analytical response that breaks down the information systematically.",
             explanatory: "Explain the information clearly and comprehensively, as if teaching someone new to the topic.",
             comparative: "Compare and contrast the different aspects, highlighting similarities and differences.",

@@ -98,7 +98,7 @@ async function analyzeDatabasePerformance() {
 
         if (performanceAnalysis.recommendations.length > 0) {
             console.log("\nPerformance Recommendations:");
-            performanceAnalysis.recommendations.forEach((rec, i) => {
+            performanceAnalysis.recommendations.forEach((rec: string, i: number) => {
                 console.log(`   ${i + 1}. ${rec}`);
             });
         }
