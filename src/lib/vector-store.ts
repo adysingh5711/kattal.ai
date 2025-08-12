@@ -12,6 +12,8 @@ export async function embedAndStoreDocs(
     try {
         const embeddings = new OpenAIEmbeddings({
             openAIApiKey: env.OPENAI_API_KEY,
+            modelName: "text-embedding-3-large", // Better multilingual support
+            dimensions: 3072, // Higher dimensional embeddings
         });
         const index = client.Index(env.PINECONE_INDEX_NAME);
 
@@ -31,6 +33,7 @@ export async function getVectorStore(client: Pinecone) {
     try {
         const embeddings = new OpenAIEmbeddings({
             openAIApiKey: env.OPENAI_API_KEY,
+            modelName: "text-embedding-3-large",
         });
         const index = client.Index(env.PINECONE_INDEX_NAME);
 

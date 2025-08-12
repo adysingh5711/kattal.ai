@@ -9,7 +9,7 @@ async function createIndex(client: Pinecone, indexName: string) {
     try {
         await client.createIndex({
             name: indexName,
-            dimension: 1536,
+            dimension: 3072, // For text-embedding-3-large
             metric: "cosine",
             spec: {
                 serverless: {

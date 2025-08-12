@@ -34,7 +34,7 @@ PINECONE_ENVIRONMENT=your_pinecone_environment
 PINECONE_INDEX_NAME=your_index_name
 
 # Path to your PDF file
-PDF_PATH=path/to/your/document.pdf
+DOC_PATH=path/to/your/document.pdf
 
 # Pinecone index creation requires time so hence we wait for 3 minutes
 INDEX_INIT_TIMEOUT=240000
@@ -84,6 +84,6 @@ npm run dev
 
 ## Customization
 
-- To use a different PDF document, update the `PDF_PATH` in your `.env` file and run `npm run prepare:data` again.
+- To use a different PDF document, update the `DOC_PATH` in your `.env` file and run `npm run prepare:data` again.
 - To modify the chat interface, edit the components in `src/components/`.
 - To change the AI model or parameters, update the configuration in `src/lib/llm.ts`.

@@ -10,7 +10,7 @@ const envSchema = z.object({
     AWS_API_KEY: z.string().trim().min(1, 'AWS_API_KEY is required'),
     PINECONE_ENVIRONMENT: z.string().trim().min(1, 'PINECONE_ENVIRONMENT is required'),
     PINECONE_INDEX_NAME: z.string().trim().min(1, 'PINECONE_INDEX_NAME is required'),
-    PDF_PATH: z.string().trim().min(1, 'PDF_PATH is required'),
+    DOC_PATH: z.string().trim().min(1, 'DOC_PATH is required'),
     INDEX_INIT_TIMEOUT: z.coerce.number().min(1, 'INDEX_INIT_TIMEOUT must be a number > 0'),
 });
 
