@@ -234,6 +234,11 @@
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   }
 
+  /* Soft glow for gradient text using drop-shadow (works with bg-clip text) */
+  .home-text-glow-soft {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.35)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.22)) drop-shadow(0 2px 16px rgba(0, 0, 0, 0.08));
+  }
+
   /* Enhanced focus states for accessibility */
   :focus-visible {
     outline: 2px solid var(--ring);

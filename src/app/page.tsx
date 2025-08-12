@@ -56,7 +56,7 @@ export default function Home() {
                 text="Instantly"
                 className={`${pacifico.className} text-center inline text-4xl font-bold sm:text-6xl`}
                 splitType="words"
-                wordClassName="bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-indigo-400 to-sky-300 dark:from-indigo-400 via-white/90 to-rose-400"
+                wordClassName="bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-violet-500 to-sky-400 dark:from-indigo-400 via-purple-200 to-rose-400"
                 onLetterAnimationComplete={() => { }}
               />
             </Balancer>

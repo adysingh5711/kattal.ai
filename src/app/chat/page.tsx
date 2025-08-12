@@ -90,11 +90,11 @@ export default function Home() {
         <main className="flex min-h-screen">
             <ThemeProvider
                 attribute="class"
-                defaultTheme="system"
-                enableSystem
+                defaultTheme="light"
+                enableSystem={false}
                 disableTransitionOnChange
             >
-                <div className="top-5 right-5 z-100 absolute">
+                <div className="top-5 right-5 absolute">
                     <ModeToggle />
                 </div>
                 <SidebarProvider>
