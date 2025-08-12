@@ -1,11 +1,11 @@
-# PDF Chat Application
+# Document Chat Application
 
 This is a Next.js application that allows users to chat with their PDF documents using AI. The application uses LangChain, Pinecone for vector storage, and OpenAI for embeddings and chat completions.
 
 ## Features
 
 - Chat interface with AI assistant
-- PDF document processing and embedding
+- PDF and DOCX document processing and embedding
 - Vector search using Pinecone
 - Responsive UI with dark/light mode support
 
@@ -16,7 +16,7 @@ This is a Next.js application that allows users to chat with their PDF documents
 - Node.js 18+ and npm
 - Ollama installed locally (for embeddings)
 - Pinecone API key
-- PDF document to process
+- PDF or DOCX documents to process
 
 ### Ollama Setup
 
@@ -25,7 +25,7 @@ This is a Next.js application that allows users to chat with their PDF documents
 2. After installation, pull the required embedding model:
 
 ```bash
-ollama pull nomic-embed-text
+ollama pull bge-m3:567m
 ```
 
 3. Ensure Ollama is running in the background before starting the application. The default URL is http://localhost:11434.
@@ -44,8 +44,14 @@ PINECONE_ENVIRONMENT=your_pinecone_environment
 # The index can be created directly or will be created when you run prepare-data npm command
 PINECONE_INDEX_NAME=your_index_name
 
-# Path to your PDF file(s)
-PDF_PATH=path/to/your/documents/*.pdf
+# Path to your PDF file(s). If the directory is empty, it will be skipped.
+PDF_PATH=public/docs/*
+
+# Optional: Path to your DOCX file(s). If the directory is empty, it will be skipped.
+DOCX_PATH=public/docs/*
+
+# Optional: Override embeddings model (defaults to bge-m3:567m)
+EMBEDDING_MODEL=bge-m3:567m
 
 # Pinecone index creation requires time so hence we wait for 3 minutes
 INDEX_INIT_TIMEOUT=240000
@@ -61,13 +67,13 @@ Note: The OPENAI_API_KEY is still required for chat completions but not for embe
 npm install
 ```
 
-2. Prepare the PDF data:
+2. Prepare the document data (PDF/DOCX):
 
 ```bash
 npm run prepare:data
 ```
 
-This will process your PDF document, create chunks, generate embeddings, and store them in Pinecone.
+This will process your PDF/DOCX documents, create chunks, generate embeddings, and store them in Pinecone.
 
 3. Run the development server:
 
@@ -79,8 +85,8 @@ npm run dev
 
 ## How It Works
 
-1. The PDF document is loaded and split into chunks using LangChain's document loaders and text splitters.
-2. Each chunk is embedded using Ollama's local embedding model (nomic-embed-text) and stored in Pinecone.
+1. PDF and DOCX documents are loaded and split into chunks using LangChain's document loaders and text splitters.
+2. Each chunk is embedded using Ollama's local embedding model (`bge-m3:567m`) and stored in Pinecone.
 3. When a user asks a question, the application:
    - Retrieves relevant document chunks from Pinecone based on the question
    - Passes the retrieved context along with the question to the LLM
@@ -97,6 +103,6 @@ npm run dev
 
 ## Customization
 
-- To use a different PDF document, update the `PDF_PATH` in your `.env` file and run `npm run prepare:data` again.
+- To use different documents, update `PDF_PATH` and/or `DOCX_PATH` in your `.env` file and run `npm run prepare:data` again.
 - To modify the chat interface, edit the components in `src/components/`.
 - To change the AI model or parameters, update the configuration in `src/lib/llm.ts`.

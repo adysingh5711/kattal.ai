@@ -2,6 +2,7 @@ import { env } from './env';
 import { PineconeStore } from "@langchain/pinecone";
 import { Pinecone } from "@pinecone-database/pinecone";
 import type { Document } from 'langchain/document';
+import crypto from 'crypto';
 
 export async function embedAndStoreDocs(
     client: Pinecone,
@@ -12,13 +13,17 @@ export async function embedAndStoreDocs(
         const { OllamaEmbeddings } = await import("@langchain/community/embeddings/ollama");
 
         const embeddings = new OllamaEmbeddings({
-            model: "nomic-embed-text", // Good for multilingual content
-            baseUrl: "http://localhost:11434", // Default Ollama URL
+            model: env.EMBEDDING_MODEL || "bge-m3:567m",
+            baseUrl: "http://localhost:11434",
         });
+
+        // De-duplicate by normalized content hash
+        const uniqueDocs = dedupeByContent(docs);
+        console.log(`Deduped ${docs.length - uniqueDocs.length} duplicate chunks`);
 
         const index = client.Index(env.PINECONE_INDEX_NAME);
 
-        await PineconeStore.fromDocuments(docs, embeddings, {
+        await PineconeStore.fromDocuments(uniqueDocs, embeddings, {
             pineconeIndex: index,
             textKey: 'text',
         });
@@ -28,14 +33,28 @@ export async function embedAndStoreDocs(
     }
 }
 
+function dedupeByContent(docs: Document<Record<string, unknown>>[]) {
+    const seen = new Set<string>();
+    const out: typeof docs = [];
+    for (const d of docs) {
+        const text = (d.pageContent || '').trim().replace(/\s+/g, ' ');
+        const hash = crypto.createHash('sha256').update(text).digest('hex');
+        if (!seen.has(hash)) {
+            seen.add(hash);
+            out.push(d);
+        }
+    }
+    return out;
+}
+
 export async function getVectorStore(client: Pinecone) {
     try {
         // Using Ollama embeddings for local processing
         const { OllamaEmbeddings } = await import("@langchain/community/embeddings/ollama");
 
         const embeddings = new OllamaEmbeddings({
-            model: "nomic-embed-text", // Good for multilingual content
-            baseUrl: "http://localhost:11434", // Default Ollama URL
+            model: env.EMBEDDING_MODEL || "bge-m3:567m",
+            baseUrl: "http://localhost:11434",
         });
 
         const index = client.Index(env.PINECONE_INDEX_NAME);

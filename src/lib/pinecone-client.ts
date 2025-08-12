@@ -9,7 +9,7 @@ async function createIndex(client: Pinecone, indexName: string) {
     try {
         await client.createIndex({
             name: indexName,
-            dimension: 768, // Changed from 1536 to 768 for Ollama's nomic-embed-text model
+            dimension: 1024, // bge-m3:567m embedding dimension
             metric: "cosine",
             spec: {
                 serverless: {
@@ -18,9 +18,7 @@ async function createIndex(client: Pinecone, indexName: string) {
                 }
             }
         });
-        console.log(
-            `Waiting for ${env.INDEX_INIT_TIMEOUT} seconds for index initialization to complete...`
-        );
+        console.log(`Waiting for ${env.INDEX_INIT_TIMEOUT} ms for index initialization to complete...`);
         await delay(env.INDEX_INIT_TIMEOUT);
         console.log("Index created !!");
     } catch (error) {
