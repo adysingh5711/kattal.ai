@@ -1,6 +1,7 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { env } from "./env";
 import { DocumentNode } from "./document-graph";
+import { extractJSONFromString } from "./json-utils";
 
 const memoryModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
@@ -268,7 +269,7 @@ Make questions natural and conversational, as if the user is genuinely curious t
 
         try {
             const response = await memoryModel.invoke(suggestionPrompt);
-            const suggestions = JSON.parse(response.content as string);
+            const suggestions = extractJSONFromString(response.content as string);
             return Array.isArray(suggestions) ? suggestions : [];
         } catch (error) {
             console.warn('Follow-up generation failed:', error);
@@ -353,7 +354,7 @@ Return as JSON array: ["gap1", "gap2", "gap3"]`;
 
         try {
             const response = await memoryModel.invoke(gapPrompt);
-            const gaps = JSON.parse(response.content as string);
+            const gaps = extractJSONFromString(response.content as string);
             return Array.isArray(gaps) ? gaps : [];
         } catch (error) {
             console.warn('Knowledge gap identification failed:', error);

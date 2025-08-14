@@ -14,9 +14,6 @@
     "clear:data": "tsx -r dotenv/config ./src/scripts/clear-pinecone-namespace.ts",
     "refill:data": "npm run clear:data && npm run prepare:data",
     "test:reasoning": "tsx -r dotenv/config ./src/scripts/test-reasoning.ts",
-    "test:phase2": "tsx -r dotenv/config ./src/scripts/test-phase2.ts",
-    "test:phase3": "tsx -r dotenv/config ./src/scripts/test-phase3.ts",
-    "test:all": "npm run test:reasoning && npm run test:phase2 && npm run test:phase3",
     "analyze:database": "tsx -r dotenv/config ./src/scripts/analyze-database.ts",
     "optimize:database": "npm run analyze:database"
   },

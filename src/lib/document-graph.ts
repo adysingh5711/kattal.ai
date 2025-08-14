@@ -1,6 +1,7 @@
 import { Document } from "langchain/document";
 import { ChatOpenAI } from "@langchain/openai";
 import { env } from "./env";
+import { extractJSONFromString } from "./json-utils";
 
 const graphModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
@@ -114,7 +115,7 @@ Be specific and accurate. Limit to most important items.`;
 
         try {
             const response = await graphModel.invoke(analysisPrompt);
-            return JSON.parse(response.content as string);
+            return extractJSONFromString(response.content as string);
         } catch (error) {
             console.warn('Document analysis failed:', error);
             return {
@@ -226,7 +227,7 @@ Only return a relationship if confidence > 0.4`;
 
         try {
             const response = await graphModel.invoke(relationshipPrompt);
-            const analysis = JSON.parse(response.content as string);
+            const analysis = extractJSONFromString(response.content as string);
 
             if (analysis.confidence > 0.4) {
                 return {

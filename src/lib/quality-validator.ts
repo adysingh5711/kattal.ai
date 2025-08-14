@@ -3,6 +3,7 @@ import { Document } from "langchain/document";
 import { env } from "./env";
 import { ResponseSynthesis, SourceAttribution } from "./response-synthesizer";
 import { QueryAnalysis } from "./query-analyzer";
+import { extractJSONFromString } from "./json-utils";
 
 const validatorModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
@@ -278,7 +279,7 @@ If no significant issues, return empty array: []`;
 
         try {
             const issues_response = await validatorModel.invoke(issuePrompt);
-            const issues = JSON.parse(issues_response.content as string);
+            const issues = extractJSONFromString(issues_response.content as string);
             return Array.isArray(issues) ? issues : [];
         } catch (error) {
             console.warn('Issue identification failed:', error);
@@ -308,7 +309,7 @@ Return as JSON array: ["improvement 1", "improvement 2", ...]`;
 
         try {
             const improvements_response = await validatorModel.invoke(improvementPrompt);
-            const improvements = JSON.parse(improvements_response.content as string);
+            const improvements = extractJSONFromString(improvements_response.content as string);
             return Array.isArray(improvements) ? improvements : [];
         } catch (error) {
             console.warn('Improvement generation failed:', error);

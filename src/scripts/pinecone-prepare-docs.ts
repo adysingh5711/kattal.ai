@@ -11,6 +11,13 @@ import { getPinecone } from "@/lib/pinecone-client";
         console.log("Preparing chunks from PDF file");
         const docs = await getChunkedDocsFromPDF();
         console.log(`Loading ${docs.length} chunks into pinecone...`);
+
+        // Validate document sizes before processing
+        const oversizedDocs = docs.filter(doc => doc.pageContent.length > 6000);
+        if (oversizedDocs.length > 0) {
+            console.warn(`Found ${oversizedDocs.length} documents that may be too large for embedding`);
+        }
+
         await embedAndStoreDocs(pineconeClient, docs);
         console.log("Data embedded and stored in pine-cone index");
     } catch (error) {

@@ -1,6 +1,7 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { env } from "./env";
 import { QueryAnalysis } from "./query-analyzer";
+import { extractJSONFromString } from "./json-utils";
 import { DocumentNode } from "./document-graph";
 
 const expanderModel = new ChatOpenAI({
@@ -95,7 +96,7 @@ Examples:
 
         try {
             const response = await expanderModel.invoke(synonymPrompt);
-            const synonyms = JSON.parse(response.content as string);
+            const synonyms = extractJSONFromString(response.content as string);
             const result = Array.isArray(synonyms) ? synonyms : [];
             this.synonymCache.set(query, result);
             return result;
@@ -139,7 +140,7 @@ Focus on concepts that exist in the available documents.`;
 
         try {
             const response = await expanderModel.invoke(conceptPrompt);
-            const concepts = JSON.parse(response.content as string);
+            const concepts = extractJSONFromString(response.content as string);
             const result = Array.isArray(concepts) ? concepts : [];
             this.conceptCache.set(cacheKey, result);
             return result;
@@ -173,7 +174,7 @@ If the query doesn't benefit from conversation context, return an empty array.`;
 
         try {
             const response = await expanderModel.invoke(contextPrompt);
-            const variations = JSON.parse(response.content as string);
+            const variations = extractJSONFromString(response.content as string);
             return Array.isArray(variations) ? variations : [];
         } catch (error) {
             console.warn('Contextual variation generation failed:', error);
@@ -206,7 +207,7 @@ Sub: ["What were the initial challenges?", "What strategies were used to overcom
 
         try {
             const response = await expanderModel.invoke(subQueryPrompt);
-            const subQueries = JSON.parse(response.content as string);
+            const subQueries = extractJSONFromString(response.content as string);
             return Array.isArray(subQueries) ? subQueries : [];
         } catch (error) {
             console.warn('Sub-query generation failed:', error);
@@ -236,7 +237,7 @@ Focus on terms commonly used in Kerala government documents, reports, and offici
 
         try {
             const response = await expanderModel.invoke(translationPrompt);
-            const translated = JSON.parse(response.content as string);
+            const translated = extractJSONFromString(response.content as string);
             return Array.isArray(translated) ? translated : [];
         } catch (error) {
             console.warn('Translation generation failed:', error);
@@ -281,7 +282,7 @@ Return as JSON array:
 
         try {
             const response = await expanderModel.invoke(insightPrompt);
-            const insights = JSON.parse(response.content as string);
+            const insights = extractJSONFromString(response.content as string);
             return Array.isArray(insights) ? insights : [];
         } catch (error) {
             console.warn('Insight generation failed:', error);

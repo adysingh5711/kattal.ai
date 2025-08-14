@@ -3,6 +3,7 @@ import { Document } from "langchain/document";
 import { env } from "./env";
 import { QueryAnalysis } from "./query-analyzer";
 import { QueryExpansion } from "./query-expander";
+import { extractJSONFromString, safeExtractJSON } from "./json-utils";
 
 const synthesisModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
@@ -131,7 +132,7 @@ Build 2-4 logical steps that flow naturally from question to answer.`;
 
         try {
             const response = await synthesisModel.invoke(reasoningPrompt);
-            const steps = JSON.parse(response.content as string);
+            const steps = extractJSONFromString(response.content as string);
             return Array.isArray(steps) ? steps : [];
         } catch (error) {
             console.warn('Reasoning chain generation failed:', error);
@@ -281,7 +282,15 @@ Remember: Sound like a knowledgeable human expert who is genuinely interested in
 
         try {
             const response = await synthesisModel.invoke(synthesisPrompt);
-            return response.content as string;
+            const content = response.content as string;
+
+            // Validate that we got a proper response, not a generic greeting
+            if (content.includes("Hello! How can I help") || content.includes("Hi") || content.length < 50) {
+                console.warn('Received generic response, using fallback');
+                return this.generateFallbackResponse(query, documents);
+            }
+
+            return content;
         } catch (error) {
             console.error('Response synthesis failed:', error);
             return this.generateFallbackResponse(query, documents);
@@ -289,8 +298,57 @@ Remember: Sound like a knowledgeable human expert who is genuinely interested in
     }
 
     private generateFallbackResponse(query: string, documents: Document[]): string {
-        const evidence = documents.slice(0, 2).map(doc => doc.pageContent.slice(0, 300)).join('\n\n');
-        return `Based on the available information, I can provide some insights about your question: "${query}"\n\n${evidence}\n\nI've found relevant information in the documents that addresses your query. The evidence suggests several key points that help answer your question.`;
+        if (documents.length === 0) {
+            return `I don't have specific information to answer your question: "${query}". Please try rephrasing your question or check if the relevant documents have been uploaded to the system.`;
+        }
+
+        // For simple queries like "hi", provide a helpful response
+        const normalizedQuery = query.toLowerCase().trim();
+        if (normalizedQuery === 'hi' || normalizedQuery === 'hello' || normalizedQuery === 'hey') {
+            return `Hello! I'm here to help you find information from the uploaded documents. You can ask me questions about the content, such as:
+- "What is this document about?"
+- "Tell me about [specific topic]"
+- "Show me data on [specific subject]"
+- "What are the key findings?"
+
+What would you like to know?`;
+        }
+
+        // For other queries, provide a more synthesized response based on available content
+        const relevantContent = documents.slice(0, 2).map(doc => {
+            // Clean up the content and extract meaningful information
+            let content = doc.pageContent
+                .replace(/TEXT CONTENT:\s*/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            // Try to extract the most relevant portion based on the query
+            const queryTerms = query.toLowerCase().split(' ').filter(term => term.length > 2);
+            let bestMatch = content.slice(0, 300);
+
+            for (const term of queryTerms) {
+                const termIndex = content.toLowerCase().indexOf(term);
+                if (termIndex !== -1) {
+                    // Extract context around the found term
+                    const start = Math.max(0, termIndex - 100);
+                    const end = Math.min(content.length, termIndex + 200);
+                    bestMatch = content.slice(start, end);
+                    break;
+                }
+            }
+
+            return bestMatch;
+        }).filter(content => content.length > 0);
+
+        if (relevantContent.length === 0) {
+            return `I found some documents, but they don't seem to contain information directly related to "${query}". Could you try asking about a different topic or provide more specific details about what you're looking for?`;
+        }
+
+        return `Based on the available information, here's what I can tell you about "${query}":
+
+${relevantContent.join('\n\n')}
+
+This information comes from the uploaded documents. If you'd like me to elaborate on any specific aspect or if you have follow-up questions, please let me know!`;
     }
 
     private async assessCompleteness(

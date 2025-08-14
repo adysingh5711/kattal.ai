@@ -1,5 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { env } from "./env";
+import { extractJSONFromString, safeExtractJSON } from "./json-utils";
 
 const analyzerModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
@@ -60,7 +61,7 @@ Respond ONLY with valid JSON.`;
 
         try {
             const response = await analyzerModel.invoke(analysisPrompt);
-            const analysis = JSON.parse(response.content as string);
+            const analysis = extractJSONFromString(response.content as string);
 
             // Validate and set defaults
             return {
@@ -117,7 +118,7 @@ Respond ONLY with valid JSON array.`;
 
         try {
             const response = await analyzerModel.invoke(subQueryPrompt);
-            const subQueries = JSON.parse(response.content as string);
+            const subQueries = extractJSONFromString(response.content as string);
             return Array.isArray(subQueries) ? subQueries : [mainQuery];
         } catch (error) {
             console.warn('Sub-query generation failed:', error);
@@ -144,7 +145,7 @@ Be specific about what evidence would make the answer more complete and credible
 
         try {
             const response = await analyzerModel.invoke(evidencePrompt);
-            const evidence = JSON.parse(response.content as string);
+            const evidence = extractJSONFromString(response.content as string);
             return Array.isArray(evidence) ? evidence : [];
         } catch (error) {
             console.warn('Evidence identification failed:', error);
