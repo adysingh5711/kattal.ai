@@ -312,7 +312,8 @@ Remember: Sound like a knowledgeable human expert who is genuinely interested in
         // For simple queries like "hi", provide a helpful response based on detected language
         const normalizedQuery = query.toLowerCase().trim();
         if (normalizedQuery === 'hi' || normalizedQuery === 'hello' || normalizedQuery === 'hey' ||
-            normalizedQuery === 'namaste' || normalizedQuery === 'namaskar' || normalizedQuery === 'hai' || normalizedQuery === 'helo') {
+            normalizedQuery === 'namaste' || normalizedQuery === 'namaskar' || normalizedQuery === 'hai' || normalizedQuery === 'helo' ||
+            normalizedQuery === 'vanakkam' || normalizedQuery === 'namaskaram' || normalizedQuery === 'namaskara') {
 
             // Detect language for greeting response
             const detection = languageDetection || this.languageDetector.detectLanguage(query);
@@ -335,6 +336,61 @@ Remember: Sound like a knowledgeable human expert who is genuinely interested in
 - "Main findings kya hain?"
 
 Aap kya jaanna chahte hain?`;
+
+                case 'tamil':
+                    return `வணக்கம்! பதிவேற்றப்பட்ட ஆவணங்களிலிருந்து தகவல்களைக் கண்டறிய நான் இங்கே இருக்கிறேன். நீங்கள் இந்த மாதிரியான கேள்விகளைக் கேட்கலாம்:
+- "இந்த ஆவணம் எதைப் பற்றி?"
+- "[குறிப்பிட்ட தலைப்பு] பற்றி சொல்லுங்கள்"
+- "[குறிப்பிட்ட விஷயத்தின்] தரவை காட்டுங்கள்"
+- "முக்கிய கண்டுபிடிப்புகள் என்ன?"
+
+நீங்கள் என்ன தெரிந்துகொள்ள விரும்புகிறீர்கள்?`;
+
+                case 'tamil_roman':
+                    return `Vanakkam! Upload panna documents-la irundhu information kandupidika naan inga iruken. Neenga inda madhiri questions kekalam:
+- "Indha document edha pathi?"
+- "[specific topic] pathi sollunga"
+- "[specific subject] oda data kaattunga"
+- "Main findings enna?"
+
+Neenga enna therinjukka virumburenga?`;
+
+                case 'telugu':
+                    return `నమస్కారం! అప్‌లోడ్ చేసిన పత్రాల నుండి సమాచారాన్ని కనుగొనడంలో మీకు సహాయం చేయడానికి నేను ఇక్కడ ఉన్నాను. మీరు ఈ రకమైన ప్రశ్నలు అడగవచ్చు:
+- "ఈ పత్రం దేని గురించి?"
+- "[నిర్దిష్ట అంశం] గురించి చెప్పండి"
+- "[నిర్దిష్ట విషయం] డేటా చూపించండి"
+- "ప్రధాన కనుగొన్న విషయాలు ఏమిటి?"
+
+మీరు ఏమి తెలుసుకోవాలని అనుకుంటున్నారు?`;
+
+                case 'telugu_roman':
+                    return `Namaskaram! Upload chesina documents nundi information kandukovadamlo miku help cheyadaniki nenu ikkada unnaanu. Meeru ee rakamaina questions adagavacchu:
+- "Ee document edi gurinchi?"
+- "[specific topic] gurinchi cheppandi"
+- "[specific subject] data choopinchandi"
+- "Main findings emiti?"
+
+Meeru emi telusukovaali anukuntunnaaru?`;
+
+                case 'kannada':
+                    return `ನಮಸ್ಕಾರ! ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ದಾಖಲೆಗಳಿಂದ ಮಾಹಿತಿಯನ್ನು ಹುಡುಕಲು ನಾನು ಇಲ್ಲಿ ಇದ್ದೇನೆ. ನೀವು ಈ ರೀತಿಯ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಬಹುದು:
+- "ಈ ದಾಖಲೆ ಏನಿನ ಬಗ್ಗೆ?"
+- "[ನಿರ್ದಿಷ್ಟ ವಿಷಯ] ಬಗ್ಗೆ ಹೇಳಿ"
+- "[ನಿರ್ದಿಷ್ಟ ವಿಷಯದ] ಡೇಟಾ ತೋರಿಸಿ"
+- "ಮುಖ್ಯ ಸಂಶೋಧನೆಗಳು ಏನು?"
+
+ನೀವು ಏನು ತಿಳಿಯಲು ಬಯಸುತ್ತೀರಿ?`;
+
+                case 'kannada_roman':
+                    return `Namaskara! Upload maadida documents ninda mahitiyanna hudukalu naanu illi iddene. Neevu ee reethiya prashnegalannu kelabahudhu:
+- "Ee document yenina bagge?"
+- "[specific topic] bagge heli"
+- "[specific subject] data thorisi"
+- "Main findings yenu?"
+
+Neevu yenu thiliyalu bayasuttheera?`;
+
                 case 'malayalam':
                     return `നമസ്കാരം! അപ്‌ലോഡ് ചെയ്ത ഡോക്യുമെന്റുകളിൽ നിന്നും വിവരങ്ങൾ കണ്ടെത്താൻ ഞാൻ ഇവിടെയുണ്ട്. നിങ്ങൾക്ക് ഇത്തരം ചോദ്യങ്ങൾ ചോദിക്കാം:
 - "ഈ ഡോക്യുമെന്റ് എന്താണ് പറയുന്നത്?"

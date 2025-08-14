@@ -4,7 +4,8 @@
  */
 
 export interface LanguageDetection {
-    detectedLanguage: 'english' | 'malayalam' | 'malayalam_roman' | 'hindi' | 'hinglish' | 'mixed';
+    detectedLanguage: 'english' | 'malayalam' | 'malayalam_roman' | 'hindi' | 'hinglish' |
+    'tamil' | 'tamil_roman' | 'telugu' | 'telugu_roman' | 'kannada' | 'kannada_roman' | 'mixed';
     confidence: number;
     explicitLanguageRequest?: string;
     responseLanguage: string;
@@ -17,6 +18,15 @@ export class LanguageDetector {
 
     // Hindi Unicode range (Devanagari script)
     private readonly hindiPattern = /[\u0900-\u097F]/;
+
+    // Tamil Unicode range
+    private readonly tamilPattern = /[\u0B80-\u0BFF]/;
+
+    // Telugu Unicode range
+    private readonly teluguPattern = /[\u0C00-\u0C7F]/;
+
+    // Kannada Unicode range
+    private readonly kannadaPattern = /[\u0C80-\u0CFF]/;
 
     // Common Malayalam words in Roman script
     private readonly malayalamRomanWords = [
@@ -57,15 +67,60 @@ export class LanguageDetector {
         'kar', 'karke', 'karne', 'vale', 'wale', 'mein', 'me', 'pe', 'par', 'se', 'tak', 'bhi', 'bhe'
     ];
 
+    // Common Tamil words in Roman script
+    private readonly tamilRomanWords = [
+        // Question words
+        'enna', 'enga', 'eppo', 'eppadi', 'yaaru', 'yen', 'ethuku', 'evvalavu',
+        // Pronouns
+        'naan', 'neenga', 'avan', 'aval', 'naanga', 'avanga', 'ivan', 'ival',
+        // Common verbs
+        'vara', 'poga', 'irukku', 'irukken', 'pannu', 'pannunga', 'solluu', 'sollunga',
+        'paaru', 'paarunga', 'kelu', 'kelunga', 'sapadu', 'sapaduu',
+        // Common words
+        'vanakkam', 'nandri', 'mannichhu', 'sari', 'illa', 'irukku', 'aama', 'ille',
+        // Document/information related
+        'document', 'paper', 'puththagam', 'theriyum', 'therila', 'solluu', 'kaattu'
+    ];
+
+    // Common Telugu words in Roman script  
+    private readonly teluguRomanWords = [
+        // Question words
+        'enti', 'ekkada', 'eppudu', 'ela', 'evaru', 'endhuku', 'entha',
+        // Pronouns
+        'nenu', 'miru', 'vadu', 'ame', 'manam', 'vaaru', 'idu', 'adi',
+        // Common verbs
+        'raavu', 'vellu', 'undhi', 'unnaanu', 'cheyyi', 'cheppandi', 'chudandi',
+        'vinu', 'vinandi', 'thinu', 'thinandi', 'raayyi', 'chadivi',
+        // Common words
+        'namaskaram', 'dhanyavaadalu', 'kshaminchandi', 'sare', 'ledhu', 'undhi', 'avunu', 'kaaadu',
+        // Document/information related
+        'document', 'kaagitham', 'pustakam', 'thelusu', 'theleedhu', 'cheppandi', 'choopinchu'
+    ];
+
+    // Common Kannada words in Roman script
+    private readonly kannadaRomanWords = [
+        // Question words
+        'yenu', 'elli', 'yaavaga', 'hege', 'yaaru', 'yake', 'eshtu',
+        // Pronouns
+        'naanu', 'neevu', 'avanu', 'aval', 'naavu', 'avaru', 'idu', 'adu',
+        // Common verbs
+        'baa', 'hogu', 'ide', 'idene', 'maadu', 'heli', 'helunga', 'nodu', 'nodunga',
+        'kelu', 'kelunga', 'thinnu', 'thinnu', 'bari', 'odi',
+        // Common words
+        'namaskara', 'dhanyavaada', 'kshamisuu', 'sari', 'illa', 'ide', 'houdu', 'allla',
+        // Document/information related
+        'document', 'kagada', 'pustaka', 'gotthu', 'gottilla', 'heli', 'thoorisu'
+    ];
+
     // Explicit language request patterns
     private readonly languageRequestPatterns = [
-        /answer in (english|malayalam|hindi|tamil)/i,
-        /reply in (english|malayalam|hindi|tamil)/i,
-        /respond in (english|malayalam|hindi|tamil)/i,
-        /(english|malayalam|hindi|tamil)(?:il|ile) answer/i,
-        /(english|malayalam|hindi|tamil)(?:il|ile) reply/i,
-        /answer.*(?:english|malayalam|hindi|tamil)/i,
-        /reply.*(?:english|malayalam|hindi|tamil)/i
+        /answer in (english|malayalam|hindi|tamil|telugu|kannada)/i,
+        /reply in (english|malayalam|hindi|tamil|telugu|kannada)/i,
+        /respond in (english|malayalam|hindi|tamil|telugu|kannada)/i,
+        /(english|malayalam|hindi|tamil|telugu|kannada)(?:il|ile) answer/i,
+        /(english|malayalam|hindi|tamil|telugu|kannada)(?:il|ile) reply/i,
+        /answer.*(?:english|malayalam|hindi|tamil|telugu|kannada)/i,
+        /reply.*(?:english|malayalam|hindi|tamil|telugu|kannada)/i
     ];
 
     detectLanguage(text: string): LanguageDetection {
@@ -93,6 +148,36 @@ export class LanguageDetector {
             };
         }
 
+        // Check for Tamil script
+        if (this.tamilPattern.test(text)) {
+            return {
+                detectedLanguage: 'tamil',
+                confidence: 0.95,
+                responseLanguage: 'tamil',
+                responseInstructions: 'Respond in Tamil script (தமிழ்). Use proper Tamil grammar and vocabulary.'
+            };
+        }
+
+        // Check for Telugu script
+        if (this.teluguPattern.test(text)) {
+            return {
+                detectedLanguage: 'telugu',
+                confidence: 0.95,
+                responseLanguage: 'telugu',
+                responseInstructions: 'Respond in Telugu script (తెలుగు). Use proper Telugu grammar and vocabulary.'
+            };
+        }
+
+        // Check for Kannada script
+        if (this.kannadaPattern.test(text)) {
+            return {
+                detectedLanguage: 'kannada',
+                confidence: 0.95,
+                responseLanguage: 'kannada',
+                responseInstructions: 'Respond in Kannada script (ಕನ್ನಡ). Use proper Kannada grammar and vocabulary.'
+            };
+        }
+
         // Check for Malayalam script
         if (this.malayalamPattern.test(text)) {
             return {
@@ -100,6 +185,42 @@ export class LanguageDetector {
                 confidence: 0.95,
                 responseLanguage: 'malayalam',
                 responseInstructions: 'Respond in Malayalam script (മലയാളം). Use proper Malayalam grammar and vocabulary.'
+            };
+        }
+
+        // Check for Tamil in Roman script (Tanglish)
+        const tamilRomanScore = this.calculateTamilRomanScore(cleanText);
+        console.log(`Tamil Roman Score for "${text}": ${tamilRomanScore}`);
+        if (tamilRomanScore > 0.2) {
+            return {
+                detectedLanguage: 'tamil_roman',
+                confidence: tamilRomanScore,
+                responseLanguage: 'tamil_roman',
+                responseInstructions: 'Respond in Tamil but using Roman/English letters (Tanglish). Use Tamil sentence structure and vocabulary but write in English alphabet.'
+            };
+        }
+
+        // Check for Telugu in Roman script (Tenglish)
+        const teluguRomanScore = this.calculateTeluguRomanScore(cleanText);
+        console.log(`Telugu Roman Score for "${text}": ${teluguRomanScore}`);
+        if (teluguRomanScore > 0.2) {
+            return {
+                detectedLanguage: 'telugu_roman',
+                confidence: teluguRomanScore,
+                responseLanguage: 'telugu_roman',
+                responseInstructions: 'Respond in Telugu but using Roman/English letters (Tenglish). Use Telugu sentence structure and vocabulary but write in English alphabet.'
+            };
+        }
+
+        // Check for Kannada in Roman script (Kanglish)
+        const kannadaRomanScore = this.calculateKannadaRomanScore(cleanText);
+        console.log(`Kannada Roman Score for "${text}": ${kannadaRomanScore}`);
+        if (kannadaRomanScore > 0.2) {
+            return {
+                detectedLanguage: 'kannada_roman',
+                confidence: kannadaRomanScore,
+                responseLanguage: 'kannada_roman',
+                responseInstructions: 'Respond in Kannada but using Roman/English letters (Kanglish). Use Kannada sentence structure and vocabulary but write in English alphabet.'
             };
         }
 
@@ -247,16 +368,138 @@ export class LanguageDetector {
         return exactMatchScore + normalizedPatternScore;
     }
 
+    private calculateTamilRomanScore(text: string): number {
+        const words = text.split(/\s+/);
+        const totalWords = words.length;
+
+        if (totalWords === 0) return 0;
+
+        let tamilWordCount = 0;
+
+        // Check for exact matches with known Tamil words
+        for (const word of words) {
+            const cleanWord = word.replace(/[^\w]/g, ''); // Remove punctuation
+            if (this.tamilRomanWords.includes(cleanWord)) {
+                tamilWordCount++;
+            }
+        }
+
+        // Check for Tamil-like patterns
+        let patternScore = 0;
+        for (const word of words) {
+            // Tamil word patterns (double consonants, specific endings)
+            if (word.includes('kk') || word.includes('ll') || word.includes('nn') ||
+                word.includes('mm') || word.includes('pp') || word.includes('tt') ||
+                word.includes('rr')) {
+                patternScore += 0.1;
+            }
+
+            // Common Tamil endings
+            if (word.endsWith('um') || word.endsWith('an') || word.endsWith('al') ||
+                word.endsWith('nga') || word.endsWith('chu') || word.endsWith('ka') ||
+                word.endsWith('tha') || word.endsWith('ra') || word.endsWith('iya')) {
+                patternScore += 0.1;
+            }
+        }
+
+        const exactMatchScore = tamilWordCount / totalWords;
+        const normalizedPatternScore = Math.min(patternScore / totalWords, 0.3);
+
+        return exactMatchScore + normalizedPatternScore;
+    }
+
+    private calculateTeluguRomanScore(text: string): number {
+        const words = text.split(/\s+/);
+        const totalWords = words.length;
+
+        if (totalWords === 0) return 0;
+
+        let teluguWordCount = 0;
+
+        // Check for exact matches with known Telugu words
+        for (const word of words) {
+            const cleanWord = word.replace(/[^\w]/g, ''); // Remove punctuation
+            if (this.teluguRomanWords.includes(cleanWord)) {
+                teluguWordCount++;
+            }
+        }
+
+        // Check for Telugu-like patterns
+        let patternScore = 0;
+        for (const word of words) {
+            // Telugu word patterns
+            if (word.includes('nnu') || word.includes('mmu') || word.includes('ppu') ||
+                word.includes('ttu') || word.includes('kku') || word.includes('vvu')) {
+                patternScore += 0.1;
+            }
+
+            // Common Telugu endings
+            if (word.endsWith('andi') || word.endsWith('aaru') || word.endsWith('unu') ||
+                word.endsWith('dhi') || word.endsWith('yi') || word.endsWith('lu') ||
+                word.endsWith('avu') || word.endsWith('emu') || word.endsWith('ani')) {
+                patternScore += 0.1;
+            }
+        }
+
+        const exactMatchScore = teluguWordCount / totalWords;
+        const normalizedPatternScore = Math.min(patternScore / totalWords, 0.3);
+
+        return exactMatchScore + normalizedPatternScore;
+    }
+
+    private calculateKannadaRomanScore(text: string): number {
+        const words = text.split(/\s+/);
+        const totalWords = words.length;
+
+        if (totalWords === 0) return 0;
+
+        let kannadaWordCount = 0;
+
+        // Check for exact matches with known Kannada words
+        for (const word of words) {
+            const cleanWord = word.replace(/[^\w]/g, ''); // Remove punctuation
+            if (this.kannadaRomanWords.includes(cleanWord)) {
+                kannadaWordCount++;
+            }
+        }
+
+        // Check for Kannada-like patterns
+        let patternScore = 0;
+        for (const word of words) {
+            // Kannada word patterns
+            if (word.includes('ge') || word.includes('gu') || word.includes('du') ||
+                word.includes('vu') || word.includes('ru') || word.includes('lu')) {
+                patternScore += 0.1;
+            }
+
+            // Common Kannada endings
+            if (word.endsWith('aga') || word.endsWith('anu') || word.endsWith('elu') ||
+                word.endsWith('iru') || word.endsWith('udu') || word.endsWith('ade') ||
+                word.endsWith('ide') || word.endsWith('ara') || word.endsWith('alli')) {
+                patternScore += 0.1;
+            }
+        }
+
+        const exactMatchScore = kannadaWordCount / totalWords;
+        const normalizedPatternScore = Math.min(patternScore / totalWords, 0.3);
+
+        return exactMatchScore + normalizedPatternScore;
+    }
+
     private getLanguageInstructions(language: string): string {
         switch (language.toLowerCase()) {
             case 'malayalam':
                 return 'Respond in Malayalam script (മലയാളം). Use proper Malayalam grammar and vocabulary.';
             case 'hindi':
                 return 'Respond in Hindi script (हिन्दी). Use proper Hindi grammar and Devanagari script.';
+            case 'tamil':
+                return 'Respond in Tamil script (தமிழ்). Use proper Tamil grammar and script.';
+            case 'telugu':
+                return 'Respond in Telugu script (తెలుగు). Use proper Telugu grammar and script.';
+            case 'kannada':
+                return 'Respond in Kannada script (ಕನ್ನಡ). Use proper Kannada grammar and script.';
             case 'english':
                 return 'Respond in clear, natural English.';
-            case 'tamil':
-                return 'Respond in Tamil (தமிழ்). Use proper Tamil grammar and script.';
             default:
                 return 'Respond in clear, natural English.';
         }
@@ -276,6 +519,24 @@ export class LanguageDetector {
 
             case 'hinglish':
                 return baseInstruction + '\n\nThe user wrote Hindi words using Roman/English letters (Hinglish), so respond in the same style. For example: "Main aapko help kar sakta hun" instead of "मैं आपकी मदद कर सकता हूँ" or "I can help you".';
+
+            case 'tamil':
+                return baseInstruction + '\n\nThe user wrote in Tamil script, so maintain the same language and script in your response.';
+
+            case 'tamil_roman':
+                return baseInstruction + '\n\nThe user wrote Tamil words using Roman/English letters (Tanglish), so respond in the same style. For example: "Naan ungalukku help pannalam" instead of "நான் உங்களுக்கு உதவி செய்யலாம்" or "I can help you".';
+
+            case 'telugu':
+                return baseInstruction + '\n\nThe user wrote in Telugu script, so maintain the same language and script in your response.';
+
+            case 'telugu_roman':
+                return baseInstruction + '\n\nThe user wrote Telugu words using Roman/English letters (Tenglish), so respond in the same style. For example: "Nenu miku help cheyagalanu" instead of "నేను మీకు సహాయం చేయగలను" or "I can help you".';
+
+            case 'kannada':
+                return baseInstruction + '\n\nThe user wrote in Kannada script, so maintain the same language and script in your response.';
+
+            case 'kannada_roman':
+                return baseInstruction + '\n\nThe user wrote Kannada words using Roman/English letters (Kanglish), so respond in the same style. For example: "Naanu nimige help maadabahudhu" instead of "ನಾನು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಬಹುದು" or "I can help you".';
 
             case 'malayalam':
                 return baseInstruction + '\n\nThe user wrote in Malayalam script, so maintain the same language and script in your response.';
