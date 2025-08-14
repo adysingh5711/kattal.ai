@@ -1,6 +1,7 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { env } from "./env";
 import { extractJSONFromString, safeExtractJSON } from "./json-utils";
+import { LanguageDetector, LanguageDetection } from "./language-detector";
 
 const analyzerModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
@@ -16,10 +17,21 @@ export interface QueryAnalysis {
     dataTypesNeeded: string[];
     reasoningSteps: string[];
     suggestedK: number; // Number of documents to retrieve
+    languageDetection: LanguageDetection; // Language information for response generation
 }
 
 export class QueryAnalyzer {
+    private languageDetector = new LanguageDetector();
+
     async classifyQuery(query: string, chatHistory?: string): Promise<QueryAnalysis> {
+        // First, detect the language of the query
+        const languageDetection = this.languageDetector.detectLanguage(query);
+        console.log(`🌐 Language Detection for "${query}":`, {
+            detected: languageDetection.detectedLanguage,
+            confidence: languageDetection.confidence,
+            responseLanguage: languageDetection.responseLanguage,
+            explicitRequest: languageDetection.explicitLanguageRequest
+        });
         const analysisPrompt = `Analyze this user query and determine the type of reasoning and retrieval strategy needed.
 
 User Query: "${query}"
@@ -71,7 +83,8 @@ Respond ONLY with valid JSON.`;
                 requiresCrossReference: analysis.requiresCrossReference || false,
                 dataTypesNeeded: analysis.dataTypesNeeded || ['text'],
                 reasoningSteps: analysis.reasoningSteps || [],
-                suggestedK: Math.max(4, Math.min(12, analysis.suggestedK || 6))
+                suggestedK: Math.max(4, Math.min(12, analysis.suggestedK || 6)),
+                languageDetection
             };
         } catch (error) {
             console.warn('Query analysis failed, using defaults:', error);
@@ -83,7 +96,8 @@ Respond ONLY with valid JSON.`;
                 requiresCrossReference: false,
                 dataTypesNeeded: ['text'],
                 reasoningSteps: [],
-                suggestedK: 6
+                suggestedK: 6,
+                languageDetection
             };
         }
     }

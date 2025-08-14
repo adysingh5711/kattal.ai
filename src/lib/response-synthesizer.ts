@@ -4,6 +4,7 @@ import { env } from "./env";
 import { QueryAnalysis } from "./query-analyzer";
 import { QueryExpansion } from "./query-expander";
 import { extractJSONFromString, safeExtractJSON } from "./json-utils";
+import { LanguageDetector } from "./language-detector";
 
 const synthesisModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
@@ -40,6 +41,7 @@ export interface ReasoningStep {
 }
 
 export class ResponseSynthesizer {
+    private languageDetector = new LanguageDetector();
     async synthesizeResponse(
         query: string,
         queryAnalysis: QueryAnalysis,
@@ -234,6 +236,9 @@ Build 2-4 logical steps that flow naturally from question to answer.`;
             narrative: "Present the information as a coherent story that connects different pieces logically."
         };
 
+        // Get language-specific instructions
+        const languageInstructions = this.languageDetector.getLanguagePromptAddition(analysis.languageDetection);
+
         const synthesisPrompt = `Create a human-like response that sounds natural and conversational while being informative and accurate.
 
 Query: "${query}"
@@ -249,6 +254,8 @@ Reasoning Chain:
 ${reasoningSteps.map(step =>
             `Step ${step.step}: ${step.question}\nReasoning: ${step.reasoning}\nConclusion: ${step.conclusion}`
         ).join('\n\n')}
+
+${languageInstructions}
 
 Create a response that:
 
@@ -287,31 +294,74 @@ Remember: Sound like a knowledgeable human expert who is genuinely interested in
             // Validate that we got a proper response, not a generic greeting
             if (content.includes("Hello! How can I help") || content.includes("Hi") || content.length < 50) {
                 console.warn('Received generic response, using fallback');
-                return this.generateFallbackResponse(query, documents);
+                return this.generateFallbackResponse(query, documents, analysis.languageDetection);
             }
 
             return content;
         } catch (error) {
             console.error('Response synthesis failed:', error);
-            return this.generateFallbackResponse(query, documents);
+            return this.generateFallbackResponse(query, documents, analysis.languageDetection);
         }
     }
 
-    private generateFallbackResponse(query: string, documents: Document[]): string {
+    private generateFallbackResponse(query: string, documents: Document[], languageDetection?: any): string {
         if (documents.length === 0) {
             return `I don't have specific information to answer your question: "${query}". Please try rephrasing your question or check if the relevant documents have been uploaded to the system.`;
         }
 
-        // For simple queries like "hi", provide a helpful response
+        // For simple queries like "hi", provide a helpful response based on detected language
         const normalizedQuery = query.toLowerCase().trim();
-        if (normalizedQuery === 'hi' || normalizedQuery === 'hello' || normalizedQuery === 'hey') {
-            return `Hello! I'm here to help you find information from the uploaded documents. You can ask me questions about the content, such as:
+        if (normalizedQuery === 'hi' || normalizedQuery === 'hello' || normalizedQuery === 'hey' ||
+            normalizedQuery === 'namaste' || normalizedQuery === 'namaskar' || normalizedQuery === 'hai' || normalizedQuery === 'helo') {
+
+            // Detect language for greeting response
+            const detection = languageDetection || this.languageDetector.detectLanguage(query);
+
+            switch (detection.responseLanguage) {
+                case 'hindi':
+                    return `नमस्ते! मैं अपलोड किए गए दस्तावेजों से जानकारी खोजने में आपकी मदद करने के लिए यहाँ हूँ। आप इस तरह के सवाल पूछ सकते हैं:
+- "यह दस्तावेज किस बारे में है?"
+- "[विशिष्ट विषय] के बारे में बताएं"
+- "[विशिष्ट विषय] का डेटा दिखाएं"
+- "मुख्य खोजें क्या हैं?"
+
+आप क्या जानना चाहते हैं?`;
+
+                case 'hinglish':
+                    return `Namaste! Main upload kiye gaye documents se information dhundne mein aapki help karne ke liye yahan hun. Aap is tarah ke questions puch sakte hain:
+- "Yeh document kis baare mein hai?"
+- "[specific topic] ke baare mein batayiye"
+- "[specific subject] ka data dikhayiye"
+- "Main findings kya hain?"
+
+Aap kya jaanna chahte hain?`;
+                case 'malayalam':
+                    return `നമസ്കാരം! അപ്‌ലോഡ് ചെയ്ത ഡോക്യുമെന്റുകളിൽ നിന്നും വിവരങ്ങൾ കണ്ടെത്താൻ ഞാൻ ഇവിടെയുണ്ട്. നിങ്ങൾക്ക് ഇത്തരം ചോദ്യങ്ങൾ ചോദിക്കാം:
+- "ഈ ഡോക്യുമെന്റ് എന്താണ് പറയുന്നത്?"
+- "[നിർദ്ദിഷ്ട വിഷയം] കുറിച്ച് പറയൂ"
+- "[നിർദ്ദിഷ്ട വിഷയത്തിന്റെ] ഡാറ്റ കാണിക്കൂ"
+- "പ്രധാന കണ്ടെത്തലുകൾ എന്താണ്?"
+
+എന്താണ് അറിയേണ്ടത്?`;
+
+                case 'malayalam_roman':
+                    return `Namaskaram! Upload cheitha documentukalil ninnum vivarangal kandethan njan evideyund. Ningalkku itharam chodangal chodikam:
+- "Ee document enthananu parayunnath?"
+- "[specific topic] kurich parayu"
+- "[specific subject]nte data kanikku"
+- "Pradhana kandethalukal enthananu?"
+
+Enthananu ariyendath?`;
+
+                default:
+                    return `Hello! I'm here to help you find information from the uploaded documents. You can ask me questions about the content, such as:
 - "What is this document about?"
 - "Tell me about [specific topic]"
 - "Show me data on [specific subject]"
 - "What are the key findings?"
 
 What would you like to know?`;
+            }
         }
 
         // For other queries, provide a more synthesized response based on available content
