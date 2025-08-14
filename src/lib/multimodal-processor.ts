@@ -27,7 +27,7 @@ import pdf2pic from "pdf2pic";
 
 // Vision model for image/chart analysis
 const visionModel = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
+    modelName: env.LLM_MODEL,
     temperature: 0.1,
     openAIApiKey: env.OPENAI_API_KEY,
 });

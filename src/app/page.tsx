@@ -64,7 +64,7 @@ export default function Home() {
           <Balancer>
             <WordReveal
               text="Understand development, services, and statistics through natural conversation."
-              className={`${playfair.className} text-center italic oklch(0.2 0.08 45) sm:text-yellow-300 text-lg leading-relaxed z-100`}
+              className={`${playfair.className} home-text-shadow text-center italic oklch(0.2 0.08 45) sm:text-yellow-300 text-lg leading-relaxed z-100`}
             />
           </Balancer>
 

@@ -4,7 +4,7 @@ import { QueryAnalysis } from "./query-analyzer";
 import { DocumentNode } from "./document-graph";
 
 const expanderModel = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
+    modelName: env.LLM_MODEL,
     temperature: 0.3, // Slightly more creative for expansions
     openAIApiKey: env.OPENAI_API_KEY,
 });

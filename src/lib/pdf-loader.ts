@@ -10,10 +10,13 @@ export async function getChunkedDocsFromPDF() {
     try {
         let allDocs: Document[] = [];
 
-        // Check if DOC_PATH is a directory or a specific file
-        if (env.DOC_PATH.includes('*')) {
+        // Prefer DOC_PATH (combined), fallback to PDF_PATH/DOCX_PATH
+        const pathPattern = env.DOC_PATH || env.PDF_PATH || env.DOCX_PATH;
+
+        // Check if pathPattern is a directory wildcard or specific file
+        if (pathPattern.includes('*')) {
             // Handle directory with multiple documents
-            const dirPath = env.DOC_PATH.replace('/*', '');
+            const dirPath = pathPattern.replace('/*', '');
 
             if (fs.existsSync(dirPath)) {
                 const files = fs.readdirSync(dirPath)
@@ -28,7 +31,6 @@ export async function getChunkedDocsFromPDF() {
                 // Process each file
                 for (const file of files) {
                     try {
-                        const lower = file.toLowerCase();
                         console.log(`Processing file: ${file}`);
                         const docs = await processDocumentMultimodal(file);
                         allDocs = [...allDocs, ...docs];
@@ -42,11 +44,11 @@ export async function getChunkedDocsFromPDF() {
             }
         } else {
             // Handle single file
-            if (!fs.existsSync(env.DOC_PATH)) {
-                throw new Error(`File not found: ${env.DOC_PATH}`);
+            if (!fs.existsSync(pathPattern)) {
+                throw new Error(`File not found: ${pathPattern}`);
             }
 
-            const file = env.DOC_PATH;
+            const file = pathPattern;
             console.log(`Processing single file: ${file}`);
             allDocs = await processDocumentMultimodal(file);
         }

@@ -5,7 +5,7 @@ import { QueryAnalysis } from "./query-analyzer";
 import { QueryExpansion } from "./query-expander";
 
 const synthesisModel = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
+    modelName: env.LLM_MODEL,
     temperature: 0.3, // Balanced creativity for natural communication
     openAIApiKey: env.OPENAI_API_KEY,
 });

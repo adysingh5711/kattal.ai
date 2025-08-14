@@ -4,17 +4,37 @@ import { delay } from "./utils";
 
 let pineconeInstance: Pinecone | null = null;
 
+function parsePineconeEnv(envStr: string): { cloud: 'aws' | 'gcp' | 'azure'; region: string } {
+    // Examples: 'us-east-1-aws', 'us-west4-gcp-free'
+    let cloud: 'aws' | 'gcp' | 'azure' = 'aws';
+    let region = 'us-east-1';
+
+    const cleaned = envStr.replace(/-free$/, '');
+    const parts = cleaned.split('-');
+    const last = parts[parts.length - 1];
+
+    if (last === 'aws' || last === 'gcp' || last === 'azure') {
+        cloud = last as any;
+        region = parts.slice(0, parts.length - 1).join('-');
+    } else {
+        region = cleaned;
+    }
+
+    return { cloud, region };
+}
+
 // Create pineconeIndex if it doesn't exist
 async function createIndex(client: Pinecone, indexName: string) {
     try {
+        const { cloud, region } = parsePineconeEnv(env.PINECONE_ENVIRONMENT);
         await client.createIndex({
             name: indexName,
-            dimension: 3072, // For text-embedding-3-large
+            dimension: env.EMBEDDING_DIMENSIONS, // Match embedding dims
             metric: "cosine",
             spec: {
                 serverless: {
-                    cloud: 'aws',
-                    region: 'us-east-1'
+                    cloud,
+                    region
                 }
             }
         });

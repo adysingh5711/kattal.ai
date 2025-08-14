@@ -49,16 +49,16 @@ export class OptimizedVectorStore {
         this.connectionPool = PineconeConnectionPool.getInstance();
         this.embeddings = new OpenAIEmbeddings({
             openAIApiKey: env.OPENAI_API_KEY,
-            modelName: "text-embedding-3-large",
-            dimensions: 3072,
+            modelName: env.EMBEDDING_MODEL,
+            dimensions: env.EMBEDDING_DIMENSIONS,
             // Performance optimizations
             maxConcurrency: 5, // Limit concurrent requests
             maxRetries: 3,
         });
 
         this.optimizer = new DatabaseOptimizer({
-            embeddingModel: "text-embedding-3-large",
-            embeddingDimensions: 3072,
+            embeddingModel: env.EMBEDDING_MODEL,
+            embeddingDimensions: env.EMBEDDING_DIMENSIONS,
             batchSize: 100,
             useNamespaces: true,
             namespaceStrategy: 'hybrid'

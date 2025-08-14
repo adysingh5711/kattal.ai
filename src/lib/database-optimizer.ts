@@ -54,10 +54,10 @@ export class DatabaseOptimizer {
         this.config = {
             // Optimal defaults based on analysis
             indexName: env.PINECONE_INDEX_NAME,
-            dimension: 3072, // text-embedding-3-large
+            dimension: env.EMBEDDING_DIMENSIONS,
             metric: 'cosine', // Best for semantic similarity
             cloud: 'aws',
-            region: 'us-east-1', // Lowest latency for most users
+            region: 'us-east-1',
 
             // Performance optimizations
             batchSize: 100, // Optimal batch size for Pinecone
@@ -65,8 +65,8 @@ export class DatabaseOptimizer {
             requestTimeout: 30000,
 
             // Embedding settings
-            embeddingModel: 'text-embedding-3-large',
-            embeddingDimensions: 3072,
+            embeddingModel: env.EMBEDDING_MODEL,
+            embeddingDimensions: env.EMBEDDING_DIMENSIONS,
 
             // Chunking optimization
             chunkSize: 1500, // Balanced for context vs performance

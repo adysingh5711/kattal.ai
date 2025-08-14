@@ -3,7 +3,7 @@ import { env } from "./env";
 import { DocumentNode } from "./document-graph";
 
 const memoryModel = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
+    modelName: env.LLM_MODEL,
     temperature: 0.1, // Low temperature for consistent memory processing
     openAIApiKey: env.OPENAI_API_KEY,
 });

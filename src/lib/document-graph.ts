@@ -3,7 +3,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { env } from "./env";
 
 const graphModel = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
+    modelName: env.LLM_MODEL,
     temperature: 0.2,
     openAIApiKey: env.OPENAI_API_KEY,
 });

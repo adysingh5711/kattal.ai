@@ -1,4 +1,4 @@
-# PDF Chat Application
+# Kaattal AI
 
 This is a Next.js application that allows users to chat with their PDF documents using AI. The application uses LangChain, Pinecone for vector storage, and OpenAI for embeddings and chat completions.
 

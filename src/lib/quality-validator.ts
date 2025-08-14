@@ -5,7 +5,7 @@ import { ResponseSynthesis, SourceAttribution } from "./response-synthesizer";
 import { QueryAnalysis } from "./query-analyzer";
 
 const validatorModel = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
+    modelName: env.LLM_MODEL,
     temperature: 0.1, // Low temperature for consistent validation
     openAIApiKey: env.OPENAI_API_KEY,
 });
