@@ -5,13 +5,18 @@
  * Automatically generates sitemap.xml with current dates and proper URLs
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configuration
 const config = {
   baseUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://kaattal-ai.vercel.app',
-  outputPath: path.join(process.cwd(), 'public', 'sitemap.xml'),
+  outputPath: path.join(__dirname, '..', 'public', 'sitemap.xml'),
   pages: [
     {
       path: '/',
@@ -76,9 +81,9 @@ function writeSitemap() {
 /**
  * Main execution
  */
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('🚀 Generating sitemap for Kaattal AI...');
   writeSitemap();
 }
 
-module.exports = { generateSitemapXML, writeSitemap };
+export { generateSitemapXML, writeSitemap };

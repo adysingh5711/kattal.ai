@@ -179,31 +179,31 @@ export function generatePageMetadata(
   };
 }
 
-function getPageTitle(page: string): string {
+function getPageTitle(page: 'home' | 'chat' | 'upload'): string {
   const titles = {
     home: 'Know Your District, Instantly | AI-Powered District Information Chat',
     chat: 'AI Chat Interface | Chat with Your Documents',
     upload: 'Document Upload | Process PDFs with AI'
   };
-  return titles[page] || titles.home;
+  return titles[page];
 }
 
-function getPageDescription(page: string, config: typeof seoConfig): string {
+function getPageDescription(page: 'home' | 'chat' | 'upload', config: typeof seoConfig): string {
   const descriptions = {
     home: config.siteDescription,
     chat: 'Interact with your documents using our advanced AI chat interface. Ask questions, get insights, and understand complex information instantly.',
     upload: 'Upload and process your PDF documents with AI. Transform unstructured data into searchable, intelligent knowledge bases.'
   };
-  return descriptions[page] || descriptions.home;
+  return descriptions[page];
 }
 
-function getPagePath(page: string): string {
+function getPagePath(page: 'home' | 'chat' | 'upload'): string {
   const paths = {
     home: '/',
     chat: '/chat',
     upload: '/upload'
   };
-  return paths[page] || '/';
+  return paths[page];
 }
 
 /**

@@ -230,7 +230,7 @@ export function generateAIMetaTags(
 ) {
   const baseTags = genaiConfig.aiMetaTags;
   const engineTags = Object.values(genaiConfig.aiEngineTags).flatMap(tags => tags);
-  
+
   const pageSpecificTags = {
     home: {
       'ai:page-type': 'landing',
@@ -260,8 +260,8 @@ export function generateAIMetaTags(
 /**
  * Generate AI-optimized content recommendations
  */
-export function generateAIContentRecommendations(page: string) {
-  const recommendations = {
+export function generateAIContentRecommendations(page: 'home' | 'chat' | 'upload') {
+  const recommendations: Record<'home' | 'chat' | 'upload', string[]> = {
     home: [
       'Include comprehensive feature descriptions',
       'Add use case examples',
@@ -276,16 +276,16 @@ export function generateAIContentRecommendations(page: string) {
       'Add feature highlights',
       'Provide usage instructions'
     ],
-    upload: {
+    upload: [
       'Explain upload process',
       'Describe supported formats',
       'Include processing details',
       'Add feature benefits',
       'Provide technical specifications'
-    }
+    ]
   };
 
-  return recommendations[page] || recommendations.home;
+  return recommendations[page];
 }
 
 export default genaiConfig;
