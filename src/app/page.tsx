@@ -37,7 +37,7 @@ export default function Home() {
         <main className="flex flex-col gap-[36px] row-start-2 items-center z-10">
           <div className="absolute inset-0 bg-transparent flex items-end justify-center">
             <Image
-              src="/kaattal.png"
+              src="/BanyanTree.png"
               alt="kaattal"
               width={850}
               height={300}
