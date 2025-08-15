@@ -40,48 +40,50 @@ export default function Home() {
     console.log('Sign in:', { email: formData.email, password: formData.password });
   };
 
-  // Animation variants
+  // Animation variants - Simplified for performance
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.6,
-        staggerChildren: 0.2
+        duration: 0.4,
+        staggerChildren: 0.1
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.6 }
+      transition: { duration: 0.4 }
     }
   };
 
   const cardVariants = {
-    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    hidden: { opacity: 0, y: 15 },
     visible: {
       opacity: 1,
-      scale: 1,
       y: 0,
-      transition: { duration: 0.5 }
+      transition: { duration: 0.3 }
     }
   };
 
   const imageVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      scale: 1,
-      transition: { duration: 0.8 }
+      transition: { duration: 0.5 }
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+
+
+
+
       <ThemeProvider
         attribute="class"
         disableTransitionOnChange
@@ -104,11 +106,14 @@ export default function Home() {
           >
             {/* Left Side - Image and Branding */}
             <motion.div
-              className="flex flex-col items-center justify-center text-center space-y-8"
+              className="flex flex-col items-center justify-center text-center space-y-8 relative group"
               variants={itemVariants}
             >
+              {/* Glowing Border Effect - Performance Optimized
+              <div className="absolute inset-0 rounded-3xl bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div> */}
+
               <motion.div
-                className="relative w-full max-w-md"
+                className="relative w-full max-w-md z-10"
                 variants={imageVariants}
               >
                 <Image
@@ -122,17 +127,17 @@ export default function Home() {
               </motion.div>
 
               <motion.div
-                className="space-y-4"
+                className="space-y-4 z-10 relative"
                 variants={itemVariants}
               >
-                <h1 className="text-4xl lg:text-5xl font-bold text-foreground">
+                <h1 className="text-4xl lg:text-5xl font-bold text-foreground transition-all duration-300 group-hover:text-primary/90">
                   <span className="block">Know Your District,</span>
-                  <span className={`${pacifico.className} bg-gradient-to-r from-primary via-accent to-chart-2 bg-clip-text text-transparent`}>
+                  <span className={`${pacifico.className} bg-gradient-to-r from-primary via-accent to-chart-2 bg-clip-text text-transparent transition-all duration-300 group-hover:from-primary/80 group-hover:via-accent/80 group-hover:to-chart-2/80`}>
                     Instantly
                   </span>
                 </h1>
 
-                <p className={`${playfair.className} text-lg text-muted-foreground italic max-w-md mx-auto leading-relaxed`}>
+                <p className={`${playfair.className} text-lg text-muted-foreground italic max-w-md mx-auto leading-relaxed transition-all duration-300 group-hover:text-foreground/80`}>
                   Understand development, services, and statistics through natural conversation.
                 </p>
               </motion.div>
@@ -145,10 +150,6 @@ export default function Home() {
             >
               <motion.div
                 variants={cardVariants}
-                whileHover={{
-                  scale: 1.01,
-                  transition: { duration: 0.2 }
-                }}
                 className="w-full"
               >
                 <Card className="w-full max-w-lg p-6 shadow-xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl">
