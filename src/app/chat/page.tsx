@@ -88,7 +88,7 @@ export default function Home() {
 
     // Pass addChat to sidebar for use in "New Chat" button
     return (
-        <main className="flex min-h-screen relative">
+        <main className="flex min-h-screen relative overflow-hidden">
             <ThemeProvider
                 attribute="class"
                 defaultTheme="light"
@@ -109,14 +109,14 @@ export default function Home() {
                         />
                     </div> */}
                     <div className="flex items-center justify-center flex-1 p-4 z-10">
-                        <div className="w-full max-w-4xl shadow-xl rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 mt-[50px]">
+                        <div className="w-full max-w-5xl shadow-xl rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 mt-[50px] h-[88vh]">
                             {/* Kaattak AI Heading */}
                             <div className="bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700 p-4 text-center">
                                 <h1 className="text-3xl font-bold tracking-wide text-slate-800 dark:text-slate-100">Kaattak AI</h1>
                                 <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">Your Intelligent Assistant</p>
                             </div>
                             {/* Chat Interface Container */}
-                            <div className="h-[80vh]">
+                            <div className="h-[calc(100%-80px)]">
                                 <ChatInterface ref={chatInterfaceRef} selectedChatId={selectedChat} />
                             </div>
                         </div>
