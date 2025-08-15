@@ -2,6 +2,7 @@
 import React from "react"
 import { FileUpload } from "@/components/ui/file-upload"
 import { ThemeProvider } from "@/components/theme-provider"
+import { UserDropdown } from "@/components/user-dropdown";
 import { ModeToggle } from "@/components/mode-toggle";
 // import { default as LetterGlitch } from "@/components/LetterGlitch/LetterGlitch";
 
@@ -14,8 +15,9 @@ const Upload: React.FC = () => {
                 enableSystem
                 disableTransitionOnChange
             >
-                <div className="top-5 right-5 z-100 absolute">
+                <div className="top-5 right-5 z-100 absolute flex items-center gap-2">
                     <ModeToggle />
+                    <UserDropdown />
                 </div>
                 <div className="flex justify-center mt-16">
                     <FileUpload />

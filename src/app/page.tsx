@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { pacifico, playfair } from "./font";
 import { ThemeProvider } from "@/components/theme-provider"
-import { ModeToggle } from "@/components/mode-toggle";
+// import { UserDropdown } from "@/components/user-dropdown";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -86,16 +86,11 @@ export default function Home() {
 
       <ThemeProvider
         attribute="class"
+        defaultTheme="light"
+        forcedTheme="light"
         disableTransitionOnChange
       >
-        <motion.div
-          className="absolute top-6 right-6 z-50"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <ModeToggle />
-        </motion.div>
+        {/* User dropdown removed - will be added to layout.tsx */}
 
         <div className="container mx-auto px-4 py-8">
           <motion.div

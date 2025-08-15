@@ -5,7 +5,8 @@ import ChatInterface, { ChatInterfaceHandle } from "@/components/chat-interface"
 // import ChatHistorySidebar from "@/components/user-sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
-import { ModeToggle } from "@/components/mode-toggle"
+import { UserDropdown } from "@/components/user-dropdown"
+// import { ModeToggle } from "@/components/mode-toggle"
 
 // Move initial chat list here
 // const initialChatHistories: { id: string; title: string }[] = []
@@ -93,10 +94,12 @@ export default function Home() {
                 attribute="class"
                 defaultTheme="light"
                 enableSystem={false}
+                forcedTheme="light"
                 disableTransitionOnChange
             >
-                <div className="top-5 right-5 absolute z-50">
-                    <ModeToggle />
+                <div className="top-5 right-5 absolute z-50 flex items-center gap-2">
+                    {/* <ModeToggle /> */}
+                    <UserDropdown />
                 </div>
                 <SidebarProvider>
                     {/* <div className="mt-6 ml-4 z-10">
