@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function Home() {
   const [formData, setFormData] = useState({
@@ -112,7 +112,7 @@ export default function Home() {
                 variants={imageVariants}
               >
                 <Image
-                  src="/BanyanTree.png"
+                  src="/kaattal.png"
                   alt="Banyan Tree - District Knowledge"
                   width={400}
                   height={300}
@@ -178,123 +178,139 @@ export default function Home() {
                         </TabsTrigger>
                       </TabsList>
 
-                      <TabsContent value="signup" className="space-y-4 mt-6">
-                        <form onSubmit={handleSignUp} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="name" className="text-sm font-medium text-foreground">
-                              Full Name
-                            </Label>
-                            <Input
-                              id="name"
-                              name="name"
-                              type="text"
-                              placeholder="Enter your full name"
-                              value={formData.name}
-                              onChange={handleInputChange}
-                              className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                              Email
-                            </Label>
-                            <Input
-                              id="email"
-                              name="email"
-                              type="email"
-                              placeholder="Enter your email"
-                              value={formData.email}
-                              onChange={handleInputChange}
-                              className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="password" className="text-sm font-medium text-foreground">
-                              Password
-                            </Label>
-                            <Input
-                              id="password"
-                              name="password"
-                              type="password"
-                              placeholder="Create a password"
-                              value={formData.password}
-                              onChange={handleInputChange}
-                              className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
-                              Confirm Password
-                            </Label>
-                            <Input
-                              id="confirmPassword"
-                              name="confirmPassword"
-                              type="password"
-                              placeholder="Confirm your password"
-                              value={formData.confirmPassword}
-                              onChange={handleInputChange}
-                              className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
-                              required
-                            />
-                          </div>
-
-                          <Button
-                            type="submit"
-                            className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 text-base shadow-lg hover:shadow-xl transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      <AnimatePresence mode="wait">
+                        <TabsContent value="signup" className="space-y-4 mt-6" key="signup">
+                          <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
                           >
-                            Create Account
-                          </Button>
-                        </form>
-                      </TabsContent>
+                            <form onSubmit={handleSignUp} className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="name" className="text-sm font-medium text-foreground">
+                                  Full Name
+                                </Label>
+                                <Input
+                                  id="name"
+                                  name="name"
+                                  type="text"
+                                  placeholder="Enter your full name"
+                                  value={formData.name}
+                                  onChange={handleInputChange}
+                                  className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
+                                  required
+                                />
+                              </div>
 
-                      <TabsContent value="signin" className="space-y-4 mt-6">
-                        <form onSubmit={handleSignIn} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="signin-email" className="text-sm font-medium text-foreground">
-                              Email
-                            </Label>
-                            <Input
-                              id="signin-email"
-                              name="email"
-                              type="email"
-                              placeholder="Enter your email"
-                              value={formData.email}
-                              onChange={handleInputChange}
-                              className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
-                              required
-                            />
-                          </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                                  Email
+                                </Label>
+                                <Input
+                                  id="email"
+                                  name="email"
+                                  type="email"
+                                  placeholder="Enter your email"
+                                  value={formData.email}
+                                  onChange={handleInputChange}
+                                  className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
+                                  required
+                                />
+                              </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="signin-password" className="text-sm font-medium text-foreground">
-                              Password
-                            </Label>
-                            <Input
-                              id="signin-password"
-                              name="password"
-                              type="password"
-                              placeholder="Enter your password"
-                              value={formData.password}
-                              onChange={handleInputChange}
-                              className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
-                              required
-                            />
-                          </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="password" className="text-sm font-medium text-foreground">
+                                  Password
+                                </Label>
+                                <Input
+                                  id="password"
+                                  name="password"
+                                  type="password"
+                                  placeholder="Create a password"
+                                  value={formData.password}
+                                  onChange={handleInputChange}
+                                  className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
+                                  required
+                                />
+                              </div>
 
-                          <Button
-                            type="submit"
-                            className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 text-base shadow-lg hover:shadow-xl transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              <div className="space-y-2">
+                                <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
+                                  Confirm Password
+                                </Label>
+                                <Input
+                                  id="confirmPassword"
+                                  name="confirmPassword"
+                                  type="password"
+                                  placeholder="Confirm your password"
+                                  value={formData.confirmPassword}
+                                  onChange={handleInputChange}
+                                  className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
+                                  required
+                                />
+                              </div>
+
+                              <Button
+                                type="submit"
+                                className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 text-base shadow-lg hover:shadow-xl transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              >
+                                Create Account
+                              </Button>
+                            </form>
+                          </motion.div>
+                        </TabsContent>
+
+                        <TabsContent value="signin" className="space-y-4 mt-6" key="signin">
+                          <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
                           >
-                            Sign In
-                          </Button>
-                        </form>
-                      </TabsContent>
+                            <form onSubmit={handleSignIn} className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="signin-email" className="text-sm font-medium text-foreground">
+                                  Email
+                                </Label>
+                                <Input
+                                  id="signin-email"
+                                  name="email"
+                                  type="email"
+                                  placeholder="Enter your email"
+                                  value={formData.email}
+                                  onChange={handleInputChange}
+                                  className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
+                                  required
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="signin-password" className="text-sm font-medium text-foreground">
+                                  Password
+                                </Label>
+                                <Input
+                                  id="signin-password"
+                                  name="password"
+                                  type="password"
+                                  placeholder="Enter your password"
+                                  value={formData.password}
+                                  onChange={handleInputChange}
+                                  className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
+                                  required
+                                />
+                              </div>
+
+                              <Button
+                                type="submit"
+                                className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 text-base shadow-lg hover:shadow-xl transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              >
+                                Sign In
+                              </Button>
+                            </form>
+                          </motion.div>
+                        </TabsContent>
+                      </AnimatePresence>
                     </Tabs>
                   </CardContent>
                 </Card>
