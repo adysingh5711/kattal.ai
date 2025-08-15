@@ -87,18 +87,18 @@ export default function Home() {
 
     // Pass addChat to sidebar for use in "New Chat" button
     return (
-        <main className="flex min-h-screen">
+        <main className="flex min-h-screen relative">
             <ThemeProvider
                 attribute="class"
                 defaultTheme="light"
                 enableSystem={false}
                 disableTransitionOnChange
             >
-                <div className="top-5 right-5 absolute">
+                <div className="top-5 right-5 absolute z-50">
                     <ModeToggle />
                 </div>
                 <SidebarProvider>
-                    <div className="mt-6 ml-4">
+                    <div className="mt-6 ml-4 z-10">
                         <ChatHistorySidebar
                             onSelectChat={handleSelectChat}
                             selectedChat={selectedChat}
@@ -107,7 +107,7 @@ export default function Home() {
                             addChat={addChat}
                         />
                     </div>
-                    <div className="flex items-center justify-center flex-1 p-4">
+                    <div className="flex items-center justify-center flex-1 p-4 z-10">
                         <div className="w-full max-w-4xl h-[80vh] shadow-xl rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 mt-[50px]">
                             <ChatInterface ref={chatInterfaceRef} selectedChatId={selectedChat} />
                         </div>

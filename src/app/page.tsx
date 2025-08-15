@@ -30,21 +30,21 @@ export default function Home() {
             <SoundWaveAnimation />
           </div> */}
           {/* Overlay Box to Improve Readability */}
-          <div className="absolute inset-0 bg-transparent flex items-end justify-center">
-            <Image
-              src="/BanyanTree.png"
-              alt="BanyanTree"
-              width={1200}
-              height={300}
-              className="opacity-100 dark:opacity-40 z-0 object-cover"
-              priority
-            />
-          </div>
 
         </div>
 
 
         <main className="flex flex-col gap-[36px] row-start-2 items-center z-10">
+          <div className="absolute inset-0 bg-transparent flex items-end justify-center">
+            <Image
+              src="/kaattal.png"
+              alt="kaattal"
+              width={850}
+              height={300}
+              className="opacity-100 dark:opacity-40 z-0 object-cover"
+              priority
+            />
+          </div>
           <div className="home-text-primary text-center">
             <Balancer>
               <SplitText
@@ -68,7 +68,7 @@ export default function Home() {
             />
           </Balancer>
 
-          <div className="sm:flex-row flex flex-col items-center gap-4">
+          <div className="sm:flex-row flex flex-col items-center gap-4 my-[30px]">
             <a
               className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-primary text-primary-foreground gap-2 hover:bg-primary/90 font-medium text-sm z-10 sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto shadow-lg hover:shadow-xl transition-all duration-200"
               href="/chat"

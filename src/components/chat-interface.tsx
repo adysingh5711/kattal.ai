@@ -9,6 +9,7 @@ import { Send } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { MarkdownRenderer } from "./markdown-renderer"
 import "./chat-interface.css"
+import Image from "next/image"
 
 type Message = {
     id: string
@@ -167,8 +168,19 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     disableTransitionOnChange
                 >
 
+
                     {/* Messages */}
                     <ScrollArea className="flex-1 h-full p-4 overflow-y-auto">
+                        <div className="absolute inset-0 flex items-end justify-center pointer-events-none z-25">
+                            <Image
+                                src="/icon.png"
+                                alt="Background Icon"
+                                width={500}
+                                height={400}
+                                className="opacity-20 dark:opacity-20 object-contain"
+                                priority
+                            />
+                        </div>
                         <div className="space-y-4">
                             {messages.map((message) => (
                                 <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>

@@ -17,6 +17,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Kaattal AI",
   description: "Know Your District, Instantly",
+  manifest: '/manifest.json',
+  icons: [
+    {
+      rel: 'icon',
+      type: 'image/png',
+      sizes: '32x32',
+      url: '/kaattal.png',
+    },
+    {
+      rel: 'apple-touch-icon',
+      type: 'image/png',
+      sizes: '180x180',
+      url: '/kaattal.png',
+    },
+  ],
 };
 
 export default function RootLayout({
