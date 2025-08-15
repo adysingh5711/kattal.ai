@@ -15,7 +15,9 @@
     "refill:data": "npm run clear:data && npm run prepare:data",
     "test:reasoning": "tsx -r dotenv/config ./src/scripts/test-reasoning.ts",
     "analyze:database": "tsx -r dotenv/config ./src/scripts/analyze-database.ts",
-    "optimize:database": "npm run analyze:database"
+    "optimize:database": "npm run analyze:database",
+    "generate:sitemap": "node ./scripts/generate-sitemap.js",
+    "postbuild": "npm run generate:sitemap"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.0-beta.10",
