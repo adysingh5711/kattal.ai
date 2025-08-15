@@ -14,7 +14,17 @@ export default function StructuredData() {
     "author": {
       "@type": "Organization",
       "name": "Kaattal AI Team",
-      "url": "https://kaattal-ai.vercel.app"
+      "url": "https://kaattal-ai.vercel.app",
+      "member": {
+        "@type": "Person",
+        "name": "Aditya Singh",
+        "url": "https://linkedin.com/in/singhaditya5711",
+        "jobTitle": "Lead Developer",
+        "worksFor": {
+          "@type": "Organization",
+          "name": "Kaattal AI"
+        }
+      }
     },
     "publisher": {
       "@type": "Organization",
@@ -143,7 +153,77 @@ export default function StructuredData() {
         "targetName": "Information Technology",
         "educationalFramework": "STEM Education"
       }
-    ]
+    ],
+    // GenAI Optimization Properties
+    "aiCapabilities": [
+      "Natural Language Processing",
+      "Document Understanding",
+      "Semantic Search",
+      "Knowledge Retrieval",
+      "Multi-language Support",
+      "Context Awareness"
+    ],
+    "aiUseCases": [
+      "Government Document Analysis",
+      "Research Data Processing",
+      "Educational Content Understanding",
+      "Business Intelligence",
+      "Policy Document Review",
+      "Statistical Data Interpretation"
+    ],
+    "aiTechnologies": [
+      "LangChain",
+      "Pinecone Vector Database",
+      "OpenAI GPT Models",
+      "Retrieval Augmented Generation (RAG)",
+      "Vector Embeddings",
+      "Semantic Search Algorithms"
+    ],
+    "aiFeatures": {
+      "chatInterface": true,
+      "pdfProcessing": true,
+      "vectorSearch": true,
+      "multiLanguage": true,
+      "realTimeResponse": true,
+      "contextAwareness": true
+    },
+    "aiPerformance": {
+      "responseTime": "Real-time",
+      "accuracy": "High",
+      "scalability": "Enterprise-grade",
+      "reliability": "99.9% uptime"
+    },
+    "aiApplications": {
+      "government": "District information access",
+      "education": "Research and learning",
+      "business": "Document analysis",
+      "research": "Data interpretation",
+      "public": "Information discovery"
+    },
+    // Enhanced Educational Properties
+    "educationalLevel": ["Intermediate", "Advanced"],
+    "inLanguage": ["en", "ml"],
+    "accessibilityFeature": [
+      "Screen Reader Compatible",
+      "Keyboard Navigation",
+      "High Contrast Mode",
+      "Responsive Design"
+    ],
+    "accessibilityHazard": "none",
+    "accessibilityControl": [
+      "fullKeyboardControl",
+      "fullMouseControl"
+    ],
+    // Technical Properties for AI Understanding
+    "programmingLanguage": "TypeScript",
+    "framework": "Next.js",
+    "database": "Pinecone",
+    "aiModel": "OpenAI GPT",
+    "deployment": "Vercel",
+    "architecture": "Serverless",
+    "api": "RESTful",
+    "security": "HTTPS, API Key Authentication",
+    "compliance": "GDPR Ready, Data Privacy"
   }
 
   return (

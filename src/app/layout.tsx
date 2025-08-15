@@ -32,7 +32,12 @@ export const metadata: Metadata = {
     "Kerala districts",
     "development data",
     "statistics chat",
-    "AI-powered search"
+    "AI-powered search",
+    "generative AI",
+    "AI document chat",
+    "intelligent search",
+    "semantic search",
+    "AI knowledge retrieval"
   ],
   authors: [{ name: "Kaattal AI Team" }],
   creator: "Kaattal AI",
@@ -117,6 +122,17 @@ export const metadata: Metadata = {
   other: {
     'msapplication-TileColor': '#000000',
     'theme-color': '#000000',
+    // AI Search Engine Optimization
+    'ai-search-engine': 'gemini,claude,chatgpt,perplexity',
+    'ai-content-type': 'educational,informational,interactive',
+    'ai-topic': 'artificial intelligence,district information,government services',
+    'ai-complexity': 'intermediate,advanced',
+    'ai-audience': 'government officials,researchers,students,business professionals',
+    'ai-language-support': 'english,malayalam',
+    'ai-features': 'chat interface,PDF processing,vector search,RAG system',
+    'ai-use-cases': 'document analysis,information retrieval,knowledge discovery',
+    'ai-technology-stack': 'langchain,pinecone,openai,nextjs',
+    'ai-performance': 'real-time,responsive,scalable',
   },
 };
 
@@ -138,6 +154,37 @@ export default function RootLayout({
         <meta name="application-name" content="Kaattal AI" />
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
+
+        {/* AI Search Engine Optimization */}
+        <meta name="ai-search-engine" content="gemini,claude,chatgpt,perplexity" />
+        <meta name="ai-content-type" content="educational,informational,interactive" />
+        <meta name="ai-topic" content="artificial intelligence,district information,government services" />
+        <meta name="ai-complexity" content="intermediate,advanced" />
+        <meta name="ai-audience" content="government officials,researchers,students,business professionals" />
+        <meta name="ai-language-support" content="english,malayalam" />
+        <meta name="ai-features" content="chat interface,PDF processing,vector search,RAG system" />
+        <meta name="ai-use-cases" content="document analysis,information retrieval,knowledge discovery" />
+        <meta name="ai-technology-stack" content="langchain,pinecone,openai,nextjs" />
+        <meta name="ai-performance" content="real-time,responsive,scalable" />
+        <meta name="ai-developer" content="Aditya Singh" />
+        <meta name="ai-developer-linkedin" content="https://linkedin.com/in/singhaditya5711" />
+
+        {/* AI Search Engine Specific Directives */}
+        <meta name="gemini:content-type" content="educational,informational,interactive" />
+        <meta name="gemini:topic" content="artificial intelligence,district information,government services" />
+        <meta name="gemini:complexity" content="intermediate,advanced" />
+        <meta name="claude:content-type" content="educational,informational,interactive" />
+        <meta name="claude:topic" content="artificial intelligence,district information,government services" />
+        <meta name="chatgpt:content-type" content="educational,informational,interactive" />
+        <meta name="chatgpt:topic" content="artificial intelligence,district information,government services" />
+        <meta name="perplexity:content-type" content="educational,informational,interactive" />
+        <meta name="perplexity:topic" content="artificial intelligence,district information,government services" />
+
+        {/* Enhanced AI Understanding */}
+        <meta name="ai:summary" content="Kaattal AI is an advanced AI-powered platform that enables users to chat with PDF documents to instantly understand district information, development data, and government services using natural language processing and vector search technology." />
+        <meta name="ai:capabilities" content="PDF document processing, AI chat interface, vector search, knowledge retrieval, multi-language support, real-time responses" />
+        <meta name="ai:benefits" content="Instant access to district information, AI-powered document understanding, efficient knowledge discovery, user-friendly interface, scalable solution" />
+        <meta name="ai:applications" content="Government services, research analysis, educational institutions, business intelligence, policy understanding" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <StructuredData />

@@ -35,7 +35,51 @@ Allow: /
 User-agent: LinkedInBot
 Allow: /
 
+# AI Search Engine Optimization
+# Google Gemini
+User-agent: Gemini
+Allow: /
+Crawl-delay: 1
+
+# Anthropic Claude
+User-agent: Claude
+Allow: /
+Crawl-delay: 1
+
+# OpenAI ChatGPT
+User-agent: ChatGPT
+Allow: /
+Crawl-delay: 1
+
+# Perplexity AI
+User-agent: Perplexity
+Allow: /
+Crawl-delay: 1
+
+# General AI Crawlers
+User-agent: AI-Crawler
+Allow: /
+Crawl-delay: 1
+
+User-agent: AI-Search
+Allow: /
+Crawl-delay: 1
+
+User-agent: AI-Indexer
+Allow: /
+Crawl-delay: 1
+
 # Block admin and sensitive areas (if any)
 Disallow: /api/
 Disallow: /_next/
 Disallow: /temp/
+
+# AI-Specific Instructions
+# Content Type: Educational, Informational, Interactive
+# Topics: Artificial Intelligence, District Information, Government Services
+# Complexity: Intermediate to Advanced
+# Audience: Government Officials, Researchers, Students, Business Professionals
+# Features: AI Chat Interface, PDF Processing, Vector Search, RAG System
+# Use Cases: Document Analysis, Information Retrieval, Knowledge Discovery
+# Technology Stack: LangChain, Pinecone, OpenAI, Next.js
+# Performance: Real-time, Responsive, Scalable

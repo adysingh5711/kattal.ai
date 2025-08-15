@@ -1,21 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:ai="https://kaattal-ai.vercel.app/ai-schema">
   <url>
     <loc>https://kaattal-ai.vercel.app/</loc>
     <lastmod>2024-12-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <ai:contentType>educational,informational,interactive</ai:contentType>
+    <ai:topic>artificial intelligence,district information,government services</ai:topic>
+    <ai:complexity>intermediate,advanced</ai:complexity>
+    <ai:audience>government officials,researchers,students,business professionals</ai:audience>
+    <ai:features>ai chat interface,pdf processing,vector search,rag system</ai:features>
+    <ai:useCases>document analysis,information retrieval,knowledge discovery</ai:useCases>
+    <ai:technologyStack>langchain,pinecone,openai,nextjs</ai:technologyStack>
   </url>
   <url>
     <loc>https://kaattal-ai.vercel.app/chat</loc>
     <lastmod>2024-12-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
+    <ai:contentType>interactive,functional</ai:contentType>
+    <ai:topic>ai chat interface,document processing,vector search</ai:topic>
+    <ai:complexity>intermediate,advanced</ai:complexity>
+    <ai:audience>end users,government officials,researchers</ai:audience>
+    <ai:features>real-time chat,ai responses,context awareness</ai:features>
+    <ai:useCases>document querying,information retrieval,ai assistance</ai:useCases>
+    <ai:technologyStack>openai,langchain,pinecone</ai:technologyStack>
   </url>
   <url>
     <loc>https://kaattal-ai.vercel.app/upload</loc>
     <lastmod>2024-12-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+    <ai:contentType>functional,interactive</ai:contentType>
+    <ai:topic>document upload,pdf processing,ai processing</ai:topic>
+    <ai:complexity>intermediate</ai:complexity>
+    <ai:audience>content creators,administrators,users</ai:audience>
+    <ai:features>file upload,pdf parsing,vector embedding</ai:features>
+    <ai:useCases>document ingestion,knowledge base creation,ai training</ai:useCases>
+    <ai:technologyStack>pdf-parse,langchain,pinecone</ai:technologyStack>
   </url>
 </urlset>
