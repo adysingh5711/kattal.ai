@@ -1,8 +1,33 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config();
+// Only load dotenv on server side
+if (typeof window === 'undefined') {
+    dotenv.config();
+}
 
+/*
+ENVIRONMENT VARIABLES SECURITY GUIDE:
+====================================
+
+🚫 NEVER EXPOSE TO CLIENT (Server-side only):
+- DATABASE_URL: Contains sensitive database connection string
+- OPENAI_API_KEY: Contains API secrets
+- PINECONE_API_KEY: Contains API secrets
+- AWS_API_KEY: Contains API secrets
+- Other API keys and sensitive credentials
+
+✅ SAFE FOR CLIENT (Can be exposed):
+- NEXT_PUBLIC_SUPABASE_URL: Public Supabase project URL
+- NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: Public anonymous key
+- Any variable prefixed with NEXT_PUBLIC_
+
+⚠️  IMPORTANT: DATABASE_URL ≠ NEXT_PUBLIC_SUPABASE_URL
+   - DATABASE_URL: postgresql://user:pass@host:port/db (SENSITIVE!)
+   - NEXT_PUBLIC_SUPABASE_URL: https://project.supabase.co (PUBLIC)
+*/
+
+// Environment variables schema
 const envSchema = z.object({
     // LLM provider/model
     LLM_PROVIDER: z.string().trim().min(1, 'LLM_PROVIDER is required'),
@@ -13,6 +38,11 @@ const envSchema = z.object({
     OPENROUTER_API_KEY: z.string().trim().min(1, 'OPENROUTER_API_KEY is required'),
     PINECONE_API_KEY: z.string().trim().min(1, 'PINECONE_API_KEY is required'),
     AWS_API_KEY: z.string().trim().min(1, 'AWS_API_KEY is required'),
+
+    // Supabase Configuration
+    DATABASE_URL: z.string().trim().min(1, 'DATABASE_URL is required'),
+    NEXT_PUBLIC_SUPABASE_URL: z.string().trim().min(1, 'NEXT_PUBLIC_SUPABASE_URL is required'),
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().trim().min(1, 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required'),
 
     // Pinecone
     PINECONE_ENVIRONMENT: z.string().trim().min(1, 'PINECONE_ENVIRONMENT is required'),
@@ -31,11 +61,17 @@ const envSchema = z.object({
     INDEX_INIT_TIMEOUT: z.coerce.number().min(1, 'INDEX_INIT_TIMEOUT must be a number > 0'),
 });
 
+// Environment validation - only on server side
 export const env = (() => {
+    // If running on client side, return empty object to prevent validation errors
+    if (typeof window !== 'undefined') {
+        return {} as z.infer<typeof envSchema>;
+    }
+
     try {
         return envSchema.parse(process.env);
     } catch (error) {
         console.error('❌ Invalid environment variables:', error);
-        process.exit(1); // crash fast in development/build
+        throw new Error('Invalid environment variables');
     }
 })();

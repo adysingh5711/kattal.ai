@@ -1,5 +1,5 @@
 /**
- * GenAI Configuration for Kaattal AI
+ * GenAI Configuration for Kattal AI
  * Comprehensive configuration for AI search engine optimization
  * Including Gemini, Claude, ChatGPT, and Perplexity optimization
  */
@@ -129,7 +129,7 @@ export const genaiConfig = {
     'ai-performance': 'real-time,responsive,scalable',
 
     // AI Summary
-    'ai:summary': 'Kaattal AI is an advanced AI-powered platform that enables users to chat with PDF documents to instantly understand district information, development data, and government services using natural language processing and vector search technology.',
+    'ai:summary': 'Kattal AI is an advanced AI-powered platform that enables users to chat with PDF documents to instantly understand district information, development data, and government services using natural language processing and vector search technology.',
     'ai:capabilities': 'PDF document processing, AI chat interface, vector search, knowledge retrieval, multi-language support, real-time responses',
     'ai:benefits': 'Instant access to district information, AI-powered document understanding, efficient knowledge discovery, user-friendly interface, scalable solution',
     'ai:applications': 'Government services, research analysis, educational institutions, business intelligence, policy understanding'

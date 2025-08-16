@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Sitemap Generator for Kaattal AI
+ * Sitemap Generator for Kattal AI
  * Automatically generates sitemap.xml with current dates and proper URLs
  */
 
@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const config = {
-  baseUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://kaattal-ai.vercel.app',
+  baseUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://kattal-ai.vercel.app',
   outputPath: path.join(__dirname, '..', 'public', 'sitemap.xml'),
   pages: [
     {
@@ -82,7 +82,7 @@ function writeSitemap() {
  * Main execution
  */
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('🚀 Generating sitemap for Kaattal AI...');
+  console.log('🚀 Generating sitemap for Kattal AI...');
   writeSitemap();
 }
 

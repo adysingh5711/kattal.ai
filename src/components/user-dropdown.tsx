@@ -19,10 +19,29 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 export function UserDropdown() {
     const router = useRouter();
 
-    const handleLogout = () => {
-        // Here you can add any logout logic like clearing tokens, etc.
-        // For now, we'll just redirect to the home page
-        router.push("/");
+    const handleLogout = async () => {
+        try {
+            // Call the signout API
+            const response = await fetch('/api/auth/signout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                // Successfully signed out, redirect to home page
+                router.push("/");
+            } else {
+                console.error('Failed to sign out');
+                // Redirect anyway for better UX
+                router.push("/");
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Redirect anyway for better UX
+            router.push("/");
+        }
     };
 
     return (

@@ -4,17 +4,17 @@ export default function StructuredData() {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "Kaattal AI",
-    "description": "Transform how you access district information with Kaattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics.",
-    "url": "https://kaattal-ai.vercel.app",
+    "name": "Kattal AI",
+    "description": "Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics.",
+    "url": "https://kattal-ai.vercel.app",
     "applicationCategory": "ProductivityApplication",
     "operatingSystem": "Web Browser",
     "browserRequirements": "Requires JavaScript. Requires HTML5.",
     "softwareVersion": "1.0.0",
     "author": {
       "@type": "Organization",
-      "name": "Kaattal AI Team",
-      "url": "https://kaattal-ai.vercel.app",
+      "name": "Kattal AI Team",
+      "url": "https://kattal-ai.vercel.app",
       "member": {
         "@type": "Person",
         "name": "Aditya Singh",
@@ -22,14 +22,14 @@ export default function StructuredData() {
         "jobTitle": "Lead Developer",
         "worksFor": {
           "@type": "Organization",
-          "name": "Kaattal AI"
+          "name": "Kattal AI"
         }
       }
     },
     "publisher": {
       "@type": "Organization",
-      "name": "Kaattal AI",
-      "url": "https://kaattal-ai.vercel.app"
+      "name": "Kattal AI",
+      "url": "https://kattal-ai.vercel.app"
     },
     "offers": {
       "@type": "Offer",
@@ -45,7 +45,7 @@ export default function StructuredData() {
       "Responsive design",
       "Dark/light mode"
     ],
-    "screenshot": "https://kaattal-ai.vercel.app/kaattal.png",
+    "screenshot": "https://kattal-ai.vercel.app/kattal.png",
     "softwareRequirements": "Modern web browser with JavaScript enabled",
     "aggregateRating": {
       "@type": "AggregateRating",
@@ -66,7 +66,7 @@ export default function StructuredData() {
           "@type": "Person",
           "name": "Government Official"
         },
-        "reviewBody": "Kaattal AI has revolutionized how we access district information. The AI chat interface makes complex data easily understandable."
+        "reviewBody": "Kattal AI has revolutionized how we access district information. The AI chat interface makes complex data easily understandable."
       },
       {
         "@type": "Review",
@@ -84,9 +84,9 @@ export default function StructuredData() {
     ],
     "mainEntity": {
       "@type": "SoftwareApplication",
-      "name": "Kaattal AI Chat Interface",
+      "name": "Kattal AI Chat Interface",
       "description": "AI-powered chat interface for interacting with PDF documents and district information",
-      "url": "https://kaattal-ai.vercel.app/chat",
+      "url": "https://kattal-ai.vercel.app/chat",
       "applicationCategory": "Chat Application",
       "operatingSystem": "Web Browser"
     },

@@ -1,4 +1,4 @@
-# Kaattal AI - Know Your District, Instantly
+# Kattal AI - Know Your District, Instantly
 
 [![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -10,7 +10,7 @@
 
 > **Transform how you access district information with AI-powered intelligence**
 
-Kaattal AI is a cutting-edge web application that revolutionizes the way users interact with district information. Using advanced AI technologies including Retrieval Augmented Generation (RAG), vector search, and natural language processing, users can chat with their PDF documents to instantly understand development data, government services, and statistical information.
+Kattal AI is a cutting-edge web application that revolutionizes the way users interact with district information. Using advanced AI technologies including Retrieval Augmented Generation (RAG), vector search, and natural language processing, users can chat with their PDF documents to instantly understand development data, government services, and statistical information.
 
 ## Key Features
 
@@ -109,8 +109,8 @@ Kaattal AI is a cutting-edge web application that revolutionizes the way users i
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/kaattal-ai.git
-   cd kaattal-ai
+   git clone https://github.com/yourusername/kattal-ai.git
+   cd kattal-ai
    ```
 
 2. **Install dependencies**
@@ -248,7 +248,7 @@ PINECONE_ENVIRONMENT=your_pinecone_environment
 PINECONE_INDEX=your_pinecone_index
 
 # Optional: Custom Domain
-NEXT_PUBLIC_SITE_URL=https://kaattal-ai.vercel.app
+NEXT_PUBLIC_SITE_URL=https://kattal-ai.vercel.app
 ```
 
 ## Performance Optimization
@@ -330,16 +330,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Documentation**: Comprehensive documentation and guides
 - **Issues**: GitHub Issues for bug reports and feature requests
 - **Discussions**: GitHub Discussions for community support
-- **Email**: dev@kaattal.ai for direct support
+- **Email**: dev@kattal.ai for direct support
 
 ### Business Inquiries
-- **Partnerships**: partnership@kaattal.ai
-- **Enterprise**: enterprise@kaattal.ai
-- **General**: contact@kaattal.ai
+- **Partnerships**: partnership@kattal.ai
+- **Enterprise**: enterprise@kattal.ai
+- **General**: contact@kattal.ai
 
 ---
 
 <div align="center">
-  <p>Made with ❤️ by the Kaattal AI Team</p>
+  <p>Made with ❤️ by the Kattal AI Team</p>
   <p>Empowering districts with AI-driven insights</p>
 </div>

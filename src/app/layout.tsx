@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kaattal AI - Know Your District, Instantly | AI-Powered District Information Chat",
-  description: "Transform how you access district information with Kaattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics. Powered by LangChain, Pinecone, and OpenAI.",
+  title: "Kattal AI - Know Your District, Instantly | AI-Powered District Information Chat",
+  description: "Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics. Powered by LangChain, Pinecone, and OpenAI.",
   keywords: [
     "AI chat",
     "PDF analysis",
@@ -39,39 +39,39 @@ export const metadata: Metadata = {
     "semantic search",
     "AI knowledge retrieval"
   ],
-  authors: [{ name: "Kaattal AI Team" }],
-  creator: "Kaattal AI",
-  publisher: "Kaattal AI",
+  authors: [{ name: "Kattal AI Team" }],
+  creator: "Kattal AI",
+  publisher: "Kattal AI",
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
-  metadataBase: new URL('https://kaattal-ai.vercel.app'),
+  metadataBase: new URL('https://kattal-ai.vercel.app'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://kaattal-ai.vercel.app',
-    title: 'Kaattal AI - Know Your District, Instantly',
-    description: 'Transform how you access district information with Kaattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics.',
-    siteName: 'Kaattal AI',
+    url: 'https://kattal-ai.vercel.app',
+    title: 'Kattal AI - Know Your District, Instantly',
+    description: 'Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics.',
+    siteName: 'Kattal AI',
     images: [
       {
-        url: '/kaattal.png',
+        url: '/kattal.png',
         width: 1200,
         height: 630,
-        alt: 'Kaattal AI - AI-Powered District Information Platform',
+        alt: 'Kattal AI - AI-Powered District Information Platform',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Kaattal AI - Know Your District, Instantly',
-    description: 'Transform how you access district information with Kaattal AI. Chat with your PDF documents using advanced AI.',
-    images: ['/kaattal.png'],
+    title: 'Kattal AI - Know Your District, Instantly',
+    description: 'Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI.',
+    images: ['/kattal.png'],
     creator: '@kaattalai',
     site: '@kaattalai',
   },
@@ -97,23 +97,23 @@ export const metadata: Metadata = {
       rel: 'icon',
       type: 'image/png',
       sizes: '32x32',
-      url: '/kaattal.png',
+      url: '/kattal.png',
     },
     {
       rel: 'icon',
       type: 'image/png',
       sizes: '16x16',
-      url: '/kaattal.png',
+      url: '/kattal.png',
     },
     {
       rel: 'apple-touch-icon',
       type: 'image/png',
       sizes: '180x180',
-      url: '/kaattal.png',
+      url: '/kattal.png',
     },
     {
       rel: 'mask-icon',
-      url: '/kaattal.png',
+      url: '/kattal.png',
       color: '#000000',
     },
   ],
@@ -150,8 +150,8 @@ export default function RootLayout({
         <meta name="theme-color" content="#000000" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Kaattal AI" />
-        <meta name="application-name" content="Kaattal AI" />
+        <meta name="apple-mobile-web-app-title" content="Kattal AI" />
+        <meta name="application-name" content="Kattal AI" />
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
 
@@ -181,7 +181,7 @@ export default function RootLayout({
         <meta name="perplexity:topic" content="artificial intelligence,district information,government services" />
 
         {/* Enhanced AI Understanding */}
-        <meta name="ai:summary" content="Kaattal AI is an advanced AI-powered platform that enables users to chat with PDF documents to instantly understand district information, development data, and government services using natural language processing and vector search technology." />
+        <meta name="ai:summary" content="Kattal AI is an advanced AI-powered platform that enables users to chat with PDF documents to instantly understand district information, development data, and government services using natural language processing and vector search technology." />
         <meta name="ai:capabilities" content="PDF document processing, AI chat interface, vector search, knowledge retrieval, multi-language support, real-time responses" />
         <meta name="ai:benefits" content="Instant access to district information, AI-powered document understanding, efficient knowledge discovery, user-friendly interface, scalable solution" />
         <meta name="ai:applications" content="Government services, research analysis, educational institutions, business intelligence, policy understanding" />
