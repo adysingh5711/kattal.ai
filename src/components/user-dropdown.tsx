@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { User, LogOut, Settings } from "lucide-react";
+import { User, LogOut } from "lucide-react";
+// import { Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ export function UserDropdown() {
                     <span className="sr-only">User menu</span>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">User Menu</p>

@@ -11,8 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -30,14 +32,16 @@ export default function Home() {
 
   const handleSignUp = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle signup logic here
+    // Temporarily route directly to chat without authentication
     console.log('Sign up:', formData);
+    router.push('/chat');
   };
 
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle signin logic here
+    // Temporarily route directly to chat without authentication
     console.log('Sign in:', { email: formData.email, password: formData.password });
+    router.push('/chat');
   };
 
   // Animation variants - Simplified for performance
