@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { env } from "@/lib/env";
+import { getBaseUrl } from "@/lib/utils";
 
 export async function POST(request: Request) {
     try {
@@ -15,11 +15,14 @@ export async function POST(request: Request) {
 
         const supabase = await createClient();
 
+        // Get the correct redirect URL based on environment
+        const baseUrl = getBaseUrl(request);
+
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-                emailRedirectTo: `${process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://' + request.headers.get('host')}/api/auth/callback`,
+                emailRedirectTo: `${baseUrl}/api/auth/callback`,
                 data: {
                     full_name: name,
                     display_name: name,

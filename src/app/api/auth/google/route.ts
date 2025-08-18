@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getBaseUrl } from "@/lib/utils";
 
 export async function GET(request: Request) {
     const supabase = await createClient();
-    const { origin } = new URL(request.url);
+
+    // Get the correct redirect URL based on environment
+    const baseUrl = getBaseUrl(request);
 
     // Redirect to Google OAuth
-    const redirectTo = `${origin}/api/auth/callback`;
+    const redirectTo = `${baseUrl}/api/auth/callback`;
 
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

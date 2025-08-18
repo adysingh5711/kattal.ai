@@ -44,6 +44,9 @@ const envSchema = z.object({
     NEXT_PUBLIC_SUPABASE_URL: z.string().trim().min(1, 'NEXT_PUBLIC_SUPABASE_URL is required'),
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().trim().min(1, 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required'),
 
+    // Site Configuration
+    NEXT_PUBLIC_SITE_URL: z.string().url('NEXT_PUBLIC_SITE_URL must be a valid URL').optional(),
+
     // Pinecone
     PINECONE_ENVIRONMENT: z.string().trim().min(1, 'PINECONE_ENVIRONMENT is required'),
     PINECONE_INDEX_NAME: z.string().trim().min(1, 'PINECONE_INDEX_NAME is required'),

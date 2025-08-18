@@ -220,7 +220,7 @@ export default function HomeContent() {
                         variants={itemVariants}
                     >
                         <h1 className="text-4xl lg:text-5xl font-bold text-foreground transition-all duration-300 group-hover:text-primary/90">
-                            <span className="block">Know Your District,</span>
+                            <span className="block">Know Our Kattakkada,</span>
                             <span className={`${pacifico.className} bg-gradient-to-r from-primary via-accent to-chart-2 bg-clip-text text-transparent transition-all duration-300 group-hover:from-primary/80 group-hover:via-accent/80 group-hover:to-chart-2/80`}>
                                 Instantly
                             </span>
