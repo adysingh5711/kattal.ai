@@ -32,7 +32,7 @@ export function getBaseUrl(request?: Request): string {
   }
 
   // Final fallback to the known production URL
-  return 'https://kaattal-ai.vercel.app';
+  return 'https://kattal-ai.vercel.app';
 }
 
 export function delay(ms: number) {
