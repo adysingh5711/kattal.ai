@@ -5,25 +5,59 @@ import { getBaseUrl } from "@/lib/utils";
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+    
     // if "next" is in param, use it as the redirect URL
     const next = searchParams.get('next') ?? '/chat';
 
+    console.log('Auth callback received:', { code: !!code, error, errorDescription, next });
+
+    if (error) {
+        console.error('OAuth error:', error, errorDescription);
+        const baseUrl = getBaseUrl(request);
+        const errorRedirectUrl = `${baseUrl}/?auth_error=${encodeURIComponent(error)}`;
+        return NextResponse.redirect(errorRedirectUrl);
+    }
+
     if (code) {
         const supabase = await createClient();
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        
+        try {
+            const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
-        if (!error) {
-            // Get the correct base URL for redirects
+            if (exchangeError) {
+                console.error('Session exchange error:', exchangeError);
+                const baseUrl = getBaseUrl(request);
+                const errorRedirectUrl = `${baseUrl}/?auth_error=${encodeURIComponent(exchangeError.message)}`;
+                return NextResponse.redirect(errorRedirectUrl);
+            }
+
+            if (data.user) {
+                console.log('User authenticated successfully:', data.user.email);
+                // Get the correct base URL for redirects
+                const baseUrl = getBaseUrl(request);
+                const redirectUrl = `${baseUrl}${next}`;
+                
+                console.log('Redirecting to:', redirectUrl);
+                return NextResponse.redirect(redirectUrl);
+            } else {
+                console.error('No user data after session exchange');
+                const baseUrl = getBaseUrl(request);
+                const errorRedirectUrl = `${baseUrl}/?auth_error=no_user_data`;
+                return NextResponse.redirect(errorRedirectUrl);
+            }
+        } catch (err) {
+            console.error('Unexpected error in callback:', err);
             const baseUrl = getBaseUrl(request);
-            const redirectUrl = `${baseUrl}${next}`;
-
-            return NextResponse.redirect(redirectUrl);
+            const errorRedirectUrl = `${baseUrl}/?auth_error=unexpected_error`;
+            return NextResponse.redirect(errorRedirectUrl);
         }
     }
 
-    // Return the user to an error page with instructions
+    // No code provided
+    console.error('No authentication code provided');
     const baseUrl = getBaseUrl(request);
-    const errorRedirectUrl = `${baseUrl}/auth/auth-code-error`;
-
+    const errorRedirectUrl = `${baseUrl}/?auth_error=no_code`;
     return NextResponse.redirect(errorRedirectUrl);
 }

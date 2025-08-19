@@ -7,9 +7,13 @@ export async function GET(request: Request) {
 
     // Get the correct redirect URL based on environment
     const baseUrl = getBaseUrl(request);
+    console.log('Google OAuth - Base URL:', baseUrl);
+    console.log('Google OAuth - Environment:', process.env.NODE_ENV);
+    console.log('Google OAuth - NEXT_PUBLIC_SITE_URL:', process.env.NEXT_PUBLIC_SITE_URL);
 
     // Redirect to Google OAuth
     const redirectTo = `${baseUrl}/api/auth/callback`;
+    console.log('Google OAuth - Redirect To:', redirectTo);
 
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -27,6 +31,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    console.log('Google OAuth - Supabase redirect URL:', data.url);
     // Redirect user to Google login
     return NextResponse.redirect(data.url);
 }

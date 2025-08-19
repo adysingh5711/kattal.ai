@@ -1,7 +1,13 @@
 import { updateSession } from '@/lib/supabase/middleware'
 import { type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+    // Skip authentication check for auth-related routes
+    if (request.nextUrl.pathname.startsWith('/api/auth')) {
+        return NextResponse.next()
+    }
+
     return await updateSession(request)
 }
 

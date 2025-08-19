@@ -36,6 +36,27 @@ export default function HomeContent() {
             newUrl.searchParams.delete('auth_required');
             window.history.replaceState({}, '', newUrl.toString());
         }
+
+        // Check for authentication errors from OAuth flow
+        const authError = searchParams.get('auth_error');
+        if (authError) {
+            setError(`Authentication failed: ${decodeURIComponent(authError)}`);
+            // Clear the URL parameter after showing the error
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('auth_error');
+            window.history.replaceState({}, '', newUrl.toString());
+        }
+
+        // Check for authentication code (this shouldn't happen if callback is working)
+        const code = searchParams.get('code');
+        if (code) {
+            console.log('Received auth code on home page:', code);
+            setError("Authentication code received but not processed. Please try signing in again.");
+            // Clear the URL parameter
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('code');
+            window.history.replaceState({}, '', newUrl.toString());
+        }
     }, [searchParams]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
