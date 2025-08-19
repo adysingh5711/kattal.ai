@@ -14,13 +14,14 @@ export function cn(...inputs: ClassValue[]) {
  * @returns The base URL for the current environment
  */
 export function getBaseUrl(request?: Request): string {
-  if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:3000';
+  // For authentication redirects, always prioritize the configured site URL
+  // This ensures Google OAuth works properly even in development
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, ''); // Remove trailing slash
   }
 
-  // In production, use the configured site URL or fallback to request headers
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
   }
 
   // Fallback to request headers if available
