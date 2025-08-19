@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
 
     // Get the correct redirect URL based on environment
-    const baseUrl = getBaseUrl(request);
+    const baseUrl = getBaseUrl();
     console.log('Google OAuth - Base URL:', baseUrl);
     console.log('Google OAuth - Environment:', process.env.NODE_ENV);
     console.log('Google OAuth - NEXT_PUBLIC_SITE_URL:', process.env.NEXT_PUBLIC_SITE_URL);

@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         const supabase = await createClient();
 
         // Get the correct redirect URL based on environment
-        const baseUrl = getBaseUrl(request);
+        const baseUrl = getBaseUrl();
 
         const { data, error } = await supabase.auth.signUp({
             email,
