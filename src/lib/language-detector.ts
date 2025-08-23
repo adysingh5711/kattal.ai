@@ -209,7 +209,7 @@ export class LanguageDetector {
     // Utility method to get language-specific prompt additions
     getLanguagePromptAddition(detection: LanguageDetection): string {
         const baseInstruction = `\n\nIMPORTANT LANGUAGE INSTRUCTION: ${detection.responseInstructions}`;
-        const concisenessInstruction = '\n\nCONCISENESS REQUIREMENT: Keep your response focused and to-the-point. Avoid lengthy explanations unless specifically asked for background or detailed information.';
+        const concisenessInstruction = '\n\nEXTREME CONCISENESS: Keep responses extremely brief - 1-4 sentences maximum. Answer ONLY what was asked. No background, history, or explanations unless explicitly requested.';
 
         if (detection.explicitLanguageRequest) {
             if (detection.explicitLanguageRequest === 'malayalam') {

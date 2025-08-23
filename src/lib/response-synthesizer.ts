@@ -230,16 +230,16 @@ Build 2-4 logical steps that flow naturally from question to answer.`;
         sourceAttributions: SourceAttribution[]
     ): Promise<string> {
         const stylePrompts: Record<ResponseStyle, string> = {
-            analytical: "Provide a structured, analytical response that breaks down the information systematically.",
-            explanatory: "Explain the information clearly and comprehensively, as if teaching someone new to the topic.",
-            comparative: "Compare and contrast the different aspects, highlighting similarities and differences.",
-            narrative: "Present the information as a coherent story that connects different pieces logically."
+            analytical: "Provide a brief, structured response with key points.",
+            explanatory: "Give a concise explanation focusing only on the essential information.",
+            comparative: "Briefly compare the key differences and similarities.",
+            narrative: "Present the information briefly in a logical sequence."
         };
 
         // Get language-specific instructions
         const languageInstructions = this.languageDetector.getLanguagePromptAddition(analysis.languageDetection);
 
-        const synthesisPrompt = `Create a concise, focused response that directly answers the user's question without unnecessary background information.
+        const synthesisPrompt = `Create an extremely concise, direct response that answers ONLY what was asked.
 
 Query: "${query}"
 Response Style: ${responseStyle}
@@ -257,36 +257,34 @@ ${reasoningSteps.map(step =>
 
 ${languageInstructions}
 
-CRITICAL RESPONSE REQUIREMENTS:
-
-CONCISENESS AND FOCUS:
-- Be direct and to-the-point
-- Start with the main answer immediately
-- Only include information that directly relates to the specific question asked
-- Avoid lengthy background explanations unless specifically requested
-- Skip historical context or general overviews unless they're essential to the answer
-- Keep explanations brief but complete
-
-RELEVANCE FILTERING:
-- Focus only on the most relevant evidence for this specific question
-- Avoid tangential information, even if it's related to the general topic
-- Don't explain terms or concepts unless they're central to answering the question
-- Correlate information when necessary but don't over-explain connections
-
-STRUCTURE AND CLARITY:
-- Start with a direct answer when possible
-- Use bullet points or numbered lists for multiple key points
-- Keep paragraphs short (2-3 sentences max)
-- Use **bold** only for the most critical information
-- Present evidence concisely with specific data points
+EXTREME CONCISENESS REQUIREMENTS:
 
 RESPONSE LENGTH:
-- Aim for 2-4 paragraphs for most questions
-- Simple questions should get 1-2 paragraph answers
-- Complex questions may need more, but still focus on the essential information
-- Avoid repetitive explanations
+- Simple questions: 1-2 sentences maximum
+- Complex questions: 3-4 sentences maximum
+- Only use multiple paragraphs if absolutely necessary
+- Never exceed 5 sentences total
 
-Remember: Answer precisely what was asked, provide necessary context only, and be naturally conversational but concise.`;
+CONTENT RESTRICTIONS:
+- Answer ONLY the specific question asked
+- NO background information unless explicitly requested
+- NO historical context unless essential to the answer
+- NO explanations of terms unless they're the core of the question
+- NO tangential information, even if related
+- NO "interesting facts" or "additional context"
+
+STRUCTURE:
+- Start with the direct answer immediately
+- Use bullet points only for multiple specific facts
+- No introductory phrases like "Based on the evidence..." or "Looking at the data..."
+- No concluding statements unless they directly answer the question
+
+CORRELATION RULES:
+- Only correlate information if it directly answers the question
+- Don't explain connections unless they're the answer itself
+- Avoid "This connects to..." or "This relates to..." unless it's the core answer
+
+Remember: Be extremely brief. If the user asks "What is X?", just say what X is. Don't explain why X matters, how X was discovered, or what X relates to unless specifically asked.`;
 
         try {
             const response = await synthesisModel.invoke(synthesisPrompt);
