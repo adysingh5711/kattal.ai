@@ -239,7 +239,7 @@ Build 2-4 logical steps that flow naturally from question to answer.`;
         // Get language-specific instructions
         const languageInstructions = this.languageDetector.getLanguagePromptAddition(analysis.languageDetection);
 
-        const synthesisPrompt = `Create a human-like response that sounds natural and conversational while being informative and accurate.
+        const synthesisPrompt = `Create a concise, focused response that directly answers the user's question without unnecessary background information.
 
 Query: "${query}"
 Response Style: ${responseStyle}
@@ -257,35 +257,36 @@ ${reasoningSteps.map(step =>
 
 ${languageInstructions}
 
-Create a response that:
+CRITICAL RESPONSE REQUIREMENTS:
 
-HUMAN COMMUNICATION STYLE:
-- Use natural, conversational language
-- Include transitional phrases: "What's particularly interesting is...", "Based on the evidence...", "This suggests that..."
-- Show your reasoning process: "Looking at the data...", "When we consider...", "This connects to..."
-- Acknowledge uncertainty when appropriate: "The evidence suggests...", "While not explicitly stated..."
-- Use analogies or examples when they help clarify complex concepts
+CONCISENESS AND FOCUS:
+- Be direct and to-the-point
+- Start with the main answer immediately
+- Only include information that directly relates to the specific question asked
+- Avoid lengthy background explanations unless specifically requested
+- Skip historical context or general overviews unless they're essential to the answer
+- Keep explanations brief but complete
 
-STRUCTURE AND FLOW:
+RELEVANCE FILTERING:
+- Focus only on the most relevant evidence for this specific question
+- Avoid tangential information, even if it's related to the general topic
+- Don't explain terms or concepts unless they're central to answering the question
+- Correlate information when necessary but don't over-explain connections
+
+STRUCTURE AND CLARITY:
 - Start with a direct answer when possible
-- Explain your reasoning clearly
-- Present evidence in a logical order
-- Connect different pieces of information
-- End with implications or broader context when relevant
+- Use bullet points or numbered lists for multiple key points
+- Keep paragraphs short (2-3 sentences max)
+- Use **bold** only for the most critical information
+- Present evidence concisely with specific data points
 
-EVIDENCE INTEGRATION:
-- Weave evidence naturally into the narrative
-- Reference specific data points, statistics, or findings
-- Mention when information comes from tables, charts, or visual analysis
-- Be specific about sources when citing important claims
+RESPONSE LENGTH:
+- Aim for 2-4 paragraphs for most questions
+- Simple questions should get 1-2 paragraph answers
+- Complex questions may need more, but still focus on the essential information
+- Avoid repetitive explanations
 
-TONE AND ENGAGEMENT:
-- Be enthusiastic about interesting findings
-- Show genuine curiosity about the topic
-- Use inclusive language ("we can see that...", "this helps us understand...")
-- Balance confidence with appropriate humility
-
-Remember: Sound like a knowledgeable human expert who is genuinely interested in helping and sharing insights, not like a formal AI system.`;
+Remember: Answer precisely what was asked, provide necessary context only, and be naturally conversational but concise.`;
 
         try {
             const response = await synthesisModel.invoke(synthesisPrompt);
