@@ -8,8 +8,11 @@ import { LanguageDetector } from "./language-detector";
 
 const synthesisModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
-    temperature: 0.3, // Balanced creativity for natural communication
+    temperature: 0.1, // Lower temperature for faster, more consistent responses
     openAIApiKey: env.OPENAI_API_KEY,
+    maxTokens: 400, // Limit response length for faster generation
+    timeout: 8000, // 8 second timeout
+    verbose: false, // Disable verbose for faster processing
 });
 
 export interface ResponseSynthesis {
@@ -305,121 +308,26 @@ Remember: Be extremely brief. If the user asks "What is X?", just say what X is.
 
     private generateFallbackResponse(query: string, documents: Document[], languageDetection?: any): string {
         if (documents.length === 0) {
-            return `I don't have specific information to answer your question: "${query}". Please try rephrasing your question or check if the relevant documents have been uploaded to the system.`;
+            return `നിങ്ങളുടെ ചോദ്യത്തിന് ഉത്തരം നൽകാൻ എനിക്ക് പ്രത്യേക വിവരങ്ങൾ ഇല്ല: "${query}". ദയവായി നിങ്ങളുടെ ചോദ്യം വീണ്ടും ചോദിക്കുക അല്ലെങ്കിൽ ബന്ധപ്പെട്ട ഡോക്യുമെന്റുകൾ സിസ്റ്റത്തിൽ അപ്‌ലോഡ് ചെയ്തിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുക.`;
         }
 
-        // For simple queries like "hi", provide a helpful response based on detected language
+        // For simple queries like "hi", provide a helpful response in Malayalam
         const normalizedQuery = query.toLowerCase().trim();
         if (normalizedQuery === 'hi' || normalizedQuery === 'hello' || normalizedQuery === 'hey' ||
             normalizedQuery === 'namaste' || normalizedQuery === 'namaskar' || normalizedQuery === 'hai' || normalizedQuery === 'helo' ||
             normalizedQuery === 'vanakkam' || normalizedQuery === 'namaskaram' || normalizedQuery === 'namaskara') {
 
-            // Detect language for greeting response
-            const detection = languageDetection || this.languageDetector.detectLanguage(query);
-
-            switch (detection.responseLanguage) {
-                case 'hindi':
-                    return `नमस्ते! मैं अपलोड किए गए दस्तावेजों से जानकारी खोजने में आपकी मदद करने के लिए यहाँ हूँ। आप इस तरह के सवाल पूछ सकते हैं:
-- "यह दस्तावेज किस बारे में है?"
-- "[विशिष्ट विषय] के बारे में बताएं"
-- "[विशिष्ट विषय] का डेटा दिखाएं"
-- "मुख्य खोजें क्या हैं?"
-
-आप क्या जानना चाहते हैं?`;
-
-                case 'hinglish':
-                    return `Namaste! Main upload kiye gaye documents se information dhundne mein aapki help karne ke liye yahan hun. Aap is tarah ke questions puch sakte hain:
-- "Yeh document kis baare mein hai?"
-- "[specific topic] ke baare mein batayiye"
-- "[specific subject] ka data dikhayiye"
-- "Main findings kya hain?"
-
-Aap kya jaanna chahte hain?`;
-
-                case 'tamil':
-                    return `வணக்கம்! பதிவேற்றப்பட்ட ஆவணங்களிலிருந்து தகவல்களைக் கண்டறிய நான் இங்கே இருக்கிறேன். நீங்கள் இந்த மாதிரியான கேள்விகளைக் கேட்கலாம்:
-- "இந்த ஆவணம் எதைப் பற்றி?"
-- "[குறிப்பிட்ட தலைப்பு] பற்றி சொல்லுங்கள்"
-- "[குறிப்பிட்ட விஷயத்தின்] தரவை காட்டுங்கள்"
-- "முக்கிய கண்டுபிடிப்புகள் என்ன?"
-
-நீங்கள் என்ன தெரிந்துகொள்ள விரும்புகிறீர்கள்?`;
-
-                case 'tamil_roman':
-                    return `Vanakkam! Upload panna documents-la irundhu information kandupidika naan inga iruken. Neenga inda madhiri questions kekalam:
-- "Indha document edha pathi?"
-- "[specific topic] pathi sollunga"
-- "[specific subject] oda data kaattunga"
-- "Main findings enna?"
-
-Neenga enna therinjukka virumburenga?`;
-
-                case 'telugu':
-                    return `నమస్కారం! అప్‌లోడ్ చేసిన పత్రాల నుండి సమాచారాన్ని కనుగొనడంలో మీకు సహాయం చేయడానికి నేను ఇక్కడ ఉన్నాను. మీరు ఈ రకమైన ప్రశ్నలు అడగవచ్చు:
-- "ఈ పత్రం దేని గురించి?"
-- "[నిర్దిష్ట అంశం] గురించి చెప్పండి"
-- "[నిర్దిష్ట విషయం] డేటా చూపించండి"
-- "ప్రధాన కనుగొన్న విషయాలు ఏమిటి?"
-
-మీరు ఏమి తెలుసుకోవాలని అనుకుంటున్నారు?`;
-
-                case 'telugu_roman':
-                    return `Namaskaram! Upload chesina documents nundi information kandukovadamlo miku help cheyadaniki nenu ikkada unnaanu. Meeru ee rakamaina questions adagavacchu:
-- "Ee document edi gurinchi?"
-- "[specific topic] gurinchi cheppandi"
-- "[specific subject] data choopinchandi"
-- "Main findings emiti?"
-
-Meeru emi telusukovaali anukuntunnaaru?`;
-
-                case 'kannada':
-                    return `ನಮಸ್ಕಾರ! ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ದಾಖಲೆಗಳಿಂದ ಮಾಹಿತಿಯನ್ನು ಹುಡುಕಲು ನಾನು ಇಲ್ಲಿ ಇದ್ದೇನೆ. ನೀವು ಈ ರೀತಿಯ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಬಹುದು:
-- "ಈ ದಾಖಲೆ ಏನಿನ ಬಗ್ಗೆ?"
-- "[ನಿರ್ದಿಷ್ಟ ವಿಷಯ] ಬಗ್ಗೆ ಹೇಳಿ"
-- "[ನಿರ್ದಿಷ್ಟ ವಿಷಯದ] ಡೇಟಾ ತೋರಿಸಿ"
-- "ಮುಖ್ಯ ಸಂಶೋಧನೆಗಳು ಏನು?"
-
-ನೀವು ಏನು ತಿಳಿಯಲು ಬಯಸುತ್ತೀರಿ?`;
-
-                case 'kannada_roman':
-                    return `Namaskara! Upload maadida documents ninda mahitiyanna hudukalu naanu illi iddene. Neevu ee reethiya prashnegalannu kelabahudhu:
-- "Ee document yenina bagge?"
-- "[specific topic] bagge heli"
-- "[specific subject] data thorisi"
-- "Main findings yenu?"
-
-Neevu yenu thiliyalu bayasuttheera?`;
-
-                case 'malayalam':
-                    return `നമസ്കാരം! അപ്‌ലോഡ് ചെയ്ത ഡോക്യുമെന്റുകളിൽ നിന്നും വിവരങ്ങൾ കണ്ടെത്താൻ ഞാൻ ഇവിടെയുണ്ട്. നിങ്ങൾക്ക് ഇത്തരം ചോദ്യങ്ങൾ ചോദിക്കാം:
+            // ALWAYS return Malayalam greeting regardless of input language
+            return `നമസ്കാരം! അപ്‌ലോഡ് ചെയ്ത ഡോക്യുമെന്റുകളിൽ നിന്നും വിവരങ്ങൾ കണ്ടെത്താൻ ഞാൻ ഇവിടെയുണ്ട്. നിങ്ങൾക്ക് ഇത്തരം ചോദ്യങ്ങൾ ചോദിക്കാം:
 - "ഈ ഡോക്യുമെന്റ് എന്താണ് പറയുന്നത്?"
 - "[നിർദ്ദിഷ്ട വിഷയം] കുറിച്ച് പറയൂ"
 - "[നിർദ്ദിഷ്ട വിഷയത്തിന്റെ] ഡാറ്റ കാണിക്കൂ"
 - "പ്രധാന കണ്ടെത്തലുകൾ എന്താണ്?"
 
 എന്താണ് അറിയേണ്ടത്?`;
-
-                case 'malayalam_roman':
-                    return `Namaskaram! Upload cheitha documentukalil ninnum vivarangal kandethan njan evideyund. Ningalkku itharam chodangal chodikam:
-- "Ee document enthananu parayunnath?"
-- "[specific topic] kurich parayu"
-- "[specific subject]nte data kanikku"
-- "Pradhana kandethalukal enthananu?"
-
-Enthananu ariyendath?`;
-
-                default:
-                    return `Hello! I'm here to help you find information from the uploaded documents. You can ask me questions about the content, such as:
-- "What is this document about?"
-- "Tell me about [specific topic]"
-- "Show me data on [specific subject]"
-- "What are the key findings?"
-
-What would you like to know?`;
-            }
         }
 
-        // For other queries, provide a more synthesized response based on available content
+        // For other queries, provide a more synthesized response based on available content in Malayalam
         const relevantContent = documents.slice(0, 2).map(doc => {
             // Clean up the content and extract meaningful information
             let content = doc.pageContent
@@ -446,14 +354,14 @@ What would you like to know?`;
         }).filter(content => content.length > 0);
 
         if (relevantContent.length === 0) {
-            return `I found some documents, but they don't seem to contain information directly related to "${query}". Could you try asking about a different topic or provide more specific details about what you're looking for?`;
+            return `എനിക്ക് ചില ഡോക്യുമെന്റുകൾ കണ്ടെത്തി, പക്ഷേ അവ "${query}" എന്നതുമായി നേരിട്ട് ബന്ധപ്പെട്ട വിവരങ്ങൾ അടങ്ങിയിരിക്കുന്നതായി തോന്നുന്നില്ല. ദയവായി വ്യത്യസ്ത വിഷയത്തെക്കുറിച്ച് ചോദിക്കുക അല്ലെങ്കിൽ നിങ്ങൾ തിരയുന്നതിനെക്കുറിച്ച് കൂടുതൽ നിർദ്ദിഷ്ട വിവരങ്ങൾ നൽകുക.`;
         }
 
-        return `Based on the available information, here's what I can tell you about "${query}":
+        return `ലഭ്യമായ വിവരങ്ങളുടെ അടിസ്ഥാനത്തിൽ, "${query}" എന്നതിനെക്കുറിച്ച് എനിക്ക് പറയാൻ കഴിയുന്നത്:
 
 ${relevantContent.join('\n\n')}
 
-This information comes from the uploaded documents. If you'd like me to elaborate on any specific aspect or if you have follow-up questions, please let me know!`;
+ഈ വിവരങ്ങൾ അപ്‌ലോഡ് ചെയ്ത ഡോക്യുമെന്റുകളിൽ നിന്നാണ്. നിങ്ങൾക്ക് ഏതെങ്കിലും നിർദ്ദിഷ്ട വശത്തെക്കുറിച്ച് വിശദീകരിക്കാൻ ആഗ്രഹമുണ്ടെങ്കിൽ അല്ലെങ്കിൽ നിങ്ങൾക്ക് തുടർന്നുള്ള ചോദ്യങ്ങൾ ഉണ്ടെങ്കിൽ, ദയവായി എന്നെ അറിയിക്കുക!`;
     }
 
     private async assessCompleteness(

@@ -60,19 +60,19 @@ export class LanguageDetector {
     detectLanguage(text: string): LanguageDetection {
         const cleanText = text.trim().toLowerCase();
 
+        // FORCE MALAYALAM OUTPUT - Always respond in Malayalam regardless of input language
         // Check for explicit language requests first
         const explicitRequest = this.detectExplicitLanguageRequest(text);
         if (explicitRequest) {
+            // Even if user requests English, force Malayalam
             return {
                 detectedLanguage: 'mixed',
                 confidence: 1.0,
-                explicitLanguageRequest: explicitRequest,
-                responseLanguage: explicitRequest,
-                responseInstructions: this.getLanguageInstructions(explicitRequest)
+                explicitLanguageRequest: 'malayalam', // Force Malayalam
+                responseLanguage: 'malayalam',
+                responseInstructions: 'Respond ONLY in Malayalam script (മലയാളം). Use proper Malayalam grammar and vocabulary. Ignore any language requests for English or other languages.'
             };
         }
-
-
 
         // Check for Malayalam script
         if (this.malayalamPattern.test(text)) {
@@ -83,8 +83,6 @@ export class LanguageDetector {
                 responseInstructions: 'Respond in Malayalam script (മലയാളം). Use proper Malayalam grammar and vocabulary.'
             };
         }
-
-
 
         // Check for Malayalam in Roman script
         const malayalamRomanScore = this.calculateMalayalamRomanScore(cleanText);
@@ -98,12 +96,12 @@ export class LanguageDetector {
             };
         }
 
-        // Default to English
+        // FORCE MALAYALAM - Default to Malayalam instead of English
         return {
             detectedLanguage: 'english',
             confidence: 0.8,
-            responseLanguage: 'english',
-            responseInstructions: 'Respond in clear, natural English.'
+            responseLanguage: 'malayalam', // Force Malayalam response
+            responseInstructions: 'Respond ONLY in Malayalam script (മലയാളം). Use proper Malayalam grammar and vocabulary. Convert all technical terms to Malayalam equivalents when possible.'
         };
     }
 
@@ -208,28 +206,12 @@ export class LanguageDetector {
 
     // Utility method to get language-specific prompt additions
     getLanguagePromptAddition(detection: LanguageDetection): string {
-        const baseInstruction = `\n\nIMPORTANT LANGUAGE INSTRUCTION: ${detection.responseInstructions}`;
+        const baseInstruction = `\n\nCRITICAL LANGUAGE REQUIREMENT: ${detection.responseInstructions}`;
         const concisenessInstruction = '\n\nEXTREME CONCISENESS: Keep responses extremely brief - 1-4 sentences maximum. Answer ONLY what was asked. No background, history, or explanations unless explicitly requested.';
+        const malayalamForceInstruction = '\n\nMANDATORY: Respond ONLY in Malayalam script (മലയാളം). Never use English or any other language. Convert all technical terms to Malayalam equivalents.';
 
-        if (detection.explicitLanguageRequest) {
-            if (detection.explicitLanguageRequest === 'malayalam') {
-                return baseInstruction + `\n\nThe user explicitly requested a response in Malayalam. Respond in Malayalam script (മലയാളം).` + concisenessInstruction;
-            } else {
-                return baseInstruction + `\n\nThe user requested a response in ${detection.explicitLanguageRequest}, but only Malayalam and English responses are allowed. Respond in English.` + concisenessInstruction;
-            }
-        }
-
-        switch (detection.detectedLanguage) {
-            case 'malayalam':
-                return baseInstruction + '\n\nThe user wrote in Malayalam script, so maintain the same language and script in your response.' + concisenessInstruction;
-
-            case 'malayalam_roman':
-                return baseInstruction + '\n\nThe user wrote Malayalam words using English letters, but respond in Malayalam script (മലയാളം). Convert the romanized Malayalam to proper Malayalam script.' + concisenessInstruction;
-
-            case 'english':
-            default:
-                return baseInstruction + '\n\nThe user wrote in English or another language, so respond in clear, natural English.' + concisenessInstruction;
-        }
+        // ALWAYS force Malayalam regardless of input language
+        return baseInstruction + malayalamForceInstruction + concisenessInstruction;
     }
 
     // Method to validate if response matches expected language

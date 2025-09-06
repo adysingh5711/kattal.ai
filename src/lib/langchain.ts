@@ -61,7 +61,47 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             estimatedTime: optimizationResult.estimatedTime
         });
 
-        // Step 1.5: Check if this is an environmental data query
+        // Step 1.5: Fast response for very simple queries (greetings, basic questions)
+        if (analysis.complexity === 1 && !analysis.requiresCrossReference) {
+            const simpleGreetings = ['hi', 'hello', 'hey', 'namaste', 'namaskar', 'hai', 'helo', 'vanakkam', 'namaskaram', 'namaskara'];
+            const normalizedQuery = sanitizedQuestion.toLowerCase().trim();
+
+            if (simpleGreetings.includes(normalizedQuery)) {
+                return {
+                    text: `നമസ്കാരം! അപ്‌ലോഡ് ചെയ്ത ഡോക്യുമെന്റുകളിൽ നിന്നും വിവരങ്ങൾ കണ്ടെത്താൻ ഞാൻ ഇവിടെയുണ്ട്. നിങ്ങൾക്ക് ഇത്തരം ചോദ്യങ്ങൾ ചോദിക്കാം:
+- "ഈ ഡോക്യുമെന്റ് എന്താണ് പറയുന്നത്?"
+- "[നിർദ്ദിഷ്ട വിഷയം] കുറിച്ച് പറയൂ"
+- "[നിർദ്ദിഷ്ട വിഷയത്തിന്റെ] ഡാറ്റ കാണിക്കൂ"
+- "പ്രധാന കണ്ടെത്തലുകൾ എന്താണ്?"
+
+എന്താണ് അറിയേണ്ടത്?`,
+                    sources: [],
+                    analysis: {
+                        queryType: 'greeting',
+                        complexity: 1,
+                        retrievalStrategy: 'fast_response',
+                        documentsUsed: 0,
+                        crossReferences: [],
+                        responseStyle: 'greeting',
+                        qualityScore: 0.9,
+                        confidence: 0.9,
+                        completeness: 1.0,
+                        processingTime: Date.now() - overallStartTime
+                    },
+                    quality: {
+                        overallScore: 0.9,
+                        factualAccuracy: 0.9,
+                        completeness: 1.0,
+                        coherence: 0.9,
+                        issues: [],
+                        improvements: []
+                    },
+                    reasoning: ['Fast response for greeting query']
+                };
+            }
+        }
+
+        // Step 1.6: Check if this is an environmental data query
         let environmentalData: EnvironmentalToolResult | null = null;
         console.log('🔍 About to check environmental query for:', sanitizedQuestion);
         console.log('🔍 isEnvironmentalQuery function:', typeof isEnvironmentalQuery);
@@ -138,8 +178,8 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         if (analysis.complexity <= 2 && !analysis.requiresCrossReference) {
             // Fast optimized retrieval with caching
             const fastDocs = await optimizedVectorStore.optimizedRetrieval(sanitizedQuestion, {
-                k: analysis.suggestedK,
-                scoreThreshold: 0.6,
+                k: Math.min(analysis.suggestedK, 4), // Limit to 3 docs for speed
+                scoreThreshold: 0.7, // Higher threshold for better quality
             });
             retrievalResult = {
                 documents: fastDocs,
@@ -234,11 +274,41 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         const response: {
             text: string;
-            sources: any[];
-            analysis: any;
-            quality: any;
-            reasoning: any;
-            environmentalData?: any;
+            sources: Array<{
+                source: string;
+                relevance: number;
+                usedFor: string;
+                contentType: 'text' | 'table' | 'chart' | 'image';
+                pageReference?: string;
+            }>;
+            analysis: {
+                queryType: string;
+                complexity: number;
+                retrievalStrategy: string;
+                documentsUsed: number;
+                crossReferences: string[];
+                responseStyle: string;
+                qualityScore: number;
+                confidence: number;
+                completeness: 'complete' | 'partial' | 'needs_followup';
+                processingTime: number;
+            };
+            quality: {
+                overallScore: number;
+                factualAccuracy: number;
+                completeness: number;
+                coherence: number;
+                issues: Array<{
+                    type: 'factual_error' | 'missing_info' | 'coherence_issue' | 'source_problem' | 'tone_issue';
+                    severity: 'low' | 'medium' | 'high';
+                    description: string;
+                    suggestion: string;
+                    affectedSection?: string;
+                }>;
+                improvements: string[];
+            };
+            reasoning: string[];
+            environmentalData?: Record<string, unknown>;
             environmentalSummary?: string;
         } = {
             text: synthesis.synthesizedResponse,
