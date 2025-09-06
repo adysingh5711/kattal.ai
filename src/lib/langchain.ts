@@ -1,18 +1,24 @@
-import { createRetrievalChain } from "langchain/chains/retrieval";
-import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
-import { createHistoryAwareRetriever } from "langchain/chains/history_aware_retriever";
-import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
+// import { createRetrievalChain } from "langchain/chains/retrieval";
+// import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
+// import { createHistoryAwareRetriever } from "langchain/chains/history_aware_retriever";
+// import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
+// import { HumanMessage, AIMessage } from "@langchain/core/messages";
+// import { streamingModel, nonStreamingModel } from "./llm";
+// import { QA_TEMPLATE } from "./prompt-templates";
 import { getVectorStore } from "./vector-store";
 import { getPinecone } from "./pinecone-client";
-import { streamingModel, nonStreamingModel } from "./llm";
-import { QA_TEMPLATE } from "./prompt-templates";
 import { QueryAnalyzer } from "./query-analyzer";
-import { AdaptiveRetriever } from "./adaptive-retriever";
+import { AdaptiveRetriever, RetrievalResult } from "./adaptive-retriever";
 import { ResponseSynthesizer } from "./response-synthesizer";
-import { QualityValidator } from "./quality-validator";
+import { QualityValidator, ValidationResult } from "./quality-validator";
 import { PerformanceOptimizer } from "./performance-optimizer";
 import { OptimizedVectorStore } from "./optimized-vector-store";
+import {
+    isEnvironmentalQuery,
+    executeEnvironmentalDataTool,
+    extractParametersFromQuery,
+    type EnvironmentalToolResult
+} from "./ai-tools";
 
 type callChainArgs = {
     question: string;
@@ -55,9 +61,79 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             estimatedTime: optimizationResult.estimatedTime
         });
 
+        // Step 1.5: Check if this is an environmental data query
+        let environmentalData: EnvironmentalToolResult | null = null;
+        console.log('🔍 About to check environmental query for:', sanitizedQuestion);
+        console.log('🔍 isEnvironmentalQuery function:', typeof isEnvironmentalQuery);
+        console.log('🔍 isEnvironmentalQuery function exists:', !!isEnvironmentalQuery);
+        let isEnvQuery = false;
+        try {
+            console.log('🔍 Calling isEnvironmentalQuery...');
+            isEnvQuery = isEnvironmentalQuery(sanitizedQuestion);
+            console.log('🔍 Environmental query check result:', isEnvQuery);
+        } catch (error) {
+            console.error('❌ Error in environmental query detection:', error);
+            isEnvQuery = false;
+        }
+
+        if (isEnvQuery) {
+            console.log('🌡️ Environmental query detected, fetching real-time data...');
+
+            try {
+                const extractedParams = extractParametersFromQuery(sanitizedQuestion);
+
+                // If we have sufficient parameters, execute the tool
+                if (extractedParams.city && extractedParams.naturalFactors) {
+                    environmentalData = await executeEnvironmentalDataTool({
+                        city: extractedParams.city,
+                        naturalFactors: extractedParams.naturalFactors,
+                        timeRange: extractedParams.timeRange || 'last_24h'
+                    });
+
+                    if (environmentalData.success && environmentalData.summary) {
+                        console.log('✅ Environmental data fetched successfully');
+
+                        // For environmental queries, we can provide a quick response
+                        // without going through the full RAG pipeline
+                        return {
+                            text: environmentalData.summary,
+                            sources: [],
+                            analysis: {
+                                queryType: 'environmental_data',
+                                complexity: 1,
+                                retrievalStrategy: 'api_tool',
+                                documentsUsed: 0,
+                                crossReferences: [],
+                                responseStyle: 'data_summary',
+                                qualityScore: 0.95,
+                                confidence: 0.9,
+                                completeness: 0.95,
+                                processingTime: Date.now() - overallStartTime
+                            },
+                            quality: {
+                                overallScore: 0.95,
+                                factualAccuracy: 0.98,
+                                completeness: 0.95,
+                                coherence: 0.9,
+                                issues: [],
+                                improvements: []
+                            },
+                            reasoning: ['Real-time environmental data fetched from IoT sensors'],
+                            environmentalData: environmentalData.data
+                        };
+                    }
+                } else {
+                    console.log('⚠️ Environmental query detected but insufficient parameters extracted');
+                }
+            } catch (error) {
+                console.error('❌ Environmental data fetch failed:', error);
+                // Continue with normal RAG pipeline if environmental data fails
+            }
+        }
+
         // Step 2: Retrieval (fast path for simple queries)
         const retrievalStartTime = Date.now();
-        let retrievalResult: any;
+        let retrievalResult: RetrievalResult;
 
         if (analysis.complexity <= 2 && !analysis.requiresCrossReference) {
             // Fast optimized retrieval with caching
@@ -68,6 +144,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             retrievalResult = {
                 documents: fastDocs,
                 retrievalStrategy: 'optimized',
+                confidence: 0.8,
                 crossReferences: [],
                 queryExpansion: undefined,
             };
@@ -96,7 +173,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         // Step 4: Quality Validation (skip for simple queries to save time)
         let validationTime = 0;
-        let validation: any;
+        let validation: ValidationResult;
         if (analysis.complexity <= 2 && !analysis.requiresCrossReference) {
             validation = {
                 overallScore: 0.8,
@@ -107,6 +184,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 responseQuality: 0.85,
                 issues: [],
                 improvements: [],
+                confidence: 0.8,
             };
         } else {
             const validationStartTime = Date.now();
@@ -154,7 +232,15 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             pageReference: attr.pageReference
         }));
 
-        return {
+        const response: {
+            text: string;
+            sources: any[];
+            analysis: any;
+            quality: any;
+            reasoning: any;
+            environmentalData?: any;
+            environmentalSummary?: string;
+        } = {
             text: synthesis.synthesizedResponse,
             sources: enhancedSources,
             analysis: {
@@ -179,6 +265,14 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             },
             reasoning: synthesis.reasoningChain
         };
+
+        // Add environmental data if available
+        if (environmentalData && environmentalData.success) {
+            response.environmentalData = environmentalData.data;
+            response.environmentalSummary = environmentalData.summary;
+        }
+
+        return response;
     } catch (e) {
         console.error(e);
         throw new Error("Call chain method failed to execute successfully!!");

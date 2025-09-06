@@ -157,8 +157,23 @@ function splitLargeChunk(content: string, maxSize: number, metadata: any, startI
 
 function detectChunkType(content: string): string {
     const lower = content.toLowerCase();
+
+    // Check for table patterns in the content
+    const tablePatterns = [
+        lower.includes('table:'),
+        lower.includes('tabular'),
+        lower.includes('schedule'),
+        /\d+\.\s+.*?\s{2,}/.test(content), // Numbered items with spacing
+        /\|.*\|/.test(content), // Pipe separators
+        /\t.*\t/.test(content), // Tab separators
+        /\s{3,}/.test(content) && content.split('\n').length > 3 // Multiple lines with spacing
+    ];
+
+    if (tablePatterns.some(pattern => pattern)) {
+        return 'table';
+    }
+
     if (lower.includes('visual analysis:')) return 'multimodal';
-    if (lower.includes('table:')) return 'table';
     if (lower.includes('chart') || lower.includes('graph')) return 'chart';
     return 'text';
 }
