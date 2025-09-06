@@ -59,6 +59,7 @@ const envSchema = z.object({
     PDF_PATH: z.string().trim().min(1, 'PDF_PATH is required'),
     DOCX_PATH: z.string().trim().min(1, 'DOCX_PATH is required'),
     DOC_PATH: z.string().trim().min(1, 'DOC_PATH is required'),
+    MARKDOWN_PATH: z.string().trim().min(1, 'MARKDOWN_PATH is required'),
 
     // Timing
     INDEX_INIT_TIMEOUT: z.coerce.number().min(1, 'INDEX_INIT_TIMEOUT must be a number > 0'),

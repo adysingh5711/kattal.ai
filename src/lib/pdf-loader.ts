@@ -7,75 +7,102 @@ import { processDocumentMultimodal } from "./multimodal-processor";
 import { chunkMultimodalDocuments } from "./smart-chunker";
 import { IncrementalDataManager, IncrementalUpdateOptions } from "./incremental-data-manager";
 
+/**
+ * Helper function to process documents from a given path pattern
+ */
+async function processDocumentsFromPath(
+    pathPattern: string,
+    allDocs: Document[],
+    processingSummary: { [key: string]: { pages: number, chunks: number } },
+    fileType: string
+) {
+    if (!pathPattern) return;
+
+    // Check if pathPattern is a directory wildcard or specific file
+    if (pathPattern.includes('*')) {
+        // Handle directory with multiple documents
+        const dirPath = pathPattern.replace('/*', '');
+
+        if (fs.existsSync(dirPath)) {
+            const files = fs.readdirSync(dirPath)
+                .filter(file => {
+                    const lower = file.toLowerCase();
+                    if (fileType === 'PDF/DOC/DOCX') {
+                        return lower.endsWith('.pdf') || lower.endsWith('.doc') || lower.endsWith('.docx');
+                    } else if (fileType === 'Markdown') {
+                        return lower.endsWith('.md') || lower.endsWith('.markdown');
+                    }
+                    return false;
+                })
+                .map(file => path.join(dirPath, file));
+
+            console.log(`📋 Found ${files.length} files (${fileType}) in ${dirPath}`);
+
+            // Process each file
+            for (const file of files) {
+                try {
+                    const fileName = path.basename(file);
+                    console.log(`\n📄 Processing ${fileType} file: ${fileName}`);
+                    const docs = await processDocumentMultimodal(file);
+
+                    // Track processing summary
+                    processingSummary[fileName] = {
+                        pages: docs.length,
+                        chunks: 0 // Will be updated after chunking
+                    };
+
+                    allDocs.push(...docs);
+                    console.log(`✅ Processed ${docs.length} pages from ${fileName}`);
+                } catch (fileError) {
+                    console.error(`❌ Error processing file ${file}:`, fileError);
+                    // Continue with other files even if one fails
+                }
+            }
+        } else {
+            console.warn(`⚠️ Directory not found: ${dirPath}`);
+        }
+    } else {
+        // Handle single file
+        if (!fs.existsSync(pathPattern)) {
+            console.warn(`⚠️ File not found: ${pathPattern}`);
+            return;
+        }
+
+        const file = pathPattern;
+        const fileName = path.basename(file);
+        console.log(`\n📄 Processing single ${fileType} file: ${fileName}`);
+        const docs = await processDocumentMultimodal(file);
+
+        processingSummary[fileName] = {
+            pages: docs.length,
+            chunks: 0 // Will be updated after chunking
+        };
+
+        allDocs.push(...docs);
+        console.log(`✅ Processed ${docs.length} pages from ${fileName}`);
+    }
+}
+
 export async function getChunkedDocsFromPDF() {
     try {
         let allDocs: Document[] = [];
         const processingSummary: { [key: string]: { pages: number, chunks: number } } = {};
 
-        // Prefer DOC_PATH (combined), fallback to PDF_PATH/DOCX_PATH
-        const pathPattern = env.DOC_PATH || env.PDF_PATH || env.DOCX_PATH;
+        // Process both PDF and markdown documents
+        const pdfPathPattern = env.DOC_PATH || env.PDF_PATH || env.DOCX_PATH;
+        const markdownPathPattern = env.MARKDOWN_PATH;
 
-        console.log(`📁 Processing documents from: ${pathPattern}`);
+        console.log(`📁 Processing PDF documents from: ${pdfPathPattern}`);
+        console.log(`📁 Processing Markdown documents from: ${markdownPathPattern}`);
 
-        // Check if pathPattern is a directory wildcard or specific file
-        if (pathPattern.includes('*')) {
-            // Handle directory with multiple documents
-            const dirPath = pathPattern.replace('/*', '');
+        // Process PDF documents
+        await processDocumentsFromPath(pdfPathPattern, allDocs, processingSummary, 'PDF/DOC/DOCX');
 
-            if (fs.existsSync(dirPath)) {
-                const files = fs.readdirSync(dirPath)
-                    .filter(file => {
-                        const lower = file.toLowerCase();
-                        return lower.endsWith('.pdf') || lower.endsWith('.doc') || lower.endsWith('.docx');
-                    })
-                    .map(file => path.join(dirPath, file));
-
-                console.log(`📋 Found ${files.length} files (PDF/DOC/DOCX) in ${dirPath}`);
-
-                // Process each file
-                for (const file of files) {
-                    try {
-                        const fileName = path.basename(file);
-                        console.log(`\n📄 Processing file: ${fileName}`);
-                        const docs = await processDocumentMultimodal(file);
-
-                        // Track processing summary
-                        processingSummary[fileName] = {
-                            pages: docs.length,
-                            chunks: 0 // Will be updated after chunking
-                        };
-
-                        allDocs = [...allDocs, ...docs];
-                        console.log(`✅ Processed ${docs.length} pages from ${fileName}`);
-                    } catch (fileError) {
-                        console.error(`❌ Error processing file ${file}:`, fileError);
-                        // Continue with other files even if one fails
-                    }
-                }
-            } else {
-                throw new Error(`Directory not found: ${dirPath}`);
-            }
-        } else {
-            // Handle single file
-            if (!fs.existsSync(pathPattern)) {
-                throw new Error(`File not found: ${pathPattern}`);
-            }
-
-            const file = pathPattern;
-            const fileName = path.basename(file);
-            console.log(`\n📄 Processing single file: ${fileName}`);
-            allDocs = await processDocumentMultimodal(file);
-
-            processingSummary[fileName] = {
-                pages: allDocs.length,
-                chunks: 0 // Will be updated after chunking
-            };
-
-            console.log(`✅ Processed ${allDocs.length} pages from ${fileName}`);
-        }
+        // Process Markdown documents
+        await processDocumentsFromPath(markdownPathPattern, allDocs, processingSummary, 'Markdown');
 
         if (allDocs.length === 0) {
-            throw new Error("No PDF documents were successfully loaded");
+            throw new Error("No documents (PDF or Markdown) were successfully loaded");
         }
 
         console.log(`\n📊 Successfully loaded ${allDocs.length} document sections`);
