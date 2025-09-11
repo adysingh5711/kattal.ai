@@ -4,6 +4,8 @@ import { QueryAnalysis } from "./query-analyzer";
 import { DocumentGraphBuilder, DocumentNode } from "./document-graph";
 import { QueryExpander, QueryExpansion } from "./query-expander";
 import { ConversationMemory } from "./conversation-memory";
+import { HybridSearchEngine } from "./hybrid-search-engine";
+import { OptimizedVectorStore } from "./optimized-vector-store";
 
 export interface RetrievalResult {
     documents: Document[];
@@ -13,21 +15,36 @@ export interface RetrievalResult {
     queryExpansion?: QueryExpansion;
     relatedNodes?: DocumentNode[];
     contextualInsights?: string[];
+    hybridSearchMetadata?: {
+        searchTime: number;
+        bm25Results: number;
+        semanticResults: number;
+        fuseResults: number;
+        searchStrategy: string;
+    };
 }
 
 export class AdaptiveRetriever {
     private documentGraph?: DocumentGraphBuilder;
     private queryExpander: QueryExpander;
     private conversationMemory?: ConversationMemory;
+    private hybridSearchEngine?: HybridSearchEngine;
 
     constructor(
         private vectorStore: VectorStore,
         documentGraph?: DocumentGraphBuilder,
-        conversationMemory?: ConversationMemory
+        conversationMemory?: ConversationMemory,
+        hybridSearchEngine?: HybridSearchEngine
     ) {
         this.documentGraph = documentGraph;
         this.queryExpander = new QueryExpander();
         this.conversationMemory = conversationMemory;
+        this.hybridSearchEngine = hybridSearchEngine;
+
+        // Initialize hybrid search if vector store is OptimizedVectorStore
+        if (!this.hybridSearchEngine && vectorStore instanceof OptimizedVectorStore) {
+            this.hybridSearchEngine = new HybridSearchEngine(vectorStore);
+        }
     }
 
     async retrieve(query: string, analysis: QueryAnalysis, chatHistory?: string): Promise<RetrievalResult> {
@@ -45,10 +62,13 @@ export class AdaptiveRetriever {
         console.log(`📝 Query expanded to ${queryExpansion.expandedQueries.length} variations`);
 
         // Step 2: Select and execute retrieval strategy
-        const strategy = this.selectRetrievalStrategy(analysis);
+        const strategy = await this.selectRetrievalStrategy(analysis);
         let result: RetrievalResult;
 
         switch (strategy) {
+            case 'hybrid-intelligent':
+                result = await this.hybridIntelligentRetrieval(query, analysis, queryExpansion);
+                break;
             case 'graph-enhanced':
                 result = await this.graphEnhancedRetrieval(query, analysis, queryExpansion);
                 break;
@@ -79,7 +99,19 @@ export class AdaptiveRetriever {
         return [];
     }
 
-    private selectRetrievalStrategy(analysis: QueryAnalysis): string {
+    private async selectRetrievalStrategy(analysis: QueryAnalysis): Promise<string> {
+        // Prioritize hybrid search when available
+        if (this.hybridSearchEngine) {
+            try {
+                const healthCheck = await this.hybridSearchEngine.healthCheck();
+                if (healthCheck.status === 'healthy') {
+                    return 'hybrid-intelligent';
+                }
+            } catch (error) {
+                console.warn('Hybrid search health check failed, falling back to other strategies:', error);
+            }
+        }
+
         if (this.documentGraph && analysis.complexity >= 4) {
             return 'graph-enhanced';
         }
@@ -350,5 +382,138 @@ export class AdaptiveRetriever {
         if (doc.pageContent.length > 2000) score += 0.5;
 
         return score;
+    }
+
+    /**
+     * Hybrid intelligent retrieval using BM25 + semantic search
+     */
+    private async hybridIntelligentRetrieval(
+        query: string,
+        analysis: QueryAnalysis,
+        queryExpansion?: QueryExpansion
+    ): Promise<RetrievalResult> {
+        if (!this.hybridSearchEngine) {
+            console.warn('Hybrid search engine not available, falling back to standard retrieval');
+            return this.standardRetrieval(query, analysis);
+        }
+
+        console.log(`🔀 Performing hybrid intelligent retrieval`);
+
+        try {
+            const startTime = Date.now();
+
+            // Use the intelligent search with query expansion
+            const primaryQuery = query;
+            const expandedQueries = queryExpansion?.expandedQueries || [query];
+
+            // Execute hybrid search with the primary query
+            const hybridResult = await this.hybridSearchEngine.intelligentSearch(
+                primaryQuery,
+                analysis,
+                {
+                    k: analysis.suggestedK + 2,
+                    scoreThreshold: 0.1,
+                    enableFuse: true
+                }
+            );
+
+            // If we have query expansion, also search with expanded queries
+            let additionalDocs: any[] = [];
+            if (expandedQueries.length > 1 && hybridResult.documents.length < analysis.suggestedK) {
+                console.log(`📚 Searching with ${expandedQueries.length - 1} expanded queries`);
+
+                for (const expandedQuery of expandedQueries.slice(1, 3)) { // Limit to 2 additional queries
+                    try {
+                        const expandedResult = await this.hybridSearchEngine.intelligentSearch(
+                            expandedQuery,
+                            analysis,
+                            {
+                                k: Math.ceil(analysis.suggestedK / 2),
+                                scoreThreshold: 0.15,
+                                enableFuse: false // Disable fuse for expanded queries to save time
+                            }
+                        );
+                        additionalDocs.push(...expandedResult.documents);
+                    } catch (error) {
+                        console.warn(`Failed to search expanded query "${expandedQuery}":`, error);
+                    }
+                }
+            }
+
+            // Combine and deduplicate results
+            const allDocs = [...hybridResult.documents, ...additionalDocs];
+            const uniqueDocs = this.removeDuplicateDocuments(allDocs);
+            const finalDocs = this.prioritizeMultimodalContent(uniqueDocs).slice(0, analysis.suggestedK);
+
+            // Extract cross-references from retrieved documents
+            const crossReferences = this.extractKeyTerms(finalDocs, analysis.keyEntities);
+
+            // Calculate confidence based on hybrid search results
+            const avgHybridScore = hybridResult.results.reduce((sum, r) => sum + r.hybridScore, 0) /
+                (hybridResult.results.length || 1);
+            const confidence = Math.min(0.95, 0.7 + (avgHybridScore * 0.25));
+
+            const retrievalTime = Date.now() - startTime;
+            console.log(`✅ Hybrid intelligent retrieval complete: ${finalDocs.length} docs, confidence: ${(confidence * 100).toFixed(1)}%, time: ${retrievalTime}ms`);
+
+            return {
+                documents: finalDocs,
+                retrievalStrategy: 'hybrid-intelligent',
+                confidence,
+                crossReferences,
+                contextualInsights: this.generateContextualInsights(finalDocs, query, analysis),
+                hybridSearchMetadata: {
+                    searchTime: hybridResult.searchMetadata.searchTime,
+                    bm25Results: hybridResult.searchMetadata.bm25Results,
+                    semanticResults: hybridResult.searchMetadata.semanticResults,
+                    fuseResults: hybridResult.searchMetadata.fuseResults,
+                    searchStrategy: hybridResult.searchMetadata.searchStrategy
+                }
+            };
+
+        } catch (error) {
+            console.error('Hybrid intelligent retrieval failed:', error);
+            console.log('Falling back to standard retrieval');
+            return this.standardRetrieval(query, analysis);
+        }
+    }
+
+    /**
+     * Generate contextual insights from hybrid search results
+     */
+    private generateContextualInsights(documents: Document[], query: string, analysis: QueryAnalysis): string[] {
+        const insights: string[] = [];
+
+        // Analyze document sources
+        const sources = new Set(documents.map(doc => doc.metadata?.source).filter(Boolean));
+        if (sources.size > 1) {
+            insights.push(`Information found across ${sources.size} different sources`);
+        }
+
+        // Analyze search method distribution
+        const searchMethods = documents.map(doc => doc.metadata?._searchMethod).filter(Boolean);
+        const bm25Count = searchMethods.filter(method => method === 'bm25').length;
+        const semanticCount = searchMethods.filter(method => method === 'semantic').length;
+        const hybridCount = searchMethods.filter(method => method === 'hybrid').length;
+
+        if (bm25Count > semanticCount) {
+            insights.push('Results primarily from keyword matching - highly specific content found');
+        } else if (semanticCount > bm25Count) {
+            insights.push('Results primarily from semantic understanding - conceptually related content found');
+        } else if (hybridCount > 0) {
+            insights.push('Results from combined search methods - comprehensive coverage achieved');
+        }
+
+        // Analyze content diversity
+        const contentTypes = new Set();
+        documents.forEach(doc => {
+            if (doc.metadata?.chunkType) contentTypes.add(doc.metadata.chunkType);
+        });
+
+        if (contentTypes.size > 1) {
+            insights.push(`Found diverse content types: ${Array.from(contentTypes).join(', ')}`);
+        }
+
+        return insights;
     }
 }

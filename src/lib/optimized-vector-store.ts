@@ -1,9 +1,10 @@
 import { env } from './env';
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { PineconeStore } from "@langchain/pinecone";
-import { Pinecone } from "@pinecone-database/pinecone";
+import { Pinecone, Index, RecordMetadata } from "@pinecone-database/pinecone";
 import { Document } from 'langchain/document';
 import { DatabaseOptimizer } from './database-optimizer';
+import { withRetry, batchExecuteWithRetry, CircuitBreaker, isRetryableError } from './retry-utils';
 
 // Connection pool for better performance
 class PineconeConnectionPool {
@@ -42,8 +43,9 @@ export class OptimizedVectorStore {
     private connectionPool: PineconeConnectionPool;
     private embeddings: OpenAIEmbeddings;
     private optimizer: DatabaseOptimizer;
-    private cache: Map<string, any> = new Map();
+    private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
     private readonly CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+    private circuitBreaker: CircuitBreaker;
 
     constructor() {
         this.connectionPool = PineconeConnectionPool.getInstance();
@@ -63,6 +65,73 @@ export class OptimizedVectorStore {
             useNamespaces: true,
             namespaceStrategy: 'hybrid'
         });
+
+        this.circuitBreaker = new CircuitBreaker(5, 60000); // 5 failures, 1 minute reset
+    }
+
+    /**
+     * Validate vector before storage
+     */
+    private validateVector(vector: number[], docId: string): boolean {
+        if (!vector || vector.length === 0) {
+            console.warn(`⚠️  Empty vector for document: ${docId}`);
+            return false;
+        }
+
+        // Check for zero vector (all values are 0)
+        const isZeroVector = vector.every(val => val === 0);
+        if (isZeroVector) {
+            console.warn(`⚠️  Zero vector detected for document: ${docId}`);
+            return false;
+        }
+
+        // Check for NaN or infinite values
+        const hasInvalidValues = vector.some(val => !isFinite(val));
+        if (hasInvalidValues) {
+            console.warn(`⚠️  Invalid values (NaN/Infinity) in vector for document: ${docId}`);
+            return false;
+        }
+
+        // Check vector magnitude (should not be too small)
+        const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
+        if (magnitude < 1e-8) {
+            console.warn(`⚠️  Vector magnitude too small for document: ${docId}`);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Sanitize metadata for Pinecone storage
+     */
+    private sanitizeMetadata(metadata: Record<string, unknown>): Record<string, string | number | boolean | string[]> {
+        const sanitized: Record<string, string | number | boolean | string[]> = {};
+
+        for (const [key, value] of Object.entries(metadata)) {
+            // Only allow simple data types that Pinecone supports
+            if (value === null || value === undefined) {
+                continue;
+            } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                sanitized[key] = value;
+            } else if (Array.isArray(value)) {
+                // Only allow arrays of strings
+                const stringArray = value.filter(item => typeof item === 'string');
+                if (stringArray.length > 0) {
+                    sanitized[key] = stringArray;
+                }
+            } else {
+                // Convert complex objects to string representation
+                try {
+                    sanitized[key] = JSON.stringify(value);
+                } catch (error) {
+                    console.warn(`Failed to serialize metadata field '${key}':`, error);
+                    sanitized[key] = String(value);
+                }
+            }
+        }
+
+        return sanitized;
     }
 
     async embedAndStoreDocs(docs: Document[]): Promise<void> {
@@ -70,26 +139,133 @@ export class OptimizedVectorStore {
         const startTime = Date.now();
 
         try {
-            // Step 1: Optimize documents for ingestion
-            const optimizedDocs = await this.optimizer.optimizeDocumentIngestion(docs);
-            console.log(`📊 Optimized ${docs.length} → ${optimizedDocs.length} documents`);
+            // Step 1: Validate documents have content
+            const validDocs = docs.filter(doc => {
+                if (!doc.pageContent || doc.pageContent.trim().length === 0) {
+                    console.warn(`⚠️  Skipping document with empty content: ${doc.metadata?.source || 'unknown'}`);
+                    return false;
+                }
+                return true;
+            });
 
-            // Step 2: Get optimized client
+            if (validDocs.length === 0) {
+                throw new Error('No valid documents to embed');
+            }
+
+            console.log(`📋 Processing ${validDocs.length} valid documents (${docs.length - validDocs.length} skipped)`);
+
+            // Step 2: Optimize documents for ingestion
+            const optimizedDocs = await this.optimizer.optimizeDocumentIngestion(validDocs);
+            console.log(`📆 Optimized ${validDocs.length} → ${optimizedDocs.length} documents`);
+
+            // Step 3: Generate embeddings with retry logic
             const client = await this.connectionPool.getClient();
+            const index = client.Index(env.PINECONE_INDEX_NAME);
 
-            // Step 3: Batch upsert with optimization
-            await this.optimizer.batchUpsertOptimized(optimizedDocs);
+            // Use batch processing with retry logic
+            const batchResult = await batchExecuteWithRetry(
+                optimizedDocs,
+                25, // Smaller batch size for better reliability
+                async (batch: Document[]) => {
+                    return await this.circuitBreaker.execute(async () => {
+                        return await this.processBatchWithRetry(batch, index);
+                    });
+                },
+                {
+                    maxRetries: 3,
+                    baseDelay: 2000,
+                    onProgress: (completed, total, currentBatch) => {
+                        console.log(`📊 Progress: ${completed}/${total} documents (batch ${currentBatch})`);
+                    },
+                    onBatchError: (batch, error, batchIndex) => {
+                        console.error(`❌ Batch ${batchIndex + 1} failed permanently:`, error.message);
+                    }
+                }
+            );
 
             const totalTime = Date.now() - startTime;
             console.log(`✅ Embedding complete in ${(totalTime / 1000).toFixed(2)}s`);
+            console.log(`📈 Results: ${batchResult.results.length} processed, ${batchResult.errors.length} failed batches`);
+
+            if (batchResult.errors.length > 0) {
+                console.warn(`⚠️  ${batchResult.errors.length} batches failed - some documents may not be indexed`);
+            }
 
             // Clear cache after new data ingestion
             this.clearCache();
 
         } catch (error) {
             console.error('❌ Optimized embedding failed:', error);
-            throw new Error('Failed to embed and store documents optimally');
+            throw new Error(`Failed to embed and store documents: ${error}`);
         }
+    }
+
+    /**
+     * Process a batch of documents with retry logic
+     */
+    private async processBatchWithRetry(
+        batch: Document[],
+        index: Index<RecordMetadata>
+    ): Promise<string[]> {
+        const results: string[] = [];
+
+        // Generate embeddings with retry
+        const embeddings = await withRetry(
+            () => this.embeddings.embedDocuments(batch.map(doc => doc.pageContent)),
+            {
+                maxRetries: 3,
+                baseDelay: 1000,
+                retryCondition: isRetryableError
+            }
+        );
+
+        if (!embeddings.success || !embeddings.result) {
+            throw embeddings.error || new Error('Failed to generate embeddings');
+        }
+
+        // Validate vectors and prepare for upsert
+        const validVectors: Array<{ id: string; values: number[]; metadata: Record<string, string | number | boolean | string[]> }> = [];
+
+        for (let j = 0; j < batch.length; j++) {
+            const doc = batch[j];
+            const embedding = embeddings.result[j];
+            const docId = `${doc.metadata?.source || 'unknown'}_${Date.now()}_${j}`;
+
+            // Validate vector before storing
+            if (this.validateVector(embedding, docId)) {
+                const sanitizedMetadata = this.sanitizeMetadata({
+                    text: doc.pageContent,
+                    ...doc.metadata
+                });
+
+                validVectors.push({
+                    id: docId,
+                    values: embedding,
+                    metadata: sanitizedMetadata
+                });
+                results.push(docId);
+            }
+        }
+
+        // Upsert with retry
+        if (validVectors.length > 0) {
+            const upsertResult = await withRetry(
+                () => index.upsert(validVectors as any), // Fixed: Type conversion issue
+                {
+                    maxRetries: 3,
+                    baseDelay: 2000,
+                    retryCondition: isRetryableError
+                }
+            );
+
+            if (!upsertResult.success) {
+                throw upsertResult.error || new Error('Failed to upsert vectors');
+            }
+
+            console.log(`✅ Batch complete: ${validVectors.length} vectors stored`);
+        }
+
+        return results;
     }
 
     async getVectorStore(namespace?: string): Promise<PineconeStore> {
@@ -98,7 +274,7 @@ export class OptimizedVectorStore {
 
         if (cached) {
             console.log(`💾 Using cached vector store for namespace: ${namespace || 'default'}`);
-            return cached;
+            return cached.data as PineconeStore;
         }
 
         try {
@@ -129,11 +305,11 @@ export class OptimizedVectorStore {
         options: {
             k?: number;
             namespace?: string;
-            filter?: Record<string, any>;
+            filter?: Record<string, unknown>;
             includeMetadata?: boolean;
             scoreThreshold?: number;
         } = {}
-    ): Promise<Document[]> {
+    ): Promise<Document<Record<string, unknown>>[]> {
         const {
             k = 6,
             namespace,
@@ -147,7 +323,7 @@ export class OptimizedVectorStore {
         const cached = this.getCachedItem(cacheKey);
         if (cached) {
             console.log(`💾 Cache hit for query: "${query.slice(0, 50)}..."`);
-            return cached;
+            return cached.data as Document<Record<string, unknown>>[];
         }
 
         console.log(`🔍 Optimized retrieval: "${query.slice(0, 50)}..." (k=${k}, namespace=${namespace || 'default'})`);
@@ -170,7 +346,7 @@ export class OptimizedVectorStore {
 
             // Apply score threshold if available
             if (scoreThreshold > 0) {
-                filteredResults = results.filter((doc: any) => {
+                filteredResults = results.filter((doc: Document) => {
                     const score = doc.metadata?._score || 1;
                     return score >= scoreThreshold;
                 });
@@ -209,14 +385,12 @@ export class OptimizedVectorStore {
         options: {
             k?: number;
             namespaces?: string[];
-            contentTypes?: string[];
             boostFactors?: Record<string, number>;
         } = {}
     ): Promise<Document[]> {
         const {
             k = 6,
             namespaces = ['default'],
-            contentTypes = ['text', 'table', 'chart', 'multimodal'],
             boostFactors = { table: 1.2, chart: 1.1, multimodal: 1.3 }
         } = options;
 
@@ -237,7 +411,12 @@ export class OptimizedVectorStore {
                 // Apply content type boosting
                 const boostedResults = results.map(doc => {
                     const contentType = doc.metadata?.chunkType || 'text';
-                    const boost = boostFactors[contentType] || 1.0;
+                    // Fixed: Type '{}' cannot be used as an index type
+                    // Create a new object with the default values to ensure proper typing
+                    const defaultFactors: Record<string, number> = { table: 1.2, chart: 1.1, multimodal: 1.3 };
+                    const factors = { ...defaultFactors, ...boostFactors };
+                    // Use a safer approach to access the boost factor
+                    const boost = factors[contentType as keyof typeof factors] || 1.0;
 
                     return {
                         ...doc,
@@ -271,7 +450,7 @@ export class OptimizedVectorStore {
     }
 
     async getDocumentsByMetadata(
-        filter: Record<string, any>,
+        filter: Record<string, unknown>,
         options: {
             k?: number;
             namespace?: string;
@@ -309,7 +488,7 @@ export class OptimizedVectorStore {
         }
     }
 
-    async analyzePerformance(): Promise<any> {
+    async analyzePerformance(): Promise<unknown> {
         console.log("📊 Analyzing vector store performance...");
 
         const report = await this.optimizer.generateOptimizationReport();
@@ -328,7 +507,7 @@ export class OptimizedVectorStore {
         };
     }
 
-    private getCachedItem(key: string): any {
+    private getCachedItem(key: string): { data: unknown; timestamp: number } | null {
         const cached = this.cache.get(key);
         if (!cached) return null;
 
@@ -340,10 +519,10 @@ export class OptimizedVectorStore {
             return null;
         }
 
-        return data;
+        return { data, timestamp };
     }
 
-    private setCachedItem(key: string, data: any): void {
+    private setCachedItem(key: string, data: unknown): void {
         this.cache.set(key, {
             data,
             timestamp: Date.now()
@@ -355,7 +534,7 @@ export class OptimizedVectorStore {
         }
     }
 
-    private hashQuery(query: string, options: any): string {
+    private hashQuery(query: string, options: Record<string, unknown>): string {
         const combined = JSON.stringify({ query, options });
         let hash = 0;
         for (let i = 0; i < combined.length; i++) {
@@ -438,7 +617,7 @@ export class OptimizedVectorStore {
 
     async healthCheck(): Promise<{
         status: 'healthy' | 'degraded' | 'unhealthy';
-        metrics: any;
+        metrics: unknown;
         issues: string[];
     }> {
         const issues: string[] = [];

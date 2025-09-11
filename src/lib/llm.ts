@@ -5,17 +5,17 @@ export const streamingModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
     streaming: true,
     verbose: false, // Disable verbose for faster processing
-    temperature: 0.1, // Lower temperature for more consistent, faster responses
+    temperature: 0.05, // Very low temperature for precise, consistent responses
     openAIApiKey: env.OPENAI_API_KEY,
-    maxTokens: 500, // Limit response length for faster generation
-    timeout: 10000, // 10 second timeout
+    maxTokens: 600, // Increased for more detailed responses
+    timeout: 15000, // Increased timeout for deeper analysis
 });
 
 export const nonStreamingModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
     verbose: false, // Disable verbose for faster processing
-    temperature: 0.1, // Lower temperature for more consistent, faster responses
+    temperature: 0.05, // Very low temperature for precise, consistent responses
     openAIApiKey: env.OPENAI_API_KEY,
-    maxTokens: 500, // Limit response length for faster generation
-    timeout: 10000, // 10 second timeout
+    maxTokens: 600, // Increased for more detailed responses
+    timeout: 15000, // Increased timeout for deeper analysis
 });

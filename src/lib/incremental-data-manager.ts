@@ -14,7 +14,7 @@ export interface DocumentFingerprint {
     lastModified: number;
     chunkCount: number;
     processingTimestamp: number;
-    metadata: Record<string, any>;
+    metadata: Record<string, string | number | boolean | string[]>;
 }
 
 export interface IncrementalUpdateOptions {
@@ -163,7 +163,7 @@ export class IncrementalDataManager {
                     lastModified: stats.mtime.getTime()
                 };
             }
-        } catch (error) {
+        } catch (_error) {
             // Ignore file stat errors
         }
 
@@ -186,9 +186,8 @@ export class IncrementalDataManager {
      * Generate a consistent document ID
      */
     private generateDocumentId(source: string, contentHash: string): string {
-        const sourceId = path.basename(source).replace(/[^a-zA-Z0-9]/g, '_');
         const hashShort = contentHash.substring(0, 8);
-        return `${sourceId}_${hashShort}`;
+        return `${path.basename(source).replace(/[^a-zA-Z0-9]/g, '_')}_${hashShort}`;
     }
 
     /**
@@ -388,7 +387,9 @@ export class IncrementalDataManager {
     /**
      * Load existing document fingerprints
      */
-    private async loadExistingFingerprints(namespace?: string): Promise<void> {
+    private async loadExistingFingerprints(
+        _namespace?: string
+    ): Promise<void> {
         try {
             const index = this.client.Index(env.PINECONE_INDEX_NAME);
             const fingerprintIndex = index.namespace(this.FINGERPRINT_NAMESPACE);
@@ -405,6 +406,19 @@ export class IncrementalDataManager {
             if (queryResponse.matches) {
                 for (const match of queryResponse.matches) {
                     if (match.metadata) {
+                        let originalMetadata: Record<string, string | number | boolean | string[]> = {};
+                        const rawMetadata = match.metadata.originalMetadata;
+                        if (typeof rawMetadata === 'string') {
+                            try {
+                                originalMetadata = JSON.parse(rawMetadata);
+                            } catch (_error) {
+                                console.warn('Failed to parse originalMetadata:', _error);
+                                originalMetadata = {};
+                            }
+                        } else if (rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata)) {
+                            originalMetadata = rawMetadata as Record<string, string | number | boolean | string[]>;
+                        }
+
                         const fingerprint: DocumentFingerprint = {
                             id: match.metadata.id as string,
                             source: match.metadata.source as string,
@@ -413,7 +427,7 @@ export class IncrementalDataManager {
                             lastModified: match.metadata.lastModified as number,
                             chunkCount: match.metadata.chunkCount as number,
                             processingTimestamp: match.metadata.processingTimestamp as number,
-                            metadata: match.metadata.originalMetadata as Record<string, any> || {}
+                            metadata: originalMetadata
                         };
 
                         this.fingerprintCache.set(fingerprint.source, fingerprint);
@@ -431,17 +445,19 @@ export class IncrementalDataManager {
     /**
      * Save updated fingerprints
      */
-    private async saveFingerprints(fingerprints: DocumentFingerprint[], namespace?: string): Promise<void> {
+    private async saveFingerprints(
+        fingerprints: DocumentFingerprint[],
+        _namespace?: string
+    ): Promise<void> {
         if (fingerprints.length === 0) return;
 
         try {
             const index = this.client.Index(env.PINECONE_INDEX_NAME);
             const fingerprintIndex = index.namespace(this.FINGERPRINT_NAMESPACE);
 
-            const vectors = fingerprints.map(fp => ({
-                id: `fingerprint_${fp.id}`,
-                values: new Array(3072).fill(0), // Dummy vector for metadata storage
-                metadata: {
+            const vectors = fingerprints.map(fp => {
+                // Sanitize fingerprint metadata before storing
+                const sanitizedFingerprint = this.sanitizeMetadata({
                     id: fp.id,
                     source: fp.source,
                     contentHash: fp.contentHash,
@@ -449,9 +465,15 @@ export class IncrementalDataManager {
                     lastModified: fp.lastModified,
                     chunkCount: fp.chunkCount,
                     processingTimestamp: fp.processingTimestamp,
-                    originalMetadata: fp.metadata
-                }
-            }));
+                    originalMetadata: JSON.stringify(fp.metadata)
+                });
+
+                return {
+                    id: `fingerprint_${fp.id}`,
+                    values: new Array(3072).fill(0), // Dummy vector for metadata storage
+                    metadata: sanitizedFingerprint
+                };
+            });
 
             await fingerprintIndex.upsert(vectors);
 
@@ -551,8 +573,8 @@ export class IncrementalDataManager {
             const backupIndex = index.namespace(this.BACKUP_NAMESPACE);
             const mainIndex = index;
 
-            // Find backup vectors for this source
-            const filter: any = { 'metadata.source': source };
+            // Fixed: Unexpected any. Specify a different type
+            const filter: Record<string, string | number> = { 'metadata.source': source };
             if (backupTimestamp) {
                 filter['metadata.backupTimestamp'] = backupTimestamp;
             }
@@ -566,7 +588,10 @@ export class IncrementalDataManager {
 
             if (queryResponse.matches && queryResponse.matches.length > 0) {
                 // First remove current version
-                await this.removeOldVectors({ metadata: { source } } as Document);
+                await this.removeOldVectors({
+                    pageContent: '',
+                    metadata: { source }
+                } as Document);
 
                 // Restore backup vectors
                 const restoreVectors = queryResponse.matches.map(match => ({
@@ -701,14 +726,19 @@ export class IncrementalDataManager {
             }
 
             // Group by source
-            const sourceGroups = new Map<string, any[]>();
+            // Fixed: Unexpected any. Specify a different type
+            const sourceGroups = new Map<string, Array<{ id: string; values: number[]; metadata?: Record<string, unknown> }>>();
             for (const match of queryResponse.matches) {
                 const source = match.metadata?.source as string;
                 if (source) {
                     if (!sourceGroups.has(source)) {
                         sourceGroups.set(source, []);
                     }
-                    sourceGroups.get(source)!.push(match);
+                    sourceGroups.get(source)!.push({
+                        id: match.id,
+                        values: match.values,
+                        metadata: match.metadata
+                    });
                 }
             }
 
@@ -716,7 +746,10 @@ export class IncrementalDataManager {
             for (const [source, backups] of sourceGroups.entries()) {
                 try {
                     // Remove current version
-                    await this.removeOldVectors({ metadata: { source } } as Document);
+                    await this.removeOldVectors({
+                        pageContent: '',
+                        metadata: { source }
+                    } as Document);
 
                     // Restore backup
                     const restoreVectors = backups.map(backup => ({

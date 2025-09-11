@@ -2,16 +2,14 @@ import { ChatOpenAI } from "@langchain/openai";
 import { Document } from "langchain/document";
 import { env } from "./env";
 import { QueryAnalysis } from "./query-analyzer";
-import { QueryExpansion } from "./query-expander";
-import { extractJSONFromString, safeExtractJSON } from "./json-utils";
 import { LanguageDetector } from "./language-detector";
 
 const synthesisModel = new ChatOpenAI({
     modelName: env.LLM_MODEL,
-    temperature: 0.1, // Lower temperature for faster, more consistent responses
+    temperature: 0.05, // Very low temperature for precise, consistent responses
     openAIApiKey: env.OPENAI_API_KEY,
-    maxTokens: 400, // Limit response length for faster generation
-    timeout: 8000, // 8 second timeout
+    maxTokens: 600, // Increased for more detailed responses
+    timeout: 12000, // Increased timeout for deeper analysis
     verbose: false, // Disable verbose for faster processing
 });
 
@@ -48,9 +46,7 @@ export class ResponseSynthesizer {
     async synthesizeResponse(
         query: string,
         queryAnalysis: QueryAnalysis,
-        documents: Document[],
-        queryExpansion?: QueryExpansion,
-        previousResponse?: string
+        documents: Document[]
     ): Promise<ResponseSynthesis> {
         console.log(`🔄 Synthesizing human-like response for: "${query}"`);
 
@@ -58,7 +54,7 @@ export class ResponseSynthesizer {
         const reasoningSteps = await this.buildReasoningChain(query, queryAnalysis, documents);
 
         // Step 2: Determine appropriate response style
-        const responseStyle = this.determineResponseStyle(queryAnalysis, documents);
+        const responseStyle = this.determineResponseStyle(queryAnalysis);
 
         // Step 3: Create source attributions
         const sourceAttributions = this.createSourceAttributions(documents);
@@ -92,62 +88,21 @@ export class ResponseSynthesizer {
         analysis: QueryAnalysis,
         documents: Document[]
     ): Promise<ReasoningStep[]> {
-        if (analysis.complexity < 3) {
-            // Simple queries don't need complex reasoning chains
-            return [{
-                step: 1,
-                question: query,
-                evidence: documents.slice(0, 2).map(doc => doc.pageContent.slice(0, 200)),
-                reasoning: "Direct answer from available evidence",
-                conclusion: "Information found in source documents",
-                confidence: 0.8
-            }];
-        }
+        // Simplified reasoning for speed - focus on document analysis
+        return [{
+            step: 1,
+            question: query,
+            evidence: documents.slice(0, 4).map(doc => doc.pageContent.slice(0, 300)),
+            reasoning: "Comprehensive analysis of all available evidence",
+            conclusion: "Detailed information extracted from multiple sources",
+            confidence: 0.9
+        }];
 
-        const reasoningPrompt = `Build a logical reasoning chain to answer this query using the provided evidence:
-
-Query: "${query}"
-Query Type: ${analysis.queryType}
-Complexity: ${analysis.complexity}
-
-Evidence from Documents:
-${documents.slice(0, 5).map((doc, i) =>
-            `Document ${i + 1}:\n${doc.pageContent.slice(0, 800)}...\n`
-        ).join('\n')}
-
-Create a step-by-step reasoning chain:
-1. What sub-questions need to be answered?
-2. What evidence supports each sub-answer?
-3. How do the pieces connect logically?
-4. What can we conclude with confidence?
-
-Return as JSON array:
-[
-  {
-    "step": 1,
-    "question": "What is the first thing we need to establish?",
-    "evidence": ["evidence piece 1", "evidence piece 2"],
-    "reasoning": "Why this evidence leads to this conclusion",
-    "conclusion": "What we can conclude from this step",
-    "confidence": 0.8
-  }
-]
-
-Build 2-4 logical steps that flow naturally from question to answer.`;
-
-        try {
-            const response = await synthesisModel.invoke(reasoningPrompt);
-            const steps = extractJSONFromString(response.content as string);
-            return Array.isArray(steps) ? steps : [];
-        } catch (error) {
-            console.warn('Reasoning chain generation failed:', error);
-            return [];
-        }
+        // Removed complex reasoning chain generation for speed
     }
 
     private determineResponseStyle(
-        analysis: QueryAnalysis,
-        documents: Document[]
+        analysis: QueryAnalysis
     ): 'analytical' | 'explanatory' | 'comparative' | 'narrative' {
         if (analysis.queryType === 'COMPARATIVE') {
             return 'comparative';
@@ -242,15 +197,15 @@ Build 2-4 logical steps that flow naturally from question to answer.`;
         // Get language-specific instructions
         const languageInstructions = this.languageDetector.getLanguagePromptAddition(analysis.languageDetection);
 
-        const synthesisPrompt = `Create an extremely concise, direct response that answers ONLY what was asked.
+        const synthesisPrompt = `Create a precise, comprehensive response by analyzing ALL available evidence deeply.
 
 Query: "${query}"
 Response Style: ${responseStyle}
 Style Guidance: ${stylePrompts[responseStyle]}
 
-Available Evidence:
-${documents.slice(0, 4).map((doc, i) =>
-            `Source ${i + 1} (${sourceAttributions[i]?.contentType || 'text'}): ${doc.pageContent.slice(0, 600)}...`
+DEEP DOCUMENT ANALYSIS - Review ALL evidence thoroughly:
+${documents.slice(0, 8).map((doc, i) =>
+            `Source ${i + 1} (${sourceAttributions[i]?.contentType || 'text'}): ${doc.pageContent.slice(0, 800)}...`
         ).join('\n\n')}
 
 Reasoning Chain:
@@ -260,34 +215,32 @@ ${reasoningSteps.map(step =>
 
 ${languageInstructions}
 
-EXTREME CONCISENESS REQUIREMENTS:
+PRECISION REQUIREMENTS:
 
 RESPONSE LENGTH:
-- Simple questions: 1-2 sentences maximum
-- Complex questions: 3-4 sentences maximum
-- Only use multiple paragraphs if absolutely necessary
-- Never exceed 5 sentences total
+- Simple questions: 2-3 sentences with specific details
+- Complex questions: 4-5 sentences with comprehensive information
+- Include relevant data points and specific facts
+- Use bullet points for multiple specific facts
 
-CONTENT RESTRICTIONS:
-- Answer ONLY the specific question asked
-- NO background information unless explicitly requested
-- NO historical context unless essential to the answer
-- NO explanations of terms unless they're the core of the question
-- NO tangential information, even if related
-- NO "interesting facts" or "additional context"
+CONTENT REQUIREMENTS:
+- Answer the specific question with detailed information
+- Include relevant data points, numbers, dates, and specific facts
+- Cross-reference information from multiple sources when available
+- Provide specific examples or evidence when relevant
 
 STRUCTURE:
 - Start with the direct answer immediately
-- Use bullet points only for multiple specific facts
-- No introductory phrases like "Based on the evidence..." or "Looking at the data..."
-- No concluding statements unless they directly answer the question
+- Include supporting details and evidence
+- Use bullet points for multiple specific facts
+- Reference specific data points and sources
 
 CORRELATION RULES:
-- Only correlate information if it directly answers the question
-- Don't explain connections unless they're the answer itself
-- Avoid "This connects to..." or "This relates to..." unless it's the core answer
+- Correlate information from multiple sources to provide comprehensive answers
+- Connect related information to give complete context
+- Include specific details, numbers, and facts from the documents
 
-Remember: Be extremely brief. If the user asks "What is X?", just say what X is. Don't explain why X matters, how X was discovered, or what X relates to unless specifically asked.`;
+Remember: Provide comprehensive, detailed answers by analyzing all available evidence deeply. Include specific facts, data points, and cross-references from the documents.`;
 
         try {
             const response = await synthesisModel.invoke(synthesisPrompt);
@@ -296,28 +249,28 @@ Remember: Be extremely brief. If the user asks "What is X?", just say what X is.
             // Validate that we got a proper response, not a generic greeting
             if (content.includes("Hello! How can I help") || content.includes("Hi") || content.length < 50) {
                 console.warn('Received generic response, using fallback');
-                return this.generateFallbackResponse(query, documents, analysis.languageDetection);
+                return this.generateFallbackResponse(query, documents);
             }
 
             return content;
         } catch (error) {
             console.error('Response synthesis failed:', error);
-            return this.generateFallbackResponse(query, documents, analysis.languageDetection);
+            return this.generateFallbackResponse(query, documents);
         }
     }
 
-    private generateFallbackResponse(query: string, documents: Document[], languageDetection?: any): string {
+    private generateFallbackResponse(query: string, documents: Document[]): string {
         if (documents.length === 0) {
             return `നിങ്ങളുടെ ചോദ്യത്തിന് ഉത്തരം നൽകാൻ എനിക്ക് പ്രത്യേക വിവരങ്ങൾ ഇല്ല: "${query}". ദയവായി നിങ്ങളുടെ ചോദ്യം വീണ്ടും ചോദിക്കുക അല്ലെങ്കിൽ ബന്ധപ്പെട്ട ഡോക്യുമെന്റുകൾ സിസ്റ്റത്തിൽ അപ്‌ലോഡ് ചെയ്തിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുക.`;
         }
 
-        // For simple queries like "hi", provide a helpful response in Malayalam
+        // For simple queries like "hi", provide a helpful response in Malayalam ONLY
         const normalizedQuery = query.toLowerCase().trim();
         if (normalizedQuery === 'hi' || normalizedQuery === 'hello' || normalizedQuery === 'hey' ||
             normalizedQuery === 'namaste' || normalizedQuery === 'namaskar' || normalizedQuery === 'hai' || normalizedQuery === 'helo' ||
             normalizedQuery === 'vanakkam' || normalizedQuery === 'namaskaram' || normalizedQuery === 'namaskara') {
 
-            // ALWAYS return Malayalam greeting regardless of input language
+            // STRICT MALAYALAM ONLY - No other language options
             return `നമസ്കാരം! അപ്‌ലോഡ് ചെയ്ത ഡോക്യുമെന്റുകളിൽ നിന്നും വിവരങ്ങൾ കണ്ടെത്താൻ ഞാൻ ഇവിടെയുണ്ട്. നിങ്ങൾക്ക് ഇത്തരം ചോദ്യങ്ങൾ ചോദിക്കാം:
 - "ഈ ഡോക്യുമെന്റ് എന്താണ് പറയുന്നത്?"
 - "[നിർദ്ദിഷ്ട വിഷയം] കുറിച്ച് പറയൂ"
@@ -330,7 +283,7 @@ Remember: Be extremely brief. If the user asks "What is X?", just say what X is.
         // For other queries, provide a more synthesized response based on available content in Malayalam
         const relevantContent = documents.slice(0, 2).map(doc => {
             // Clean up the content and extract meaningful information
-            let content = doc.pageContent
+            const content = doc.pageContent
                 .replace(/TEXT CONTENT:\s*/g, '')
                 .replace(/\s+/g, ' ')
                 .trim();

@@ -48,7 +48,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     [selectedChatId]: [
                         {
                             id: "1",
-                            content: "Hello! How can I help you today?",
+                            content: "ഹായ്! ഇന്ന് നിന്നെ എങ്ങനെ സഹായിക്കാം?",
                             sender: "assistant",
                         },
                     ],
@@ -114,35 +114,130 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                 const currentMessages = chatHistories[selectedChatId] || []
                 const allMessages = [...currentMessages, userMessage]
 
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        messages: allMessages.map(msg => ({
-                            role: msg.sender === 'user' ? 'user' : 'assistant',
-                            content: msg.content
+                // Try streaming API first, fallback to regular API
+                let useStreaming = true;
+
+                try {
+                    const response = await fetch('/api/chat/stream', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            messages: allMessages.map(msg => ({
+                                role: msg.sender === 'user' ? 'user' : 'assistant',
+                                content: msg.content
+                            }))
+                        }),
+                    })
+
+                    if (!response.ok) {
+                        throw new Error('Streaming failed, falling back to regular API')
+                    }
+
+                    const reader = response.body?.getReader()
+                    const decoder = new TextDecoder()
+
+                    let assistantMessage: Message = {
+                        id: (Date.now() + 1).toString(),
+                        content: "",
+                        sender: "assistant",
+                    }
+
+                    // Add initial empty message for streaming updates
+                    setChatHistories(prev => ({
+                        ...prev,
+                        [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage],
+                    }))
+
+                    let searchMetadata: any = null;
+                    let sources: any[] = [];
+
+                    if (reader) {
+                        while (true) {
+                            const { done, value } = await reader.read()
+                            if (done) break
+
+                            const chunk = decoder.decode(value)
+                            const lines = chunk.split('\n')
+
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    try {
+                                        const data = JSON.parse(line.slice(6))
+
+                                        if (data.type === 'search_start') {
+                                            console.log('🔍 Search started:', data.data)
+                                            searchMetadata = data.data
+                                        } else if (data.type === 'search_complete') {
+                                            console.log('✅ Search completed:', data.data)
+                                            // You could show search stats to user here
+                                        } else if (data.type === 'content') {
+                                            // Update message content
+                                            assistantMessage.content += data.content
+                                            setChatHistories(prev => {
+                                                const updated = { ...prev }
+                                                const messages = [...(updated[selectedChatId] || [])]
+                                                const lastMessage = messages[messages.length - 1]
+                                                if (lastMessage && lastMessage.sender === 'assistant') {
+                                                    lastMessage.content = assistantMessage.content
+                                                }
+                                                updated[selectedChatId] = messages
+                                                return updated
+                                            })
+                                        } else if (data.type === 'done') {
+                                            console.log('🎯 Response complete with sources:', data.data?.sources?.length || 0)
+                                            sources = data.data?.sources || []
+                                            // You could display sources or metadata to user
+                                        } else if (data.type === 'error') {
+                                            throw new Error(data.error)
+                                        }
+                                    } catch (parseError) {
+                                        console.warn('Failed to parse streaming data:', parseError)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    useStreaming = false; // Successfully used streaming
+
+                } catch (streamingError) {
+                    console.warn('Streaming failed, using fallback API:', streamingError)
+
+                    if (useStreaming) {
+                        // Fallback to regular API
+                        const response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                messages: allMessages.map(msg => ({
+                                    role: msg.sender === 'user' ? 'user' : 'assistant',
+                                    content: msg.content
+                                }))
+                            }),
+                        })
+
+                        if (!response.ok) {
+                            throw new Error('Failed to get response from fallback API')
+                        }
+
+                        const data = await response.json()
+
+                        const assistantMessage: Message = {
+                            id: (Date.now() + 1).toString(),
+                            content: data.text || "Sorry, I couldn't process your request.",
+                            sender: "assistant",
+                        }
+
+                        setChatHistories(prev => ({
+                            ...prev,
+                            [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage],
                         }))
-                    }),
-                })
-
-                if (!response.ok) {
-                    throw new Error('Failed to get response')
+                    }
                 }
-
-                const data = await response.json()
-
-                const assistantMessage: Message = {
-                    id: (Date.now() + 1).toString(),
-                    content: data.text || "Sorry, I couldn't process your request.",
-                    sender: "assistant",
-                }
-
-                setChatHistories(prev => ({
-                    ...prev,
-                    [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage],
-                }))
             } catch (error) {
                 console.error('Error sending message:', error)
                 const errorMessage: Message = {

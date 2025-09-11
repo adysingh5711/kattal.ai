@@ -28,6 +28,8 @@ export async function processDocumentMultimodal(filePath: string): Promise<Docum
         return await processPDFMultimodal(filePath);
     } else if (ext === '.docx' || ext === '.doc') {
         return await processWordMultimodal(filePath);
+    } else if (ext === '.md' || ext === '.markdown') {
+        return await processMarkdownMultimodal(filePath);
     }
 
     throw new Error(`Unsupported file type: ${ext}`);
@@ -107,6 +109,41 @@ async function processWordMultimodal(filePath: string): Promise<Document[]> {
             contentTypes: visualAnalysis.contentTypes
         }
     })];
+}
+
+async function processMarkdownMultimodal(filePath: string): Promise<Document[]> {
+    // Read markdown file content
+    const markdownContent = fs.readFileSync(filePath, 'utf-8');
+
+    // Analyze markdown structure for tables, code blocks, etc.
+    const visualAnalysis = analyzeMarkdownStructure(markdownContent);
+
+    // Create enhanced content with markdown structure preserved
+    const enhancedContent = createEnhancedMarkdownContent(markdownContent, visualAnalysis);
+
+    // Split into chunks if the content is very long
+    const chunks = splitMarkdownIntoChunks(enhancedContent);
+
+    const docs: Document[] = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+        docs.push(new Document({
+            pageContent: chunks[i],
+            metadata: {
+                source: filePath,
+                chunkIndex: i + 1,
+                totalChunks: chunks.length,
+                hasVisuals: visualAnalysis.hasVisuals,
+                hasTables: visualAnalysis.hasTables,
+                hasCharts: visualAnalysis.hasCharts,
+                contentTypes: visualAnalysis.contentTypes,
+                fileType: 'markdown'
+            }
+        }));
+    }
+
+    console.log(`Processed ${chunks.length} chunks from markdown file: ${path.basename(filePath)}`);
+    return docs;
 }
 
 
@@ -292,4 +329,74 @@ function normalizeModelContentToText(content: unknown): string {
         return typeof maybe === 'string' ? maybe : JSON.stringify(content);
     }
     return '';
+}
+
+// Markdown-specific analysis functions
+function analyzeMarkdownStructure(markdownContent: string): VisualAnalysis {
+    const hasTables = /\|.*\|.*\|/.test(markdownContent) || markdownContent.includes('|');
+    const hasCodeBlocks = /```[\s\S]*?```/.test(markdownContent) || /`[^`]+`/.test(markdownContent);
+    const hasImages = /!\[.*?\]\(.*?\)/.test(markdownContent) || markdownContent.includes('![');
+    const hasCharts = /```mermaid|```chart|```graph/.test(markdownContent) ||
+        markdownContent.toLowerCase().includes('mermaid') ||
+        markdownContent.toLowerCase().includes('chart');
+
+    const contentTypes = ['text'];
+    if (hasTables) contentTypes.push('tables');
+    if (hasCodeBlocks) contentTypes.push('code');
+    if (hasImages) contentTypes.push('images');
+    if (hasCharts) contentTypes.push('charts');
+
+    return {
+        visualDescription: hasTables ? 'Contains markdown tables' :
+            hasCodeBlocks ? 'Contains code blocks' :
+                hasImages ? 'Contains images' : '',
+        hasVisuals: hasImages,
+        hasTables: hasTables,
+        hasCharts: hasCharts,
+        contentTypes: contentTypes
+    };
+}
+
+function createEnhancedMarkdownContent(markdownContent: string, visualAnalysis: VisualAnalysis): string {
+    const sections = [markdownContent];
+
+    if (visualAnalysis.visualDescription) {
+        sections.push(`MARKDOWN ANALYSIS:\n${visualAnalysis.visualDescription}`);
+    }
+
+    // Add structure analysis
+    const structureInfo = analyzeMarkdownStructure(markdownContent);
+    if (structureInfo.contentTypes.length > 1) {
+        sections.push(`CONTENT TYPES: ${structureInfo.contentTypes.join(', ')}`);
+    }
+
+    return sections.join('\n\n---\n\n');
+}
+
+function splitMarkdownIntoChunks(content: string, maxChunkSize: number = 2000): string[] {
+    const chunks: string[] = [];
+    const lines = content.split('\n');
+    let currentChunk = '';
+
+    for (const line of lines) {
+        // If adding this line would exceed the chunk size, start a new chunk
+        if (currentChunk.length + line.length > maxChunkSize && currentChunk.length > 0) {
+            chunks.push(currentChunk.trim());
+            currentChunk = line + '\n';
+        } else {
+            currentChunk += line + '\n';
+        }
+    }
+
+    // Add the last chunk if it has content
+    if (currentChunk.trim().length > 0) {
+        chunks.push(currentChunk.trim());
+    }
+
+    // If no chunks were created (content is very short), return the whole content
+    if (chunks.length === 0) {
+        chunks.push(content);
+    }
+
+    return chunks;
 }
