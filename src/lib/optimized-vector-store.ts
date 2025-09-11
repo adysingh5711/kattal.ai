@@ -229,12 +229,16 @@ export class OptimizedVectorStore {
         for (let j = 0; j < batch.length; j++) {
             const doc = batch[j];
             const embedding = embeddings.result[j];
-            const docId = `${doc.metadata?.source || 'unknown'}_${Date.now()}_${j}`;
+            
+            // Enhanced ID generation with content hash for deduplication
+            const contentHash = doc.metadata?.contentHash || this.generateContentHash(doc.pageContent);
+            const docId = `${doc.metadata?.source || 'unknown'}_${contentHash}_${j}`;
 
             // Validate vector before storing
             if (this.validateVector(embedding, docId)) {
                 const sanitizedMetadata = this.sanitizeMetadata({
                     text: doc.pageContent,
+                    contentHash, // Include content hash in metadata
                     ...doc.metadata
                 });
 
@@ -532,6 +536,18 @@ export class OptimizedVectorStore {
         if (this.cache.size > 100) {
             this.cleanupCache();
         }
+    }
+
+    /**
+     * Generate content hash for deduplication
+     */
+    private generateContentHash(content: string): string {
+        const crypto = require('crypto');
+        return crypto
+            .createHash('sha256')
+            .update(content.trim().toLowerCase())
+            .digest('hex')
+            .substring(0, 16);
     }
 
     private hashQuery(query: string, options: Record<string, unknown>): string {

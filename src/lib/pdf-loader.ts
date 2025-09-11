@@ -4,7 +4,7 @@ import { env } from "./env";
 import fs from 'fs';
 import path from 'path';
 import { processDocumentMultimodal } from "./multimodal-processor";
-import { chunkMultimodalDocuments } from "./smart-chunker";
+// Using enhanced Docling-inspired chunking - no need to import old chunker
 import { IncrementalDataManager, IncrementalUpdateOptions } from "./incremental-data-manager";
 
 /**
@@ -107,13 +107,13 @@ export async function getChunkedDocsFromPDF() {
 
         console.log(`\n📊 Successfully loaded ${allDocs.length} document sections`);
 
-        // Use smart multimodal chunking
-        const chunkedDocs = await chunkMultimodalDocuments(allDocs);
-        console.log(`✂️  Created ${chunkedDocs.length} chunks from the documents`);
+        // Documents are now pre-chunked using Docling-inspired chunking in multimodal-processor
+        // No additional chunking needed as each document is already optimally chunked
+        console.log(`✂️  Using ${allDocs.length} pre-chunked documents (Docling-inspired chunking)`);
 
-        // Update chunks count in summary
+        // Update chunks count in summary  
         Object.keys(processingSummary).forEach(fileName => {
-            processingSummary[fileName].chunks = chunkedDocs.filter(doc =>
+            processingSummary[fileName].chunks = allDocs.filter(doc =>
                 doc.metadata.source && doc.metadata.source.includes(fileName)
             ).length;
         });
@@ -136,7 +136,7 @@ export async function getChunkedDocsFromPDF() {
         console.log(`📈 TOTAL: ${totalPages} pages → ${totalChunks} chunks`);
         console.log('='.repeat(50));
 
-        return chunkedDocs;
+        return allDocs;
     } catch (e: unknown) {
         console.error("Document chunking failed:", e);
         const errorMessage = e instanceof Error ? e.message : 'Unknown error';

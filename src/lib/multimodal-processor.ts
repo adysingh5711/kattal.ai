@@ -5,6 +5,7 @@ import { env } from "./env";
 import fs from 'fs';
 import path from 'path';
 import * as mammoth from 'mammoth';
+import { HybridChunker, convertToLangChainDocuments, OpenAITokenizerWrapper } from './docling-inspired-chunker';
 
 // Vision model for image/chart analysis
 const visionModel = new ChatOpenAI({
@@ -112,37 +113,40 @@ async function processWordMultimodal(filePath: string): Promise<Document[]> {
 }
 
 async function processMarkdownMultimodal(filePath: string): Promise<Document[]> {
+    console.log(`🔄 Processing markdown file with Docling-inspired chunker: ${path.basename(filePath)}`);
+
     // Read markdown file content
     const markdownContent = fs.readFileSync(filePath, 'utf-8');
 
-    // Analyze markdown structure for tables, code blocks, etc.
-    const visualAnalysis = analyzeMarkdownStructure(markdownContent);
+    // Initialize the hybrid chunker with OpenAI tokenizer
+    const tokenizer = new OpenAITokenizerWrapper(env.EMBEDDING_MODEL);
+    const maxTokens = Math.min(8191, env.EMBEDDING_DIMENSIONS * 2); // Conservative token limit
 
-    // Create enhanced content with markdown structure preserved
-    const enhancedContent = createEnhancedMarkdownContent(markdownContent, visualAnalysis);
+    const hybridChunker = new HybridChunker(
+        tokenizer,
+        maxTokens,
+        true // Enable peer merging
+    );
 
-    // Split into chunks if the content is very long
-    const chunks = splitMarkdownIntoChunks(enhancedContent);
+    // Use Docling-inspired chunking
+    const doclingChunks = hybridChunker.chunk(markdownContent, {
+        filename: path.basename(filePath),
+        origin: {
+            filename: path.basename(filePath),
+            source: filePath
+        },
+        fileType: 'markdown'
+    });
 
-    const docs: Document[] = [];
+    // Convert to LangChain documents
+    const docs = convertToLangChainDocuments(doclingChunks, filePath);
 
-    for (let i = 0; i < chunks.length; i++) {
-        docs.push(new Document({
-            pageContent: chunks[i],
-            metadata: {
-                source: filePath,
-                chunkIndex: i + 1,
-                totalChunks: chunks.length,
-                hasVisuals: visualAnalysis.hasVisuals,
-                hasTables: visualAnalysis.hasTables,
-                hasCharts: visualAnalysis.hasCharts,
-                contentTypes: visualAnalysis.contentTypes,
-                fileType: 'markdown'
-            }
-        }));
-    }
+    console.log(`✅ Processed ${docs.length} chunks from markdown file: ${path.basename(filePath)}`);
+    console.log(`📊 Chunking stats:
+    - Original content: ${markdownContent.length} characters
+    - Tokens per chunk (avg): ${doclingChunks.map(c => tokenizer.countTokens(c.text)).reduce((a, b) => a + b, 0) / doclingChunks.length}
+    - Chunk types: ${[...new Set(doclingChunks.map(c => c.metadata.chunkType))].join(', ')}`);
 
-    console.log(`Processed ${chunks.length} chunks from markdown file: ${path.basename(filePath)}`);
     return docs;
 }
 
@@ -373,30 +377,4 @@ function createEnhancedMarkdownContent(markdownContent: string, visualAnalysis: 
     return sections.join('\n\n---\n\n');
 }
 
-function splitMarkdownIntoChunks(content: string, maxChunkSize: number = 2000): string[] {
-    const chunks: string[] = [];
-    const lines = content.split('\n');
-    let currentChunk = '';
-
-    for (const line of lines) {
-        // If adding this line would exceed the chunk size, start a new chunk
-        if (currentChunk.length + line.length > maxChunkSize && currentChunk.length > 0) {
-            chunks.push(currentChunk.trim());
-            currentChunk = line + '\n';
-        } else {
-            currentChunk += line + '\n';
-        }
-    }
-
-    // Add the last chunk if it has content
-    if (currentChunk.trim().length > 0) {
-        chunks.push(currentChunk.trim());
-    }
-
-    // If no chunks were created (content is very short), return the whole content
-    if (chunks.length === 0) {
-        chunks.push(content);
-    }
-
-    return chunks;
-}
+// splitMarkdownIntoChunks removed - now using Docling-inspired HybridChunker
