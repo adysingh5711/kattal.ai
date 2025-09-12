@@ -118,8 +118,8 @@ async function processMarkdownMultimodal(filePath: string): Promise<Document[]> 
     // Read markdown file content
     const markdownContent = fs.readFileSync(filePath, 'utf-8');
 
-    // Initialize the hybrid chunker with OpenAI tokenizer
-    const tokenizer = new OpenAITokenizerWrapper(env.EMBEDDING_MODEL);
+    // Initialize the hybrid chunker with OpenAI tokenizer (uses env.EMBEDDING_MODEL)
+    const tokenizer = new OpenAITokenizerWrapper();
     const maxTokens = Math.min(8191, env.EMBEDDING_DIMENSIONS * 2); // Conservative token limit
 
     const hybridChunker = new HybridChunker(
@@ -335,46 +335,5 @@ function normalizeModelContentToText(content: unknown): string {
     return '';
 }
 
-// Markdown-specific analysis functions
-function analyzeMarkdownStructure(markdownContent: string): VisualAnalysis {
-    const hasTables = /\|.*\|.*\|/.test(markdownContent) || markdownContent.includes('|');
-    const hasCodeBlocks = /```[\s\S]*?```/.test(markdownContent) || /`[^`]+`/.test(markdownContent);
-    const hasImages = /!\[.*?\]\(.*?\)/.test(markdownContent) || markdownContent.includes('![');
-    const hasCharts = /```mermaid|```chart|```graph/.test(markdownContent) ||
-        markdownContent.toLowerCase().includes('mermaid') ||
-        markdownContent.toLowerCase().includes('chart');
-
-    const contentTypes = ['text'];
-    if (hasTables) contentTypes.push('tables');
-    if (hasCodeBlocks) contentTypes.push('code');
-    if (hasImages) contentTypes.push('images');
-    if (hasCharts) contentTypes.push('charts');
-
-    return {
-        visualDescription: hasTables ? 'Contains markdown tables' :
-            hasCodeBlocks ? 'Contains code blocks' :
-                hasImages ? 'Contains images' : '',
-        hasVisuals: hasImages,
-        hasTables: hasTables,
-        hasCharts: hasCharts,
-        contentTypes: contentTypes
-    };
-}
-
-function createEnhancedMarkdownContent(markdownContent: string, visualAnalysis: VisualAnalysis): string {
-    const sections = [markdownContent];
-
-    if (visualAnalysis.visualDescription) {
-        sections.push(`MARKDOWN ANALYSIS:\n${visualAnalysis.visualDescription}`);
-    }
-
-    // Add structure analysis
-    const structureInfo = analyzeMarkdownStructure(markdownContent);
-    if (structureInfo.contentTypes.length > 1) {
-        sections.push(`CONTENT TYPES: ${structureInfo.contentTypes.join(', ')}`);
-    }
-
-    return sections.join('\n\n---\n\n');
-}
-
-// splitMarkdownIntoChunks removed - now using Docling-inspired HybridChunker
+// Legacy markdown analysis functions removed - now using Docling-inspired HybridChunker
+// which provides superior structure analysis and hierarchical processing

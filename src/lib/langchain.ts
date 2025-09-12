@@ -5,7 +5,7 @@
 // import { HumanMessage, AIMessage } from "@langchain/core/messages";
 // import { streamingModel, nonStreamingModel } from "./llm";
 // import { QA_TEMPLATE } from "./prompt-templates";
-import { getVectorStore } from "./vector-store";
+// Legacy vector-store removed - using OptimizedVectorStore
 import { getPinecone } from "./pinecone-client";
 import { QueryAnalyzer } from "./query-analyzer";
 import { AdaptiveRetriever } from "./adaptive-retriever";
@@ -176,7 +176,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         // Enhanced retrieval with hybrid search for deeper document analysis
         const pineconeClient = await getPinecone();
-        const vectorStore = await getVectorStore(pineconeClient);
+        const vectorStore = await optimizedVectorStore.getVectorStore();
 
         // Use adaptive retrieval with hybrid search capabilities
         const hybridSearchEngine = new HybridSearchEngine(optimizedVectorStore);

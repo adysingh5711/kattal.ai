@@ -828,7 +828,11 @@ export class IncrementalDataManager {
             // Estimate embedding cost
             const avgTokensPerDoc = 500;
             const totalTokens = documentsToProcess * avgTokensPerDoc;
-            result.estimatedCost = (totalTokens / 1000000) * 0.13; // text-embedding-3-large cost
+            // Cost estimation based on current embedding model
+            const costPer1MTokens = env.EMBEDDING_MODEL.includes('3-large') ? 0.13 : 
+                                   env.EMBEDDING_MODEL.includes('3-small') ? 0.02 : 
+                                   env.EMBEDDING_MODEL.includes('ada-002') ? 0.0001 : 0.13;
+            result.estimatedCost = (totalTokens / 1000000) * costPer1MTokens;
 
             console.log('📊 Dry run results:', {
                 new: result.wouldProcess.new.length,

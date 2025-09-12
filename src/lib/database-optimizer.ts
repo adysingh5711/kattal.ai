@@ -118,10 +118,11 @@ export class DatabaseOptimizer {
                 indexFullness: stats.indexFullness
             });
 
-            // Check dimension optimization
-            if (stats.dimension !== 3072) {
-                issues.push(`Using ${stats.dimension} dimensions instead of optimal 3072 for text-embedding-3-large`);
-                recommendations.push("Upgrade to text-embedding-3-large (3072 dimensions) for better multilingual support");
+            // Check dimension optimization based on current embedding model
+            const expectedDimensions = env.EMBEDDING_DIMENSIONS;
+            if (stats.dimension !== expectedDimensions) {
+                issues.push(`Using ${stats.dimension} dimensions instead of configured ${expectedDimensions} for ${env.EMBEDDING_MODEL}`);
+                recommendations.push(`Ensure index dimensions match embedding model: ${env.EMBEDDING_MODEL} (${expectedDimensions} dimensions)`);
             }
 
             // Check index fullness
@@ -461,10 +462,14 @@ export class DatabaseOptimizer {
     }
 
     private estimateEmbeddingCost(vectorCount: number): number {
-        // text-embedding-3-large costs ~$0.13 per 1M tokens
+        // Embedding costs vary by model - use environment configured model
+        const costPer1MTokens = env.EMBEDDING_MODEL.includes('3-large') ? 0.13 : 
+                               env.EMBEDDING_MODEL.includes('3-small') ? 0.02 : 
+                               env.EMBEDDING_MODEL.includes('ada-002') ? 0.0001 : 0.13;
+        
         // Assume average 500 tokens per chunk
         const totalTokens = vectorCount * 500;
-        return (totalTokens / 1000000) * 0.13;
+        return (totalTokens / 1000000) * costPer1MTokens;
     }
 
     private estimateStorageCost(vectorCount: number): number {
@@ -521,7 +526,7 @@ export class DatabaseOptimizer {
         }
 
         report += "## Best Practices Summary\n";
-        report += "- ✅ Use text-embedding-3-large (3072 dimensions) for multilingual support\n";
+        report += `- ✅ Using ${env.EMBEDDING_MODEL} (${env.EMBEDDING_DIMENSIONS} dimensions) for embeddings\n`;
         report += "- ✅ Implement namespace strategy for better organization\n";
         report += "- ✅ Optimize chunk sizes (1500-2000 chars) for context vs performance\n";
         report += "- ✅ Use batch operations for efficient ingestion\n";

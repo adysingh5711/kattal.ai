@@ -1,4 +1,4 @@
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+// Old chunking imports removed - now using Docling-inspired HybridChunker
 import { Document } from "langchain/document";
 import { env } from "./env";
 import fs from 'fs';

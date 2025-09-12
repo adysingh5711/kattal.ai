@@ -1,7 +1,7 @@
 import { DatabaseOptimizer } from "@/lib/database-optimizer";
 import { OptimizedVectorStore } from "@/lib/optimized-vector-store";
 import { getPinecone } from "@/lib/pinecone-client";
-import { getVectorStore } from "@/lib/vector-store";
+// Legacy vector-store removed - using OptimizedVectorStore only
 
 async function analyzeDatabasePerformance() {
     console.log("🔍 Comprehensive Database Analysis & Optimization");

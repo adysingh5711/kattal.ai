@@ -10,7 +10,6 @@ import crypto from 'crypto';
 
 export interface TokenizerWrapper {
     encode(text: string): number[];
-    decode(tokens: number[]): string;
     countTokens(text: string): number;
 }
 
@@ -18,13 +17,22 @@ export class OpenAITokenizerWrapper implements TokenizerWrapper {
     private encoding;
     private modelName: string;
 
-    constructor(modelName: string = "text-embedding-3-large") {
-        this.modelName = modelName;
+    constructor(modelName?: string) {
+        // Use environment variable as default, allow override for testing
+        this.modelName = modelName || env.EMBEDDING_MODEL;
+        
         // Map embedding models to appropriate tokenizer models
-        const tokenizerModel = modelName.includes("3-large") || modelName.includes("3-small")
-            ? "cl100k_base"
-            : "cl100k_base"; // Default for most OpenAI models
-
+        let tokenizerModel: string;
+        
+        if (this.modelName.includes("3-large") || this.modelName.includes("3-small")) {
+            tokenizerModel = "text-embedding-3-large";
+        } else if (this.modelName.includes("ada-002")) {
+            tokenizerModel = "text-embedding-ada-002"; 
+        } else {
+            // Default to gpt-4 encoding for most OpenAI models
+            tokenizerModel = "gpt-4";
+        }
+        
         this.encoding = encoding_for_model(tokenizerModel as any);
     }
 
@@ -32,9 +40,6 @@ export class OpenAITokenizerWrapper implements TokenizerWrapper {
         return Array.from(this.encoding.encode(text));
     }
 
-    decode(tokens: number[]): string {
-        return this.encoding.decode(new Uint8Array(tokens));
-    }
 
     countTokens(text: string): number {
         return this.encoding.encode(text).length;
@@ -86,7 +91,8 @@ export class HybridChunker {
         mergePeers: boolean = true,
         overlapTokens: number = 100
     ) {
-        this.tokenizer = tokenizer || new OpenAITokenizerWrapper(env.EMBEDDING_MODEL);
+        // Use environment variable for tokenizer model
+        this.tokenizer = tokenizer || new OpenAITokenizerWrapper();
         this.maxTokens = maxTokens;
         this.mergePeers = mergePeers;
         this.overlapTokens = overlapTokens;

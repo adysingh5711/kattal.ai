@@ -16,7 +16,7 @@ async function testEnhancedChunking() {
         // Test 1: Initialize components
         console.log("\n1️⃣ Testing component initialization...");
 
-        const tokenizer = new OpenAITokenizerWrapper(env.EMBEDDING_MODEL);
+        const tokenizer = new OpenAITokenizerWrapper(); // Uses env.EMBEDDING_MODEL by default
         console.log(`✅ Tokenizer initialized for model: ${env.EMBEDDING_MODEL}`);
 
         const hybridChunker = new HybridChunker(tokenizer, 8191, true);
