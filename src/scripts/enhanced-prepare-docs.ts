@@ -62,9 +62,9 @@ const mode = process.argv[2] || 'incremental';
                 batchSize: 50
             });
 
-            if (result.chunks.length > 0) {
-                console.log(`\n🔄 Processing ${result.chunks.length} new/updated chunks with enhanced embedding...`);
-                await vectorStore.embedAndStoreDocs(result.chunks);
+            if (result.documents.length > 0) {
+                console.log(`\n🔄 Processing ${result.documents.length} new/updated chunks with enhanced embedding...`);
+                await vectorStore.embedAndStoreDocs(result.documents);
 
                 console.log('\n📊 ENHANCED INCREMENTAL UPDATE SUMMARY:');
                 console.log('='.repeat(60));

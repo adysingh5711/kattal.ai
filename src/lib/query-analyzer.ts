@@ -46,7 +46,7 @@ Classify the query and provide analysis in this JSON format:
   "requiresCrossReference": true/false,
   "dataTypesNeeded": ["text", "tables", "charts", "images"],
   "reasoningSteps": ["step1", "step2"],
-  "suggestedK": 6-12
+  "suggestedK": 8-20
 }
 
 Query Types:
@@ -83,7 +83,7 @@ Respond ONLY with valid JSON.`;
                 requiresCrossReference: analysis.requiresCrossReference || false,
                 dataTypesNeeded: analysis.dataTypesNeeded || ['text'],
                 reasoningSteps: analysis.reasoningSteps || [],
-                suggestedK: Math.max(4, Math.min(12, analysis.suggestedK || 6)),
+                suggestedK: Math.max(6, Math.min(20, analysis.suggestedK || 10)), // Higher K for better reasoning
                 languageDetection
             };
         } catch (error) {
@@ -96,7 +96,7 @@ Respond ONLY with valid JSON.`;
                 requiresCrossReference: false,
                 dataTypesNeeded: ['text'],
                 reasoningSteps: [],
-                suggestedK: 6,
+                suggestedK: 10, // Higher default for better context
                 languageDetection
             };
         }

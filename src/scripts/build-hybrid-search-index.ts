@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 
 import { config } from 'dotenv';
+import { Document } from 'langchain/document';
 import { OptimizedVectorStore } from '../lib/optimized-vector-store';
 import { HybridSearchEngine } from '../lib/hybrid-search-engine';
 import { getPinecone } from '../lib/pinecone-client';
@@ -108,7 +109,7 @@ async function fetchAllDocuments(
     namespace?: string,
     maxDocuments: number = 10000,
     verbose: boolean = true
-): Promise<any[]> {
+): Promise<Document[]> {
     const documents = [];
 
     try {
@@ -154,7 +155,8 @@ async function fetchAllDocuments(
                         if (verbose) console.log(`   ✅ Found ${queryDocs.length} documents for query "${query}"`);
                     }
                 } catch (error) {
-                    if (verbose) console.warn(`   ⚠️  Query "${query}" failed:`, error.message);
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    if (verbose) console.warn(`   ⚠️  Query "${query}" failed:`, errorMessage);
                 }
             }
         }
@@ -200,14 +202,19 @@ async function runPerformanceTests(hybridSearch: HybridSearchEngine, verbose: bo
 
             // Create a mock query analysis for testing
             const mockAnalysis = {
-                queryType: 'factual' as const,
-                complexity: 'medium' as const,
+                queryType: 'FACTUAL' as const,
+                complexity: 3,
                 keyEntities: query.split(' '),
                 suggestedK: 5,
                 requiresCrossReference: false,
-                estimatedTokens: query.split(' ').length,
-                language: 'en' as const,
-                confidence: 0.8
+                dataTypesNeeded: ['text'],
+                reasoningSteps: ['retrieve', 'analyze'],
+                languageDetection: {
+                    detectedLanguage: 'english' as const,
+                    confidence: 0.8,
+                    responseLanguage: 'en',
+                    responseInstructions: 'Respond in English'
+                }
             };
 
             const searchResult = await hybridSearch.intelligentSearch(query, mockAnalysis, {
@@ -229,7 +236,8 @@ async function runPerformanceTests(hybridSearch: HybridSearchEngine, verbose: bo
             }
 
         } catch (error) {
-            console.warn(`   ⚠️  Test query "${query}" failed:`, error.message);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.warn(`   ⚠️  Test query "${query}" failed:`, errorMessage);
         }
     }
 

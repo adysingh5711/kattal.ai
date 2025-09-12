@@ -146,7 +146,7 @@ export class AdaptiveRetriever {
         for (const expandedQuery of queriesToUse) {
             const retriever = this.vectorStore.asRetriever({
                 searchType: "similarity",
-                k: Math.ceil(analysis.suggestedK / queriesToUse.length),
+                k: Math.ceil(analysis.suggestedK * 1.8 / queriesToUse.length), // Increased for more content
             });
 
             const docs = await retriever.invoke(expandedQuery);
@@ -159,7 +159,7 @@ export class AdaptiveRetriever {
         );
 
         return {
-            documents: uniqueDocuments.slice(0, analysis.suggestedK + 4),
+            documents: uniqueDocuments.slice(0, analysis.suggestedK * 2 + 6), // More documents for reasoning
             retrievalStrategy: 'graph-enhanced',
             confidence: 0.95,
             crossReferences: queryExpansion.relatedConcepts,
@@ -170,7 +170,7 @@ export class AdaptiveRetriever {
     private async standardRetrieval(query: string, analysis: QueryAnalysis): Promise<RetrievalResult> {
         const retriever = this.vectorStore.asRetriever({
             searchType: "similarity",
-            k: analysis.suggestedK,
+            k: analysis.suggestedK * 1.5, // More documents for better context
         });
 
         const documents = await retriever.invoke(query);
@@ -216,7 +216,7 @@ export class AdaptiveRetriever {
         }
 
         return {
-            documents: allDocuments.slice(0, analysis.suggestedK + 4), // Cap total documents
+            documents: allDocuments.slice(0, analysis.suggestedK * 2 + 8), // More documents for reasoning
             retrievalStrategy: 'multi-hop',
             confidence: 0.9,
             crossReferences
@@ -256,7 +256,7 @@ export class AdaptiveRetriever {
         const uniqueDocuments = this.removeDuplicateDocuments(allDocuments);
 
         return {
-            documents: uniqueDocuments.slice(0, analysis.suggestedK + 2),
+            documents: uniqueDocuments.slice(0, analysis.suggestedK * 1.8 + 4), // More for comparisons
             retrievalStrategy: 'comparative',
             confidence: 0.85,
             crossReferences: entities
@@ -290,7 +290,7 @@ export class AdaptiveRetriever {
         );
 
         return {
-            documents: sortedDocs.slice(0, analysis.suggestedK + 4),
+            documents: sortedDocs.slice(0, analysis.suggestedK * 2 + 6), // More for synthesis
             retrievalStrategy: 'comprehensive',
             confidence: 0.92,
             crossReferences: analysis.keyEntities
@@ -418,7 +418,7 @@ export class AdaptiveRetriever {
             );
 
             // If we have query expansion, also search with expanded queries
-            let additionalDocs: any[] = [];
+            const additionalDocs: Document[] = [];
             if (expandedQueries.length > 1 && hybridResult.documents.length < analysis.suggestedK) {
                 console.log(`📚 Searching with ${expandedQueries.length - 1} expanded queries`);
 
@@ -443,7 +443,7 @@ export class AdaptiveRetriever {
             // Combine and deduplicate results
             const allDocs = [...hybridResult.documents, ...additionalDocs];
             const uniqueDocs = this.removeDuplicateDocuments(allDocs);
-            const finalDocs = this.prioritizeMultimodalContent(uniqueDocs).slice(0, analysis.suggestedK);
+            const finalDocs = this.prioritizeMultimodalContent(uniqueDocs).slice(0, analysis.suggestedK * 1.8); // More content for reasoning
 
             // Extract cross-references from retrieved documents
             const crossReferences = this.extractKeyTerms(finalDocs, analysis.keyEntities);

@@ -186,8 +186,8 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         // Enhance retrieval with additional context if needed
         if (retrievalResult.documents.length < 5) {
             const additionalDocs = await optimizedVectorStore.optimizedRetrieval(sanitizedQuestion, {
-                k: 8, // Get more documents for deeper analysis
-                scoreThreshold: 0.6, // Lower threshold to catch more relevant content
+                k: 15, // More documents for enhanced reasoning and inference
+                scoreThreshold: 0.5, // Lower threshold to catch more contextual content
             });
 
             // Merge and deduplicate documents

@@ -191,6 +191,38 @@ export class IncrementalDataManager {
     }
 
     /**
+     * Sanitize metadata for Pinecone storage
+     */
+    private sanitizeMetadata(metadata: Record<string, unknown>): Record<string, string | number | boolean | string[]> {
+        const sanitized: Record<string, string | number | boolean | string[]> = {};
+
+        for (const [key, value] of Object.entries(metadata)) {
+            // Only allow simple data types that Pinecone supports
+            if (value === null || value === undefined) {
+                continue;
+            } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                sanitized[key] = value;
+            } else if (Array.isArray(value)) {
+                // Only allow arrays of strings
+                const stringArray = value.filter(item => typeof item === 'string');
+                if (stringArray.length > 0) {
+                    sanitized[key] = stringArray;
+                }
+            } else {
+                // Convert complex objects to string representation
+                try {
+                    sanitized[key] = JSON.stringify(value);
+                } catch (error) {
+                    console.warn(`Failed to serialize metadata field '${key}':`, error);
+                    sanitized[key] = String(value);
+                }
+            }
+        }
+
+        return sanitized;
+    }
+
+    /**
      * Analyze documents to determine what needs to be processed
      */
     private async analyzeDocuments(
@@ -730,7 +762,7 @@ export class IncrementalDataManager {
             const sourceGroups = new Map<string, Array<{ id: string; values: number[]; metadata?: Record<string, unknown> }>>();
             for (const match of queryResponse.matches) {
                 const source = match.metadata?.source as string;
-                if (source) {
+                if (source && match.values) {
                     if (!sourceGroups.has(source)) {
                         sourceGroups.set(source, []);
                     }
@@ -829,9 +861,9 @@ export class IncrementalDataManager {
             const avgTokensPerDoc = 500;
             const totalTokens = documentsToProcess * avgTokensPerDoc;
             // Cost estimation based on current embedding model
-            const costPer1MTokens = env.EMBEDDING_MODEL.includes('3-large') ? 0.13 : 
-                                   env.EMBEDDING_MODEL.includes('3-small') ? 0.02 : 
-                                   env.EMBEDDING_MODEL.includes('ada-002') ? 0.0001 : 0.13;
+            const costPer1MTokens = env.EMBEDDING_MODEL.includes('3-large') ? 0.13 :
+                env.EMBEDDING_MODEL.includes('3-small') ? 0.02 :
+                    env.EMBEDDING_MODEL.includes('ada-002') ? 0.0001 : 0.13;
             result.estimatedCost = (totalTokens / 1000000) * costPer1MTokens;
 
             console.log('📊 Dry run results:', {

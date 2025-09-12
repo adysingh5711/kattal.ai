@@ -14,7 +14,7 @@ interface BM25Document {
 }
 
 interface HybridSearchOptions {
-    k?: number;
+    k?: number; // Enhanced default: 12-15 for better content coverage
     bm25Weight?: number;
     semanticWeight?: number;
     fuseWeight?: number;
@@ -177,7 +177,7 @@ export class HybridSearchEngine {
         // 2. Semantic Search
         searchPromises.push(
             this.vectorStore.optimizedRetrieval(query, {
-                k: k * 2,
+                k: k * 3, // Retrieve more documents for enhanced reasoning
                 namespace,
                 filter,
                 includeMetadata: true,
@@ -196,8 +196,8 @@ export class HybridSearchEngine {
 
         // Combine and rank results
         const combinedResults = this.combineAndRankResults(
-            bm25Results,
-            semanticResults,
+            bm25Results as SearchResult[],
+            semanticResults as Document[],
             fuseResults as SearchResult[],
             weights,
             scoreThreshold
@@ -232,15 +232,15 @@ export class HybridSearchEngine {
     private determineSearchStrategy(analysis: QueryAnalysis): string {
         const { queryType, complexity, keyEntities } = analysis;
 
-        if (queryType === 'factual' && keyEntities.length > 0) {
+        if (queryType === 'FACTUAL' && keyEntities.length > 0) {
             return 'keyword-heavy'; // Favor BM25
         }
 
-        if (queryType === 'analytical' || complexity === 'complex') {
+        if (queryType === 'ANALYTICAL' || complexity > 3) {
             return 'semantic-heavy'; // Favor semantic search
         }
 
-        if (queryType === 'procedural' || complexity === 'medium') {
+        if (queryType === 'COMPARATIVE' || complexity === 2) {
             return 'balanced'; // Equal weights
         }
 
@@ -268,9 +268,9 @@ export class HybridSearchEngine {
             case 'adaptive':
             default:
                 // Adaptive weighting based on query characteristics
-                const entityRatio = analysis.keyEntities.length / Math.max(analysis.estimatedTokens, 1);
+                const entityRatio = analysis.keyEntities.length / Math.max(10, 1); // Assume average query length
                 const bm25Weight = Math.min(0.6, 0.3 + entityRatio * 0.3);
-                const semanticWeight = Math.min(0.7, 0.4 + (analysis.complexity === 'complex' ? 0.3 : 0.1));
+                const semanticWeight = Math.min(0.7, 0.4 + (analysis.complexity > 3 ? 0.3 : 0.1));
                 const fuseWeight = Math.max(0.1, 1 - bm25Weight - semanticWeight);
 
                 return { bm25Weight, semanticWeight, fuseWeight };
@@ -542,7 +542,13 @@ export class HybridSearchEngine {
     async healthCheck(): Promise<{
         status: 'healthy' | 'degraded' | 'unhealthy';
         issues: string[];
-        stats: ReturnType<typeof this.getIndexStats>;
+        stats: {
+            isBuilt: boolean;
+            totalDocuments: number;
+            uniqueTerms: number;
+            averageDocLength: number;
+            lastUpdate: number;
+        };
     }> {
         const issues: string[] = [];
         let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';

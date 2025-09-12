@@ -134,8 +134,7 @@ async function processMarkdownMultimodal(filePath: string): Promise<Document[]> 
         origin: {
             filename: path.basename(filePath),
             source: filePath
-        },
-        fileType: 'markdown'
+        }
     });
 
     // Convert to LangChain documents

@@ -39,7 +39,7 @@ async function getHybridSearchEngine(): Promise<HybridSearchEngine> {
             // In production, you'd load from your document store
             try {
                 // This is a placeholder - in real implementation, load your documents
-                const mockDocs = []; // await loadDocumentsFromStore();
+                const mockDocs: any[] = []; // await loadDocumentsFromStore();
                 if (mockDocs.length > 0) {
                     await globalHybridSearch.buildSearchIndex(mockDocs);
                 }
@@ -205,7 +205,7 @@ Content: ${doc.pageContent}`
                             if (chunk.content) {
                                 const contentEvent: StreamEvent = {
                                     type: 'content',
-                                    content: chunk.content
+                                    content: typeof chunk.content === 'string' ? chunk.content : JSON.stringify(chunk.content)
                                 };
                                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentEvent)}\n\n`));
                             }

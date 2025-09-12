@@ -19,11 +19,14 @@ async function analyzeDatabasePerformance() {
         const healthCheck = await optimizedStore.healthCheck();
         console.log(`Status: ${healthCheck.status.toUpperCase()}`);
 
-        if (healthCheck.metrics.totalVectors) {
-            console.log(`Total Vectors: ${healthCheck.metrics.totalVectors.toLocaleString()}`);
-            console.log(`Index Fullness: ${(healthCheck.metrics.indexFullness * 100).toFixed(1)}%`);
-            console.log(`Query Latency: ${healthCheck.metrics.queryLatency}ms`);
-            console.log(`Cache Hit Rate: ${(healthCheck.metrics.cacheHitRate * 100).toFixed(1)}%`);
+        if (healthCheck.metrics && typeof healthCheck.metrics === 'object') {
+            const metrics = healthCheck.metrics as any;
+            if (metrics.totalVectors) {
+                console.log(`Total Vectors: ${metrics.totalVectors.toLocaleString()}`);
+                console.log(`Index Fullness: ${(metrics.indexFullness * 100).toFixed(1)}%`);
+                console.log(`Query Latency: ${metrics.queryLatency}ms`);
+                console.log(`Cache Hit Rate: ${(metrics.cacheHitRate * 100).toFixed(1)}%`);
+            }
         }
 
         if (healthCheck.issues.length > 0) {
@@ -91,16 +94,21 @@ async function analyzeDatabasePerformance() {
 
         const performanceAnalysis = await optimizedStore.analyzePerformance();
 
-        console.log("Cache Statistics:");
-        console.log(`   Cache Size: ${performanceAnalysis.cacheStats.cacheSize} entries`);
-        console.log(`   Cache Hit Rate: ${(performanceAnalysis.cacheStats.cacheHitRate * 100).toFixed(1)}%`);
-        console.log(`   Oldest Entry Age: ${(performanceAnalysis.cacheStats.oldestCacheEntry / 1000 / 60).toFixed(1)} minutes`);
+        if (performanceAnalysis && typeof performanceAnalysis === 'object') {
+            const analysis = performanceAnalysis as any;
+            console.log("Cache Statistics:");
+            if (analysis.cacheStats) {
+                console.log(`   Cache Size: ${analysis.cacheStats.cacheSize} entries`);
+                console.log(`   Cache Hit Rate: ${(analysis.cacheStats.cacheHitRate * 100).toFixed(1)}%`);
+                console.log(`   Oldest Entry Age: ${(analysis.cacheStats.oldestCacheEntry / 1000 / 60).toFixed(1)} minutes`);
+            }
 
-        if (performanceAnalysis.recommendations.length > 0) {
-            console.log("\nPerformance Recommendations:");
-            performanceAnalysis.recommendations.forEach((rec: string, i: number) => {
-                console.log(`   ${i + 1}. ${rec}`);
-            });
+            if (analysis.recommendations && analysis.recommendations.length > 0) {
+                console.log("\nPerformance Recommendations:");
+                analysis.recommendations.forEach((rec: string, i: number) => {
+                    console.log(`   ${i + 1}. ${rec}`);
+                });
+            }
         }
 
         // 7. Final Recommendations
@@ -273,11 +281,11 @@ async function validateBestPractices() {
     }
 }
 
-function generateFinalRecommendations(analysis: any, healthCheck: any) {
+function generateFinalRecommendations(analysis: any, healthCheck: unknown) {
     const recommendations = [];
 
     // High priority recommendations
-    if (healthCheck.status !== 'healthy') {
+    if (healthCheck && typeof healthCheck === 'object' && (healthCheck as unknown).status !== 'healthy') {
         recommendations.push({
             priority: "🔴 HIGH",
             action: "Address database health issues immediately",

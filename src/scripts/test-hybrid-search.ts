@@ -58,7 +58,7 @@ async function testHybridSearch() {
         const vectorStore = new OptimizedVectorStore();
         const hybridSearch = new HybridSearchEngine(vectorStore);
         const queryAnalyzer = new QueryAnalyzer();
-        const adaptiveRetriever = new AdaptiveRetriever(vectorStore, undefined, undefined, hybridSearch);
+        const adaptiveRetriever = new AdaptiveRetriever(vectorStore as any, undefined, undefined, hybridSearch);
 
         // Check hybrid search health
         console.log('🏥 Checking hybrid search health...');
@@ -155,11 +155,12 @@ async function testHybridSearch() {
                 const testTime = Date.now() - startTime;
                 totalTime += testTime;
 
-                console.log(`   ❌ Failed: ${error.message}`);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.log(`   ❌ Failed: ${errorMessage}`);
                 results.push({
                     testCase: testCase.name,
                     query: testCase.query,
-                    error: error.message,
+                    error: errorMessage,
                     testTime,
                     success: false
                 });
@@ -180,19 +181,19 @@ async function testHybridSearch() {
 
         if (successful > 0) {
             const successfulResults = results.filter(r => r.success);
-            const avgDocs = successfulResults.reduce((sum, r) => sum + (r.documentsFound || 0), 0) / successfulResults.length;
-            const avgConfidence = successfulResults.reduce((sum, r) => sum + (r.confidence || 0), 0) / successfulResults.length;
+            const avgDocs = successfulResults.reduce((sum, r) => sum + ((r as any).documentsFound || 0), 0) / successfulResults.length;
+            const avgConfidence = successfulResults.reduce((sum, r) => sum + ((r as any).confidence || 0), 0) / successfulResults.length;
 
             console.log(`📚 Average documents found: ${avgDocs.toFixed(1)}`);
             console.log(`🎯 Average confidence: ${(avgConfidence * 100).toFixed(1)}%`);
 
-            const strategies = new Set(successfulResults.map(r => r.retrievalStrategy));
+            const strategies = new Set(successfulResults.map(r => (r as any).retrievalStrategy));
             console.log(`🔧 Retrieval strategies used: ${Array.from(strategies).join(', ')}`);
 
             const allSearchMethods = new Set();
             successfulResults.forEach(r => {
-                if (r.searchMethods) {
-                    r.searchMethods.forEach(method => allSearchMethods.add(method));
+                if ((r as any).searchMethods) {
+                    (r as any).searchMethods.forEach((method: any) => allSearchMethods.add(method));
                 }
             });
             console.log(`🔍 Search methods used: ${Array.from(allSearchMethods).join(', ')}`);
@@ -211,7 +212,7 @@ async function testHybridSearch() {
             console.log(`⚡ Optimize slow queries (${slowTests.length} tests > 2s)`);
         }
 
-        const lowConfidenceTests = results.filter(r => r.success && r.confidence && r.confidence < 0.7);
+        const lowConfidenceTests = results.filter(r => r.success && (r as any).confidence && (r as unknown).confidence < 0.7);
         if (lowConfidenceTests.length > 0) {
             console.log(`🎯 Review low confidence results (${lowConfidenceTests.length} tests < 70%)`);
         }
