@@ -2,8 +2,7 @@ import { Document } from 'langchain/document';
 import { OptimizedVectorStore } from './optimized-vector-store';
 import { QueryAnalysis } from './query-analyzer';
 import Fuse from 'fuse.js';
-import natural from 'natural';
-const { TfIdf, WordTokenizer } = natural;
+// Removed dependency on 'natural' to avoid build-time imports of optional native modules
 
 interface BM25Document {
     id: string;
@@ -54,8 +53,7 @@ export class HybridSearchEngine {
     private totalDocuments: number = 0;
     private averageDocLength: number = 0;
     private fuse: Fuse<BM25Document> | null = null;
-    private tfidf = new TfIdf();
-    private tokenizer = new WordTokenizer();
+    // Removed TfIdf and WordTokenizer; using internal tokenizer
 
     // BM25 parameters
     private readonly k1: number = 1.2;
@@ -79,7 +77,7 @@ export class HybridSearchEngine {
         // Clear existing indices
         this.bm25Documents.clear();
         this.termDocFreqs.clear();
-        this.tfidf = new TfIdf();
+        // TF-IDF index removed
 
         // Process documents for BM25 and Fuse
         const processedDocs: BM25Document[] = [];
@@ -106,8 +104,7 @@ export class HybridSearchEngine {
             processedDocs.push(bm25Doc);
             totalLength += tokens.length;
 
-            // Add to TF-IDF index
-            this.tfidf.addDocument(tokens);
+            // TF-IDF removed
 
             // Calculate document frequencies
             const uniqueTerms = new Set(tokens);
@@ -467,8 +464,8 @@ export class HybridSearchEngine {
             .replace(/\s+/g, ' ')
             .trim();
 
-        // Use Natural's tokenizer
-        const tokens = this.tokenizer.tokenize(cleaned) || [];
+        // Simple whitespace tokenizer
+        const tokens = cleaned.length > 0 ? cleaned.split(' ') : [];
 
         // Filter tokens
         return tokens.filter(token =>

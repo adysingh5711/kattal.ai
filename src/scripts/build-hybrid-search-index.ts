@@ -433,5 +433,3 @@ Examples:
 
     await buildHybridSearchIndex(options);
 }
-
-export { buildHybridSearchIndex };
