@@ -88,7 +88,7 @@ export function isRetryableError(error: unknown): boolean {
     if (!error) return false;
 
     // Create a type-safe error object
-    const errorObj: { message?: string; code?: string | number; status?: number } = 
+    const errorObj: { message?: string; code?: string | number; status?: number } =
         typeof error === 'object' && error !== null ? error : {};
 
     const errorMessage = errorObj.message?.toLowerCase() || '';
@@ -214,6 +214,7 @@ export class CircuitBreaker {
     private failureCount = 0;
     private lastFailureTime = 0;
     private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+    private successiveSuccesses = 0;
 
     constructor(
         private maxFailures = 5,
@@ -224,28 +225,47 @@ export class CircuitBreaker {
         if (this.state === 'OPEN') {
             if (Date.now() - this.lastFailureTime > this.resetTimeout) {
                 this.state = 'HALF_OPEN';
+                console.log('🔄 Circuit breaker transitioning to HALF_OPEN - testing connection');
             } else {
-                throw new Error('Circuit breaker is OPEN - too many recent failures');
+                const timeRemaining = Math.ceil((this.resetTimeout - (Date.now() - this.lastFailureTime)) / 1000);
+                throw new Error(`Circuit breaker is OPEN - too many recent failures. Will retry in ${timeRemaining}s`);
             }
         }
 
         try {
             const result = await fn();
 
-            // Success - reset circuit breaker
+            // Success - handle circuit breaker state
+            this.successiveSuccesses++;
+
             if (this.state === 'HALF_OPEN') {
-                this.state = 'CLOSED';
-                this.failureCount = 0;
+                // Need multiple successes to fully close
+                if (this.successiveSuccesses >= 2) {
+                    this.state = 'CLOSED';
+                    this.failureCount = 0;
+                    this.successiveSuccesses = 0;
+                    console.log('✅ Circuit breaker CLOSED - connection restored');
+                }
+            } else if (this.state === 'CLOSED') {
+                // Gradually reduce failure count on success
+                if (this.failureCount > 0) {
+                    this.failureCount = Math.max(0, this.failureCount - 1);
+                }
             }
 
             return result;
         } catch (error) {
             this.failureCount++;
             this.lastFailureTime = Date.now();
+            this.successiveSuccesses = 0;
 
             if (this.failureCount >= this.maxFailures) {
                 this.state = 'OPEN';
-                console.log(`🚨 Circuit breaker OPEN after ${this.failureCount} failures`);
+                console.log(`🚨 Circuit breaker OPEN after ${this.failureCount} failures - backing off for ${this.resetTimeout / 1000}s`);
+            } else if (this.state === 'HALF_OPEN') {
+                // Failed during half-open, go back to open
+                this.state = 'OPEN';
+                console.log('❌ Circuit breaker back to OPEN - test failed');
             }
 
             throw error;
@@ -256,9 +276,20 @@ export class CircuitBreaker {
         return this.state;
     }
 
+    getFailureCount(): number {
+        return this.failureCount;
+    }
+
+    getTimeUntilRetry(): number {
+        if (this.state !== 'OPEN') return 0;
+        return Math.max(0, this.resetTimeout - (Date.now() - this.lastFailureTime));
+    }
+
     reset(): void {
         this.state = 'CLOSED';
         this.failureCount = 0;
         this.lastFailureTime = 0;
+        this.successiveSuccesses = 0;
+        console.log('🔄 Circuit breaker manually reset');
     }
 }

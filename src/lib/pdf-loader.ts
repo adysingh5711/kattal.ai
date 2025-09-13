@@ -8,6 +8,46 @@ import { processDocumentMultimodal } from "./multimodal-processor";
 import { IncrementalDataManager, IncrementalUpdateOptions } from "./incremental-data-manager";
 
 /**
+ * Recursively find files of a specific type in a directory and its subdirectories
+ */
+function findFilesRecursively(dirPath: string, fileType: string): string[] {
+    const files: string[] = [];
+
+    function searchDirectory(currentPath: string) {
+        if (!fs.existsSync(currentPath)) return;
+
+        const items = fs.readdirSync(currentPath);
+
+        for (const item of items) {
+            const fullPath = path.join(currentPath, item);
+            const stat = fs.statSync(fullPath);
+
+            if (stat.isDirectory()) {
+                // Recursively search subdirectories
+                searchDirectory(fullPath);
+            } else if (stat.isFile()) {
+                // Check if file matches the type we're looking for
+                const lower = item.toLowerCase();
+                let matches = false;
+
+                if (fileType === 'PDF/DOC/DOCX') {
+                    matches = lower.endsWith('.pdf') || lower.endsWith('.doc') || lower.endsWith('.docx');
+                } else if (fileType === 'Markdown') {
+                    matches = lower.endsWith('.md') || lower.endsWith('.markdown');
+                }
+
+                if (matches) {
+                    files.push(fullPath);
+                }
+            }
+        }
+    }
+
+    searchDirectory(dirPath);
+    return files;
+}
+
+/**
  * Helper function to process documents from a given path pattern
  */
 async function processDocumentsFromPath(
@@ -20,39 +60,32 @@ async function processDocumentsFromPath(
 
     // Check if pathPattern is a directory wildcard or specific file
     if (pathPattern.includes('*')) {
-        // Handle directory with multiple documents
+        // Handle directory with multiple documents (including subdirectories)
         const dirPath = pathPattern.replace('/*', '');
 
         if (fs.existsSync(dirPath)) {
-            const files = fs.readdirSync(dirPath)
-                .filter(file => {
-                    const lower = file.toLowerCase();
-                    if (fileType === 'PDF/DOC/DOCX') {
-                        return lower.endsWith('.pdf') || lower.endsWith('.doc') || lower.endsWith('.docx');
-                    } else if (fileType === 'Markdown') {
-                        return lower.endsWith('.md') || lower.endsWith('.markdown');
-                    }
-                    return false;
-                })
-                .map(file => path.join(dirPath, file));
+            // Recursively find all files in directory and subdirectories
+            const files = findFilesRecursively(dirPath, fileType);
 
-            console.log(`📋 Found ${files.length} files (${fileType}) in ${dirPath}`);
+            console.log(`📋 Found ${files.length} files (${fileType}) in ${dirPath} (including subdirectories)`);
 
             // Process each file
             for (const file of files) {
                 try {
                     const fileName = path.basename(file);
-                    console.log(`\n📄 Processing ${fileType} file: ${fileName}`);
+                    const relativePath = path.relative(dirPath, file);
+                    console.log(`\n📄 Processing ${fileType} file: ${relativePath}`);
                     const docs = await processDocumentMultimodal(file);
 
-                    // Track processing summary
-                    processingSummary[fileName] = {
+                    // Track processing summary with relative path for better organization
+                    const summaryKey = relativePath.includes(path.sep) ? relativePath : fileName;
+                    processingSummary[summaryKey] = {
                         pages: docs.length,
                         chunks: 0 // Will be updated after chunking
                     };
 
                     allDocs.push(...docs);
-                    console.log(`✅ Processed ${docs.length} pages from ${fileName}`);
+                    console.log(`✅ Processed ${docs.length} pages from ${relativePath}`);
                 } catch (fileError) {
                     console.error(`❌ Error processing file ${file}:`, fileError);
                     // Continue with other files even if one fails

@@ -281,11 +281,11 @@ async function validateBestPractices() {
     }
 }
 
-function generateFinalRecommendations(analysis: any, healthCheck: unknown) {
+function generateFinalRecommendations(analysis: any, healthCheck: { status: 'healthy' | 'degraded' | 'unhealthy'; metrics: unknown; issues: string[] }) {
     const recommendations = [];
 
     // High priority recommendations
-    if (healthCheck && typeof healthCheck === 'object' && (healthCheck as unknown).status !== 'healthy') {
+    if (healthCheck && healthCheck.status !== 'healthy') {
         recommendations.push({
             priority: "🔴 HIGH",
             action: "Address database health issues immediately",

@@ -111,11 +111,12 @@ export class DataValidator {
             // Validate metadata
             this.validateMetadata(doc, result);
 
-            // Check source uniqueness
+            // Check source uniqueness (informational only)
             const source = doc.metadata?.source;
             if (source) {
                 if (sources.has(source)) {
-                    result.warnings.push(`Duplicate source detected: ${source}`);
+                    // Only log to console, don't add as warning
+                    console.log(`📋 Info: Multiple chunks from source: ${source}`);
                 } else {
                     sources.add(source);
                 }
@@ -406,22 +407,35 @@ export class DataValidator {
             await index.describeIndexStats();
             result.permissions.push('describe_stats');
 
-            // Test query permissions
-            await index.query({
-                vector: new Array(3072).fill(0),
-                topK: 1,
-                includeMetadata: false
-            });
+            // Test query permissions (use small non-zero vector with correct dimensions)
+            {
+                const dim = env.EMBEDDING_DIMENSIONS;
+                const testQueryVector = new Array(dim).fill(0);
+                // Ensure at least one non-zero value to satisfy Pinecone requirement
+                testQueryVector[0] = 1e-6;
+
+                await index.query({
+                    vector: testQueryVector,
+                    topK: 1,
+                    includeMetadata: false
+                });
+            }
             result.permissions.push('query');
 
             // Test upsert permissions (with dummy data)
-            const testVector = {
-                id: 'test_validation_vector',
-                values: new Array(3072).fill(0),
-                metadata: { test: true, timestamp: Date.now() }
-            };
+            {
+                const dim = env.EMBEDDING_DIMENSIONS;
+                const values = new Array(dim).fill(0);
+                values[0] = 1e-6; // Ensure non-zero
 
-            await index.upsert([testVector]);
+                const testVector = {
+                    id: 'test_validation_vector',
+                    values,
+                    metadata: { test: true, timestamp: Date.now() }
+                };
+
+                await index.upsert([testVector]);
+            }
             result.permissions.push('upsert');
 
             // Clean up test vector

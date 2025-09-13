@@ -2,7 +2,8 @@ import { Document } from 'langchain/document';
 import { OptimizedVectorStore } from './optimized-vector-store';
 import { QueryAnalysis } from './query-analyzer';
 import Fuse from 'fuse.js';
-import { TfIdf, WordTokenizer } from 'natural';
+import natural from 'natural';
+const { TfIdf, WordTokenizer } = natural;
 
 interface BM25Document {
     id: string;
@@ -53,7 +54,7 @@ export class HybridSearchEngine {
     private totalDocuments: number = 0;
     private averageDocLength: number = 0;
     private fuse: Fuse<BM25Document> | null = null;
-    private tfidf: TfIdf = new TfIdf();
+    private tfidf = new TfIdf();
     private tokenizer = new WordTokenizer();
 
     // BM25 parameters

@@ -179,7 +179,7 @@ export default function Home() {
                     </div> */}
                     <div className="flex items-center justify-center flex-1 p-4 z-10">
                         <div className="w-full max-w-5xl shadow-xl rounded-xl overflow-hidden border border-border mt-[50px] h-[88vh]">
-                            {/* Kaattak AI Heading */}
+                            {/* Kattal AI Heading */}
                             <div className="bg-gradient-to-r from-muted to-muted border-b border-border p-4 text-center">
                                 <h1 className="text-3xl font-bold tracking-wide text-foreground">Kattal AI</h1>
                                 <p className="text-muted-foreground text-sm mt-1">Your Intelligent Assistant</p>

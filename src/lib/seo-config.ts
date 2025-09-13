@@ -12,7 +12,7 @@ export const seoConfig = {
   siteLocale: 'en_US',
 
   // Social Media
-  twitterHandle: '@kaattalai',
+  twitterHandle: '@kattalai',
   facebookAppId: 'your-facebook-app-id',
 
   // Contact Information
@@ -84,8 +84,8 @@ export const seoConfig = {
   // Twitter Card defaults
   twitter: {
     card: 'summary_large_image',
-    creator: '@kaattalai',
-    site: '@kaattalai',
+    creator: '@kattalai',
+    site: '@kattalai',
   },
 
   // Verification codes (replace with actual codes)
@@ -132,7 +132,7 @@ export const seoConfig = {
       url: 'https://kattal-ai.vercel.app',
       logo: 'https://kattal-ai.vercel.app/kattal.png',
       sameAs: [
-        'https://twitter.com/kaattalai',
+        'https://twitter.com/kattalai',
         'https://linkedin.com/company/kattal-ai',
         'https://github.com/yourusername/kattal-ai'
       ]

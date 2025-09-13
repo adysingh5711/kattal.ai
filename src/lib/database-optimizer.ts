@@ -93,6 +93,13 @@ export class DatabaseOptimizer {
         });
     }
 
+    /**
+     * Get configuration
+     */
+    getConfig(): DatabaseOptimizationConfig {
+        return this.config;
+    }
+
     async analyzeCurrentDatabase(): Promise<{
         recommendations: string[];
         metrics: DatabaseMetrics;
@@ -463,10 +470,10 @@ export class DatabaseOptimizer {
 
     private estimateEmbeddingCost(vectorCount: number): number {
         // Embedding costs vary by model - use environment configured model
-        const costPer1MTokens = env.EMBEDDING_MODEL.includes('3-large') ? 0.13 : 
-                               env.EMBEDDING_MODEL.includes('3-small') ? 0.02 : 
-                               env.EMBEDDING_MODEL.includes('ada-002') ? 0.0001 : 0.13;
-        
+        const costPer1MTokens = env.EMBEDDING_MODEL.includes('3-large') ? 0.13 :
+            env.EMBEDDING_MODEL.includes('3-small') ? 0.02 :
+                env.EMBEDDING_MODEL.includes('ada-002') ? 0.0001 : 0.13;
+
         // Assume average 500 tokens per chunk
         const totalTokens = vectorCount * 500;
         return (totalTokens / 1000000) * costPer1MTokens;

@@ -180,20 +180,30 @@ async function testHybridSearch() {
         console.log(`📈 Average time per test: ${(totalTime / results.length).toFixed(1)}ms`);
 
         if (successful > 0) {
-            const successfulResults = results.filter(r => r.success);
-            const avgDocs = successfulResults.reduce((sum, r) => sum + ((r as any).documentsFound || 0), 0) / successfulResults.length;
-            const avgConfidence = successfulResults.reduce((sum, r) => sum + ((r as any).confidence || 0), 0) / successfulResults.length;
+            const successfulResults = results.filter(r => r.success && 'documentsFound' in r) as Array<{
+                testCase: string;
+                query: string;
+                documentsFound: number;
+                searchMethods: string[];
+                retrievalStrategy: string;
+                confidence: number;
+                testTime: number;
+                hybridMetadata?: any;
+                success: boolean;
+            }>;
+            const avgDocs = successfulResults.reduce((sum, r) => sum + (r.documentsFound || 0), 0) / successfulResults.length;
+            const avgConfidence = successfulResults.reduce((sum, r) => sum + (r.confidence || 0), 0) / successfulResults.length;
 
             console.log(`📚 Average documents found: ${avgDocs.toFixed(1)}`);
             console.log(`🎯 Average confidence: ${(avgConfidence * 100).toFixed(1)}%`);
 
-            const strategies = new Set(successfulResults.map(r => (r as any).retrievalStrategy));
+            const strategies = new Set(successfulResults.map(r => r.retrievalStrategy));
             console.log(`🔧 Retrieval strategies used: ${Array.from(strategies).join(', ')}`);
 
             const allSearchMethods = new Set();
             successfulResults.forEach(r => {
-                if ((r as any).searchMethods) {
-                    (r as any).searchMethods.forEach((method: any) => allSearchMethods.add(method));
+                if (r.searchMethods) {
+                    r.searchMethods.forEach((method: string) => allSearchMethods.add(method));
                 }
             });
             console.log(`🔍 Search methods used: ${Array.from(allSearchMethods).join(', ')}`);
@@ -212,7 +222,17 @@ async function testHybridSearch() {
             console.log(`⚡ Optimize slow queries (${slowTests.length} tests > 2s)`);
         }
 
-        const lowConfidenceTests = results.filter(r => r.success && (r as any).confidence && (r as unknown).confidence < 0.7);
+        const lowConfidenceTests = results.filter(r => r.success && 'confidence' in r && r.confidence && r.confidence < 0.7) as Array<{
+            testCase: string;
+            query: string;
+            documentsFound: number;
+            searchMethods: string[];
+            retrievalStrategy: string;
+            confidence: number;
+            testTime: number;
+            hybridMetadata?: any;
+            success: boolean;
+        }>;
         if (lowConfidenceTests.length > 0) {
             console.log(`🎯 Review low confidence results (${lowConfidenceTests.length} tests < 70%)`);
         }

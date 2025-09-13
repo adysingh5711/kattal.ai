@@ -23,6 +23,9 @@
     "build:hybrid-index:rebuild": "tsx -r dotenv/config ./src/scripts/build-hybrid-search-index.ts --rebuild",
     "test:hybrid-search": "tsx -r dotenv/config ./src/scripts/test-hybrid-search.ts",
     "test:enhanced-chunking": "tsx -r dotenv/config ./src/scripts/test-enhanced-chunking.ts",
+    "reset:circuit-breaker": "tsx -r dotenv/config ./src/scripts/reset-circuit-breaker.ts",
+    "process:large-file": "tsx -r dotenv/config ./src/scripts/process-large-file.ts",
+    "test:namespace": "tsx -r dotenv/config ./src/scripts/test-namespace-functionality.ts",
     "generate:sitemap": "node ./scripts/generate-sitemap.js",
     "postbuild": "npm run generate:sitemap"
   },

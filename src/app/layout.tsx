@@ -72,8 +72,8 @@ export const metadata: Metadata = {
     title: 'Kattal AI - Know Your District, Instantly',
     description: 'Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI.',
     images: ['/kattal.png'],
-    creator: '@kaattalai',
-    site: '@kaattalai',
+    creator: '@kattalai',
+    site: '@kattalai',
   },
   robots: {
     index: true,

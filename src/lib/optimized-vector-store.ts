@@ -5,6 +5,7 @@ import { Pinecone, Index, RecordMetadata } from "@pinecone-database/pinecone";
 import { Document } from 'langchain/document';
 import { DatabaseOptimizer } from './database-optimizer';
 import { withRetry, batchExecuteWithRetry, CircuitBreaker, isRetryableError } from './retry-utils';
+import crypto from 'crypto';
 
 // Connection pool for better performance
 class PineconeConnectionPool {
@@ -66,7 +67,7 @@ export class OptimizedVectorStore {
             namespaceStrategy: 'hybrid'
         });
 
-        this.circuitBreaker = new CircuitBreaker(5, 60000); // 5 failures, 1 minute reset
+        this.circuitBreaker = new CircuitBreaker(3, 30000); // 3 failures, 30 seconds reset for faster recovery
     }
 
     /**
@@ -139,7 +140,37 @@ export class OptimizedVectorStore {
         const startTime = Date.now();
 
         try {
-            // Step 1: Validate documents have content
+            // Step 1: Analyze and group documents by source
+            const fileGroups = new Map<string, Document[]>();
+            let totalChars = 0;
+
+            docs.forEach(doc => {
+                const source = doc.metadata?.source || 'unknown';
+                if (!fileGroups.has(source)) {
+                    fileGroups.set(source, []);
+                }
+                fileGroups.get(source)!.push(doc);
+                totalChars += doc.pageContent.length;
+            });
+
+            console.log(`📊 Document Analysis:`);
+            console.log(`   📄 Total files: ${fileGroups.size}`);
+            console.log(`   📦 Total chunks: ${docs.length}`);
+            console.log(`   📝 Total content: ${(totalChars / 1024 / 1024).toFixed(2)}MB`);
+            console.log(`   📈 Avg chunks per file: ${Math.round(docs.length / fileGroups.size)}`);
+            console.log('');
+
+            // Show file breakdown
+            console.log(`📋 File Breakdown:`);
+            Array.from(fileGroups.entries())
+                .sort((a, b) => b[1].length - a[1].length)
+                .forEach(([source, fileDocs]) => {
+                    const chars = fileDocs.reduce((sum, doc) => sum + doc.pageContent.length, 0);
+                    console.log(`   📄 ${source}: ${fileDocs.length} chunks (${(chars / 1024).toFixed(1)}KB)`);
+                });
+            console.log('');
+
+            // Step 2: Validate documents have content
             const validDocs = docs.filter(doc => {
                 if (!doc.pageContent || doc.pageContent.trim().length === 0) {
                     console.warn(`⚠️  Skipping document with empty content: ${doc.metadata?.source || 'unknown'}`);
@@ -154,7 +185,7 @@ export class OptimizedVectorStore {
 
             console.log(`📋 Processing ${validDocs.length} valid documents (${docs.length - validDocs.length} skipped)`);
 
-            // Step 2: Optimize documents for ingestion
+            // Step 3: Optimize documents for ingestion
             const optimizedDocs = await this.optimizer.optimizeDocumentIngestion(validDocs);
             console.log(`📆 Optimized ${validDocs.length} → ${optimizedDocs.length} documents`);
 
@@ -162,23 +193,109 @@ export class OptimizedVectorStore {
             const client = await this.connectionPool.getClient();
             const index = client.Index(env.PINECONE_INDEX_NAME);
 
+            // Track detailed progress
+            const uploadProgress = {
+                totalBatches: Math.ceil(optimizedDocs.length / 15),
+                completedBatches: 0,
+                failedBatches: 0,
+                embeddedDocs: 0,
+                fileProgress: new Map<string, { total: number; completed: number; failed: number }>(),
+                namespaceProgress: new Map<string, { total: number; completed: number }>()
+            };
+
+            // Initialize file and namespace progress tracking
+            optimizedDocs.forEach(doc => {
+                const source = doc.metadata?.source || 'unknown';
+                if (!uploadProgress.fileProgress.has(source)) {
+                    uploadProgress.fileProgress.set(source, { total: 0, completed: 0, failed: 0 });
+                }
+                uploadProgress.fileProgress.get(source)!.total++;
+
+                // Track namespace distribution
+                const namespace = this.determineNamespace(doc);
+                if (!uploadProgress.namespaceProgress.has(namespace)) {
+                    uploadProgress.namespaceProgress.set(namespace, { total: 0, completed: 0 });
+                }
+                uploadProgress.namespaceProgress.get(namespace)!.total++;
+            });
+
+            console.log(`🚀 Starting embedding process:`);
+            console.log(`   📦 ${optimizedDocs.length} documents in ${uploadProgress.totalBatches} batches`);
+            console.log(`   ⚡ Batch size: 15 documents`);
+            console.log(`   🏷️  Namespace strategy: ${this.optimizer.getConfig().namespaceStrategy}`);
+
+            // Show namespace distribution
+            console.log(`📊 Namespace Distribution:`);
+            Array.from(uploadProgress.namespaceProgress.entries())
+                .sort((a, b) => b[1].total - a[1].total)
+                .forEach(([namespace, progress]) => {
+                    console.log(`   🏷️  ${namespace}: ${progress.total} documents`);
+                });
+            console.log('');
+
             // Use batch processing with retry logic
             const batchResult = await batchExecuteWithRetry(
                 optimizedDocs,
-                25, // Smaller batch size for better reliability
+                15, // Smaller batch size for large files and better reliability
                 async (batch: Document[]) => {
                     return await this.circuitBreaker.execute(async () => {
-                        return await this.processBatchWithRetry(batch, index);
+                        const result = await this.processBatchWithRetry(batch, index);
+
+                        // Update file progress tracking
+                        batch.forEach(doc => {
+                            const source = doc.metadata?.source || 'unknown';
+                            const progress = uploadProgress.fileProgress.get(source);
+                            if (progress) {
+                                progress.completed++;
+                            }
+                        });
+
+                        uploadProgress.embeddedDocs += batch.length;
+                        uploadProgress.completedBatches++;
+
+                        return result;
                     });
                 },
                 {
                     maxRetries: 3,
                     baseDelay: 2000,
                     onProgress: (completed, total, currentBatch) => {
-                        console.log(`📊 Progress: ${completed}/${total} documents (batch ${currentBatch})`);
+                        const percentage = ((completed / total) * 100).toFixed(1);
+                        const batchProgress = `${currentBatch}/${uploadProgress.totalBatches}`;
+                        console.log(`📊 Overall Progress: ${completed}/${total} documents (${percentage}%) - Batch ${batchProgress}`);
+
+                        // Show file-level progress every 5 batches or at completion
+                        if (currentBatch % 5 === 0 || completed === total) {
+                            console.log(`📋 File Upload Progress:`);
+                            Array.from(uploadProgress.fileProgress.entries())
+                                .sort((a, b) => a[0].localeCompare(b[0]))
+                                .forEach(([source, progress]) => {
+                                    const filePercentage = ((progress.completed / progress.total) * 100).toFixed(1);
+                                    const status = progress.completed === progress.total ? '✅' : '⏳';
+                                    console.log(`   ${status} ${source}: ${progress.completed}/${progress.total} (${filePercentage}%)`);
+                                });
+                            console.log('');
+                        }
                     },
                     onBatchError: (batch, error, batchIndex) => {
                         console.error(`❌ Batch ${batchIndex + 1} failed permanently:`, error.message);
+
+                        // Update failed progress tracking
+                        batch.forEach(doc => {
+                            const source = doc.metadata?.source || 'unknown';
+                            const progress = uploadProgress.fileProgress.get(source);
+                            if (progress) {
+                                progress.failed++;
+                            }
+                        });
+
+                        uploadProgress.failedBatches++;
+
+                        // If circuit breaker is involved, provide additional context
+                        if (error.message.includes('Circuit breaker is OPEN')) {
+                            console.log(`🔧 Circuit breaker status: ${this.circuitBreaker.getState()}`);
+                            console.log(`⏰ Time until retry: ${Math.ceil(this.circuitBreaker.getTimeUntilRetry() / 1000)}s`);
+                        }
                     }
                 }
             );
@@ -187,8 +304,56 @@ export class OptimizedVectorStore {
             console.log(`✅ Embedding complete in ${(totalTime / 1000).toFixed(2)}s`);
             console.log(`📈 Results: ${batchResult.results.length} processed, ${batchResult.errors.length} failed batches`);
 
+            // Comprehensive upload summary
+            console.log('');
+            console.log('📊 DETAILED UPLOAD SUMMARY:');
+            console.log('============================================');
+            console.log(`⏱️  Total time: ${(totalTime / 1000).toFixed(2)}s`);
+            console.log(`📦 Total documents: ${optimizedDocs.length}`);
+            console.log(`✅ Successfully embedded: ${uploadProgress.embeddedDocs}`);
+            console.log(`❌ Failed to embed: ${optimizedDocs.length - uploadProgress.embeddedDocs}`);
+            console.log(`📊 Success rate: ${((uploadProgress.embeddedDocs / optimizedDocs.length) * 100).toFixed(1)}%`);
+            console.log(`🔄 Batches completed: ${uploadProgress.completedBatches}/${uploadProgress.totalBatches}`);
+            console.log('');
+
+            // Simple final status as requested
+            console.log('📋 FINAL STATUS:');
+            console.log('--------------------------------------------');
+            Array.from(uploadProgress.fileProgress.entries())
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .forEach(([source, progress]) => {
+                    const percentage = Math.round((progress.completed / progress.total) * 100);
+                    const fileName = source.replace('.md', '').replace(/\.[^/.]+$/, ''); // Remove file extension
+
+                    if (progress.completed === progress.total) {
+                        console.log(`${fileName} done 100%`);
+                    } else if (progress.completed > 0) {
+                        console.log(`${fileName} done ${percentage}%`);
+                    } else {
+                        console.log(`${fileName} failed`);
+                    }
+                });
+            console.log('============================================');
+
             if (batchResult.errors.length > 0) {
                 console.warn(`⚠️  ${batchResult.errors.length} batches failed - some documents may not be indexed`);
+
+                // If we have circuit breaker issues, suggest recovery
+                const circuitBreakerErrors = batchResult.errors.filter(e =>
+                    e.error.message.includes('Circuit breaker is OPEN')
+                );
+
+                if (circuitBreakerErrors.length > 0) {
+                    console.log(`💡 Suggestion: Try reducing batch size or wait for circuit breaker to reset`);
+                    console.log(`🔧 Circuit breaker state: ${this.circuitBreaker.getState()}`);
+                }
+
+                console.log('');
+                console.log('🔧 To retry failed uploads:');
+                console.log('   npm run reset:circuit-breaker');
+                console.log('   npm run build:hybrid-index:rebuild');
+            } else {
+                console.log('🎉 All files uploaded successfully!');
             }
 
             // Clear cache after new data ingestion
@@ -223,50 +388,65 @@ export class OptimizedVectorStore {
             throw embeddings.error || new Error('Failed to generate embeddings');
         }
 
-        // Validate vectors and prepare for upsert
-        const validVectors: Array<{ id: string; values: number[]; metadata: Record<string, string | number | boolean | string[]> }> = [];
+        // Group vectors by namespace for proper organization
+        const namespaceGroups = new Map<string, Array<{ id: string; values: number[]; metadata: Record<string, string | number | boolean | string[]> }>>();
 
         for (let j = 0; j < batch.length; j++) {
             const doc = batch[j];
             const embedding = embeddings.result[j];
-            
+
             // Enhanced ID generation with content hash for deduplication
             const contentHash = doc.metadata?.contentHash || this.generateContentHash(doc.pageContent);
             const docId = `${doc.metadata?.source || 'unknown'}_${contentHash}_${j}`;
 
             // Validate vector before storing
             if (this.validateVector(embedding, docId)) {
+                // Determine namespace based on strategy
+                const namespace = this.determineNamespace(doc);
+
                 const sanitizedMetadata = this.sanitizeMetadata({
                     text: doc.pageContent,
                     contentHash, // Include content hash in metadata
+                    namespace, // Include namespace in metadata
                     ...doc.metadata
                 });
 
-                validVectors.push({
+                const vector = {
                     id: docId,
                     values: embedding,
                     metadata: sanitizedMetadata
-                });
+                };
+
+                // Group by namespace
+                if (!namespaceGroups.has(namespace)) {
+                    namespaceGroups.set(namespace, []);
+                }
+                namespaceGroups.get(namespace)!.push(vector);
                 results.push(docId);
             }
         }
 
-        // Upsert with retry
-        if (validVectors.length > 0) {
-            const upsertResult = await withRetry(
-                () => index.upsert(validVectors as any), // Fixed: Type conversion issue
-                {
-                    maxRetries: 3,
-                    baseDelay: 2000,
-                    retryCondition: isRetryableError
+        // Upsert vectors to appropriate namespaces
+        for (const [namespace, vectors] of namespaceGroups.entries()) {
+            if (vectors.length > 0) {
+                // Use namespace-specific index
+                const namespaceIndex = namespace === 'default' ? index : index.namespace(namespace);
+
+                const upsertResult = await withRetry(
+                    () => namespaceIndex.upsert(vectors as any),
+                    {
+                        maxRetries: 3,
+                        baseDelay: 2000,
+                        retryCondition: isRetryableError
+                    }
+                );
+
+                if (!upsertResult.success) {
+                    throw upsertResult.error || new Error(`Failed to upsert vectors to namespace: ${namespace}`);
                 }
-            );
 
-            if (!upsertResult.success) {
-                throw upsertResult.error || new Error('Failed to upsert vectors');
+                console.log(`✅ Namespace ${namespace}: ${vectors.length} vectors stored`);
             }
-
-            console.log(`✅ Batch complete: ${validVectors.length} vectors stored`);
         }
 
         return results;
@@ -542,12 +722,47 @@ export class OptimizedVectorStore {
      * Generate content hash for deduplication
      */
     private generateContentHash(content: string): string {
-        const crypto = require('crypto');
         return crypto
             .createHash('sha256')
             .update(content.trim().toLowerCase())
             .digest('hex')
             .substring(0, 16);
+    }
+
+    /**
+     * Determine namespace for a document based on strategy
+     */
+    private determineNamespace(doc: Document): string {
+        const strategy = this.optimizer.getConfig().namespaceStrategy;
+
+        switch (strategy) {
+            case 'content_type':
+                // Use content type from metadata
+                return doc.metadata?.contentType || doc.metadata?.chunkType || 'text';
+
+            case 'document_source':
+                // Use document source
+                const source = doc.metadata?.source;
+                if (source) {
+                    // Clean source name for namespace (alphanumeric only)
+                    return source.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                }
+                return 'unknown_source';
+
+            case 'hybrid':
+                // Combine content type and source
+                const contentType = doc.metadata?.contentType || doc.metadata?.chunkType || 'text';
+                const sourceFile = doc.metadata?.source;
+                if (sourceFile) {
+                    const sourceClean = sourceFile.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                    return `${contentType}_${sourceClean}`;
+                }
+                return contentType;
+
+            case 'none':
+            default:
+                return 'default';
+        }
     }
 
     private hashQuery(query: string, options: Record<string, unknown>): string {
@@ -679,5 +894,23 @@ export class OptimizedVectorStore {
                 issues: [`Database connection failed: ${error}`]
             };
         }
+    }
+
+    /**
+     * Reset circuit breaker (useful for recovery after API issues)
+     */
+    resetCircuitBreaker(): void {
+        this.circuitBreaker.reset();
+    }
+
+    /**
+     * Get circuit breaker status
+     */
+    getCircuitBreakerStatus(): { state: string; failureCount: number; timeUntilRetry: number } {
+        return {
+            state: this.circuitBreaker.getState(),
+            failureCount: this.circuitBreaker.getFailureCount(),
+            timeUntilRetry: this.circuitBreaker.getTimeUntilRetry()
+        };
     }
 }
