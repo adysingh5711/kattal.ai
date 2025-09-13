@@ -353,7 +353,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
 
                                         el.style.height = Math.min(el.scrollHeight, maxHeight) + 'px';
                                     }}
-                                    placeholder="Type a message/ഒരു സന്ദേശം ടൈപ്പ് ചെയ്യുക..."
+                                    placeholder="ഒരു സന്ദേശം ടൈപ്പ് ചെയ്യുക..."
                                     className="chat-textarea pr-10 rounded-2xl resize-none w-full min-h-[40px] bg-background border border-input px-4 py-2 text-base shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-colors overflow-hidden"
                                     rows={1}
                                     onKeyDown={e => {
