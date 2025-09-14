@@ -146,7 +146,7 @@ export class AdaptiveRetriever {
         for (const expandedQuery of queriesToUse) {
             const retriever = this.vectorStore.asRetriever({
                 searchType: "similarity",
-                k: Math.ceil(analysis.suggestedK * 1.8 / queriesToUse.length), // Increased for more content
+                k: Math.ceil(analysis.suggestedK * 1.8 / queriesToUse.length), // Increased for more content (already rounded)
             });
 
             const docs = await retriever.invoke(expandedQuery);
@@ -170,7 +170,7 @@ export class AdaptiveRetriever {
     private async standardRetrieval(query: string, analysis: QueryAnalysis): Promise<RetrievalResult> {
         const retriever = this.vectorStore.asRetriever({
             searchType: "similarity",
-            k: analysis.suggestedK * 1.5, // More documents for better context
+            k: Math.round(analysis.suggestedK * 1.5), // More documents for better context (ensure integer)
         });
 
         const documents = await retriever.invoke(query);
@@ -413,7 +413,8 @@ export class AdaptiveRetriever {
                 {
                     k: analysis.suggestedK + 2,
                     scoreThreshold: 0.1,
-                    enableFuse: true
+                    enableFuse: true,
+                    // Don't specify namespace to search across all namespaces
                 }
             );
 
@@ -430,7 +431,8 @@ export class AdaptiveRetriever {
                             {
                                 k: Math.ceil(analysis.suggestedK / 2),
                                 scoreThreshold: 0.15,
-                                enableFuse: false // Disable fuse for expanded queries to save time
+                                enableFuse: false, // Disable fuse for expanded queries to save time
+                                // Don't specify namespace to search across all namespaces
                             }
                         );
                         additionalDocs.push(...expandedResult.documents);

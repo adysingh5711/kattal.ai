@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Document } from "langchain/document";
 import { streamingModel } from "@/lib/llm";
 import { HybridSearchEngine } from "@/lib/hybrid-search-engine";
 import { OptimizedVectorStore } from "@/lib/optimized-vector-store";
@@ -13,7 +14,7 @@ interface Message {
 
 interface StreamEvent {
     type: 'search_start' | 'search_complete' | 'content' | 'done' | 'error';
-    data?: any;
+    data?: unknown;
     content?: string;
     error?: string;
 }
@@ -21,6 +22,95 @@ interface StreamEvent {
 // Global hybrid search engine instance
 let globalHybridSearch: HybridSearchEngine | null = null;
 let isIndexBuilding = false;
+
+/**
+ * Load documents from Pinecone vector store for hybrid search index
+ */
+async function loadDocumentsFromPinecone(vectorStore: OptimizedVectorStore, maxDocuments: number = 100): Promise<Document[]> {
+    const documents = [];
+
+    try {
+        console.log('📋 Loading documents from Pinecone for hybrid search...');
+
+        // Get list of all namespaces from Pinecone
+        const { env } = await import('@/lib/env');
+        const { getPinecone } = await import('@/lib/pinecone-client');
+
+        const pinecone = await getPinecone();
+        const index = pinecone.Index(env.PINECONE_INDEX_NAME);
+        const stats = await index.describeIndexStats();
+
+        const namespaces = Object.keys(stats.namespaces || {});
+        console.log(`🔍 Found ${namespaces.length} namespaces`);
+
+        if (namespaces.length === 0) {
+            console.warn('⚠️ No namespaces found in Pinecone index');
+            return [];
+        }
+
+        // Fetch documents from each namespace
+        const docsPerNamespace = Math.ceil(maxDocuments / namespaces.length);
+
+        for (const namespace of namespaces.slice(0, 3)) { // Limit to first 3 namespaces for speed
+            try {
+                console.log(`   📄 Fetching from namespace: ${namespace.slice(0, 30)}...`);
+
+                // Try simple queries to get documents from this namespace
+                const testQueries = ['document', 'text', 'content'];
+
+                for (const query of testQueries) {
+                    try {
+                        const requestedK = Math.max(1, Math.floor(docsPerNamespace / testQueries.length));
+                        // optimizedRetrieval multiplies k by 1.5, so we need to account for that and ensure integer
+                        const adjustedK = Math.max(1, Math.round(requestedK / 1.5));
+
+                        const namespaceDocs = await vectorStore.optimizedRetrieval(query, {
+                            k: adjustedK,
+                            namespace,
+                            scoreThreshold: 0.1
+                        });
+
+                        if (namespaceDocs.length > 0) {
+                            documents.push(...namespaceDocs);
+                            console.log(`   ✅ Found ${namespaceDocs.length} documents from ${namespace.slice(0, 20)}...`);
+                            break; // Found documents, move to next namespace
+                        }
+                    } catch {
+                        // Continue to next query
+                        console.log(`   🔄 Query "${query}" failed, trying next...`);
+                    }
+                }
+            } catch (error) {
+                console.warn(`   ⚠️ Failed to fetch from namespace ${namespace}: ${error}`);
+            }
+
+            // Stop if we have enough documents
+            if (documents.length >= maxDocuments) {
+                console.log(`🛑 Reached document limit (${maxDocuments})`);
+                break;
+            }
+        }
+
+        // Remove duplicates
+        const uniqueDocuments = [];
+        const seenContent = new Set();
+
+        for (const doc of documents) {
+            const contentKey = doc.pageContent.slice(0, 100);
+            if (!seenContent.has(contentKey)) {
+                seenContent.add(contentKey);
+                uniqueDocuments.push(doc);
+            }
+        }
+
+        console.log(`📚 Loaded ${uniqueDocuments.length} unique documents for hybrid search`);
+        return uniqueDocuments.slice(0, maxDocuments);
+
+    } catch (error) {
+        console.error('❌ Failed to load documents from Pinecone:', error);
+        return [];
+    }
+}
 
 async function getHybridSearchEngine(): Promise<HybridSearchEngine> {
     if (!globalHybridSearch) {
@@ -34,18 +124,21 @@ async function getHybridSearchEngine(): Promise<HybridSearchEngine> {
             console.log('🔨 Building search index in background...');
             isIndexBuilding = true;
 
-            // Build index in background (you might want to do this during app startup)
-            // For now, we'll use a mock set of documents
-            // In production, you'd load from your document store
             try {
-                // This is a placeholder - in real implementation, load your documents
-                const mockDocs: any[] = []; // await loadDocumentsFromStore();
-                if (mockDocs.length > 0) {
-                    await globalHybridSearch.buildSearchIndex(mockDocs);
+                // Load actual documents from Pinecone vector store
+                const documents = await loadDocumentsFromPinecone(vectorStore, 100);
+
+                if (documents.length > 0) {
+                    console.log(`📊 Building hybrid search index with ${documents.length} documents...`);
+                    await globalHybridSearch.buildSearchIndex(documents);
+                    console.log('✅ Hybrid search index built successfully');
+                } else {
+                    console.warn('⚠️ No documents loaded, hybrid search will not be available');
                 }
+
                 isIndexBuilding = false;
             } catch (error) {
-                console.error('Failed to build search index:', error);
+                console.error('❌ Failed to build search index:', error);
                 isIndexBuilding = false;
             }
         }
@@ -72,6 +165,33 @@ export async function POST(req: NextRequest) {
         // Create streaming response
         const stream = new ReadableStream({
             async start(controller) {
+                let isControllerClosed = false;
+
+                // Helper function to safely enqueue data
+                const safeEnqueue = (data: Uint8Array) => {
+                    if (!isControllerClosed) {
+                        try {
+                            controller.enqueue(data);
+                        } catch (error) {
+                            console.warn('Controller already closed, skipping enqueue');
+                            isControllerClosed = true;
+                        }
+                    }
+                };
+
+                // Helper function to safely close controller
+                const safeClose = () => {
+                    if (!isControllerClosed) {
+                        try {
+                            controller.close();
+                            isControllerClosed = true;
+                        } catch (error) {
+                            console.warn('Controller already closed');
+                            isControllerClosed = true;
+                        }
+                    }
+                };
+
                 try {
                     // Step 1: Initialize components
                     const queryAnalyzer = new QueryAnalyzer();
@@ -98,7 +218,7 @@ export async function POST(req: NextRequest) {
                             keyEntities: analysis.keyEntities
                         }
                     };
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(analysisEvent)}\n\n`));
+                    safeEnqueue(encoder.encode(`data: ${JSON.stringify(analysisEvent)}\n\n`));
 
                     // Step 3: Perform hybrid search
                     const hybridSearch = await getHybridSearchEngine();
@@ -153,21 +273,21 @@ export async function POST(req: NextRequest) {
                             searchHealth: healthCheck.status
                         }
                     };
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(searchEvent)}\n\n`));
+                    safeEnqueue(encoder.encode(`data: ${JSON.stringify(searchEvent)}\n\n`));
 
                     // Step 4: Generate streaming response
                     if (searchResults.documents.length === 0) {
                         // No documents found
-                        const noResultsContent = "I couldn't find relevant information in the documents to answer your question. Could you please rephrase your question or provide more context?";
+                        const noResultsContent = "സോറി! വ്യക്തമായ മറുപടി നൽകാൻ പോരായിപ്പോയി. ചോദ്യം വീണ്ടും പറഞ്ഞുതരാമോ, അല്ലെങ്കിൽ കുറച്ച് കൂടി വിശദമായി പറയാമോ?";
 
                         const contentEvent: StreamEvent = {
                             type: 'content',
                             content: noResultsContent
                         };
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentEvent)}\n\n`));
+                        safeEnqueue(encoder.encode(`data: ${JSON.stringify(contentEvent)}\n\n`));
                     } else {
                         // Use response synthesizer to create context-aware prompt
-                        const synthesis = await responseSynthesizer.synthesizeResponse(
+                        await responseSynthesizer.synthesizeResponse(
                             question,
                             analysis,
                             searchResults.documents
@@ -202,12 +322,14 @@ Content: ${doc.pageContent}`
                         ]);
 
                         for await (const chunk of stream) {
+                            if (isControllerClosed) break; // Exit if controller is closed
+
                             if (chunk.content) {
                                 const contentEvent: StreamEvent = {
                                     type: 'content',
                                     content: typeof chunk.content === 'string' ? chunk.content : JSON.stringify(chunk.content)
                                 };
-                                controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentEvent)}\n\n`));
+                                safeEnqueue(encoder.encode(`data: ${JSON.stringify(contentEvent)}\n\n`));
                             }
                         }
                     }
@@ -232,17 +354,21 @@ Content: ${doc.pageContent}`
                             }
                         }
                     };
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(doneEvent)}\n\n`));
+                    safeEnqueue(encoder.encode(`data: ${JSON.stringify(doneEvent)}\n\n`));
 
                 } catch (error) {
                     console.error('Streaming error:', error);
-                    const errorEvent: StreamEvent = {
-                        type: 'error',
-                        error: error instanceof Error ? error.message : 'An unexpected error occurred'
-                    };
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`));
+
+                    // Only send error if controller is still open
+                    if (!isControllerClosed) {
+                        const errorEvent: StreamEvent = {
+                            type: 'error',
+                            error: error instanceof Error ? error.message : 'An unexpected error occurred'
+                        };
+                        safeEnqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`));
+                    }
                 } finally {
-                    controller.close();
+                    safeClose();
                 }
             }
         });

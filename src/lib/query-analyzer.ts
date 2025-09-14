@@ -29,8 +29,7 @@ export class QueryAnalyzer {
         console.log(`🌐 Language Detection for "${query}":`, {
             detected: languageDetection.detectedLanguage,
             confidence: languageDetection.confidence,
-            responseLanguage: languageDetection.responseLanguage,
-            explicitRequest: languageDetection.explicitLanguageRequest
+            responseLanguage: languageDetection.responseLanguage
         });
         const analysisPrompt = `Analyze this user query and determine the type of reasoning and retrieval strategy needed.
 

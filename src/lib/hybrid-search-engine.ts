@@ -170,12 +170,12 @@ export class HybridSearchEngine {
         const searchPromises = [];
 
         // 1. BM25 Search
-        searchPromises.push(this.performBM25Search(query, k * 2));
+        searchPromises.push(this.performBM25Search(query, Math.round(k * 2)));
 
         // 2. Semantic Search
         searchPromises.push(
             this.vectorStore.optimizedRetrieval(query, {
-                k: k * 3, // Retrieve more documents for enhanced reasoning
+                k: Math.round(k * 3), // Retrieve more documents for enhanced reasoning (ensure integer)
                 namespace,
                 filter,
                 includeMetadata: true,
@@ -185,7 +185,7 @@ export class HybridSearchEngine {
 
         // 3. Fuse.js Search (if enabled)
         if (enableFuse) {
-            searchPromises.push(this.performFuseSearch(query, k * 2));
+            searchPromises.push(this.performFuseSearch(query, Math.round(k * 2)));
         } else {
             searchPromises.push(Promise.resolve([]));
         }

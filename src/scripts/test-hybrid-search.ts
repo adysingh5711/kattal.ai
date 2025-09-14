@@ -10,6 +10,18 @@ import { Document } from 'langchain/document';
 // Load environment variables
 config();
 
+// Import env properly  
+import { env } from '../lib/env';
+
+// Force immediate output for streaming
+process.stdout.setDefaultEncoding('utf8');
+process.stderr.setDefaultEncoding('utf8');
+
+// Ensure output is not buffered (avoid unsupported properties)
+// Note: Next/Node streams generally flush on newline; we rely on frequent logs
+
+console.log('✅ Environment variables loaded for testing');
+
 interface TestCase {
     name: string;
     query: string;
@@ -52,13 +64,17 @@ const testCases: TestCase[] = [
 
 async function testHybridSearch() {
     console.log('🧪 Starting Hybrid Search Performance Tests\n');
+    process.stdout.write(''); // Force flush
 
     try {
         // Initialize components
-        const vectorStore = new OptimizedVectorStore();
-        const hybridSearch = new HybridSearchEngine(vectorStore);
+        const optimizedVectorStore = new OptimizedVectorStore();
+        const hybridSearch = new HybridSearchEngine(optimizedVectorStore);
         const queryAnalyzer = new QueryAnalyzer();
-        const adaptiveRetriever = new AdaptiveRetriever(vectorStore as any, undefined, undefined, hybridSearch);
+
+        // Get the actual LangChain vector store for AdaptiveRetriever
+        const vectorStore = await optimizedVectorStore.getVectorStore();
+        const adaptiveRetriever = new AdaptiveRetriever(vectorStore, undefined, undefined, hybridSearch);
 
         // Check hybrid search health
         console.log('🏥 Checking hybrid search health...');
@@ -67,7 +83,51 @@ async function testHybridSearch() {
 
         if (healthCheck.status !== 'healthy') {
             console.log('Issues:', healthCheck.issues);
-            console.log('\n💡 To build the index, run: npm run build:hybrid-index\n');
+            console.log('\n💡 Building index automatically for testing...\n');
+
+            // Auto-build the index for testing
+            try {
+                // Get list of available namespaces from Pinecone
+                const { getPinecone } = await import('../lib/pinecone-client.js');
+                const pinecone = await getPinecone();
+                const index = pinecone.Index(env.PINECONE_INDEX_NAME);
+                const stats = await index.describeIndexStats();
+
+                const namespaces = Object.keys(stats.namespaces || {});
+                console.log(`🔍 Found ${namespaces.length} namespaces in Pinecone`);
+
+                if (namespaces.length === 0) {
+                    console.log('❌ No namespaces found in Pinecone. Cannot build index.');
+                    return;
+                }
+
+                // Use the first namespace with documents (Pinecone SDK uses recordCount)
+                const targetNamespace = namespaces.find(ns => {
+                    const summary: any = (stats as any).namespaces?.[ns];
+                    const count = (summary?.recordCount ?? summary?.vectorCount ?? 0) as number;
+                    return count > 0;
+                }) || namespaces[0];
+                console.log(`📂 Using namespace: ${targetNamespace}`);
+
+                // Fetch some documents from vector store
+                // Note: optimizedRetrieval multiplies k by 1.5, so we need to account for that
+                const testDocs = await optimizedVectorStore.optimizedRetrieval('document', {
+                    k: 66, // Will become 99 after 1.5x multiplication 
+                    namespace: targetNamespace,
+                    scoreThreshold: 0.1
+                });
+
+                if (testDocs.length > 0) {
+                    console.log(`📚 Found ${testDocs.length} documents, building hybrid index...`);
+                    await hybridSearch.buildSearchIndex(testDocs);
+                    console.log('✅ Hybrid index built successfully for testing\n');
+                } else {
+                    console.log('❌ No documents found to build index. Please run: npm run build:hybrid-index\n');
+                }
+            } catch (error) {
+                console.log(`❌ Failed to auto-build index: ${error}`);
+                console.log('💡 Please run: npm run build:hybrid-index\n');
+            }
         }
 
         console.log('Index Stats:', healthCheck.stats);

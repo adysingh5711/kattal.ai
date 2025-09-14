@@ -4,9 +4,8 @@
  */
 
 export interface LanguageDetection {
-    detectedLanguage: 'english' | 'malayalam' | 'malayalam_roman' | 'mixed';
+    detectedLanguage: 'malayalam';
     confidence: number;
-    explicitLanguageRequest?: string;
     responseLanguage: string;
     responseInstructions: string;
 }

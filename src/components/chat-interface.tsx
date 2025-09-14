@@ -114,10 +114,11 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                 const currentMessages = chatHistories[selectedChatId] || []
                 const allMessages = [...currentMessages, userMessage]
 
-                // Try streaming API first, fallback to regular API
-                let useStreaming = true;
+                let assistantMessage: Message | null = null;
+                let streamingSucceeded = false;
 
                 try {
+                    // Try streaming API first
                     const response = await fetch('/api/chat/stream', {
                         method: 'POST',
                         headers: {
@@ -132,13 +133,13 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     })
 
                     if (!response.ok) {
-                        throw new Error('Streaming failed, falling back to regular API')
+                        throw new Error(`Streaming API failed with status: ${response.status}`)
                     }
 
                     const reader = response.body?.getReader()
                     const decoder = new TextDecoder()
 
-                    let assistantMessage: Message = {
+                    assistantMessage = {
                         id: (Date.now() + 1).toString(),
                         content: "",
                         sender: "assistant",
@@ -147,67 +148,92 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     // Add initial empty message for streaming updates
                     setChatHistories(prev => ({
                         ...prev,
-                        [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage],
+                        [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage!],
                     }))
 
                     let searchMetadata: any = null;
                     let sources: any[] = [];
+                    let hasError = false;
 
                     if (reader) {
-                        while (true) {
-                            const { done, value } = await reader.read()
-                            if (done) break
+                        try {
+                            while (true) {
+                                const { done, value } = await reader.read()
+                                if (done) break
 
-                            const chunk = decoder.decode(value)
-                            const lines = chunk.split('\n')
+                                const chunk = decoder.decode(value)
+                                const lines = chunk.split('\n')
 
-                            for (const line of lines) {
-                                if (line.startsWith('data: ')) {
-                                    try {
-                                        const data = JSON.parse(line.slice(6))
+                                for (const line of lines) {
+                                    if (line.startsWith('data: ')) {
+                                        try {
+                                            const data = JSON.parse(line.slice(6))
 
-                                        if (data.type === 'search_start') {
-                                            console.log('🔍 Search started:', data.data)
-                                            searchMetadata = data.data
-                                        } else if (data.type === 'search_complete') {
-                                            console.log('✅ Search completed:', data.data)
-                                            // You could show search stats to user here
-                                        } else if (data.type === 'content') {
-                                            // Update message content
-                                            assistantMessage.content += data.content
-                                            setChatHistories(prev => {
-                                                const updated = { ...prev }
-                                                const messages = [...(updated[selectedChatId] || [])]
-                                                const lastMessage = messages[messages.length - 1]
-                                                if (lastMessage && lastMessage.sender === 'assistant') {
-                                                    lastMessage.content = assistantMessage.content
-                                                }
-                                                updated[selectedChatId] = messages
-                                                return updated
-                                            })
-                                        } else if (data.type === 'done') {
-                                            console.log('🎯 Response complete with sources:', data.data?.sources?.length || 0)
-                                            sources = data.data?.sources || []
-                                            // You could display sources or metadata to user
-                                        } else if (data.type === 'error') {
-                                            throw new Error(data.error)
+                                            if (data.type === 'search_start') {
+                                                console.log('🔍 Search started:', data.data)
+                                                searchMetadata = data.data
+                                            } else if (data.type === 'search_complete') {
+                                                console.log('✅ Search completed:', data.data)
+                                            } else if (data.type === 'content') {
+                                                // Update message content
+                                                assistantMessage!.content += data.content
+                                                setChatHistories(prev => {
+                                                    const updated = { ...prev }
+                                                    const messages = [...(updated[selectedChatId] || [])]
+                                                    const lastMessage = messages[messages.length - 1]
+                                                    if (lastMessage && lastMessage.sender === 'assistant') {
+                                                        lastMessage.content = assistantMessage!.content
+                                                    }
+                                                    updated[selectedChatId] = messages
+                                                    return updated
+                                                })
+                                            } else if (data.type === 'done') {
+                                                console.log('🎯 Response complete with sources:', data.data?.sources?.length || 0)
+                                                sources = data.data?.sources || []
+                                                streamingSucceeded = true
+                                            } else if (data.type === 'error') {
+                                                hasError = true
+                                                throw new Error(data.error || 'Streaming error occurred')
+                                            }
+                                        } catch (parseError) {
+                                            console.warn('Failed to parse streaming data:', parseError)
+                                            // Continue processing other lines
                                         }
-                                    } catch (parseError) {
-                                        console.warn('Failed to parse streaming data:', parseError)
                                     }
                                 }
                             }
+                        } catch (readerError) {
+                            console.error('Stream reading error:', readerError)
+                            hasError = true
+                            throw readerError
                         }
                     }
 
-                    useStreaming = false; // Successfully used streaming
+                    if (hasError) {
+                        throw new Error('Streaming encountered errors')
+                    }
 
                 } catch (streamingError) {
                     console.warn('Streaming failed, using fallback API:', streamingError)
 
-                    if (useStreaming) {
-                        // Fallback to regular API
-                        const response = await fetch('/api/chat', {
+                    // Remove the failed streaming message if it was added
+                    if (assistantMessage && !streamingSucceeded) {
+                        setChatHistories(prev => {
+                            const updated = { ...prev }
+                            const messages = [...(updated[selectedChatId] || [])]
+                            // Remove the last message if it's the failed assistant message
+                            const lastMessage = messages[messages.length - 1]
+                            if (lastMessage && lastMessage.sender === 'assistant' && lastMessage.id === assistantMessage!.id) {
+                                messages.pop()
+                            }
+                            updated[selectedChatId] = messages
+                            return updated
+                        })
+                    }
+
+                    // Fallback to regular API
+                    try {
+                        const fallbackResponse = await fetch('/api/chat', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -220,35 +246,50 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                             }),
                         })
 
-                        if (!response.ok) {
-                            throw new Error('Failed to get response from fallback API')
+                        if (!fallbackResponse.ok) {
+                            throw new Error(`Fallback API failed with status: ${fallbackResponse.status}`)
                         }
 
-                        const data = await response.json()
+                        const data = await fallbackResponse.json()
 
-                        const assistantMessage: Message = {
-                            id: (Date.now() + 1).toString(),
+                        const fallbackAssistantMessage: Message = {
+                            id: (Date.now() + 2).toString(),
                             content: data.text || "Sorry, I couldn't process your request.",
                             sender: "assistant",
                         }
 
                         setChatHistories(prev => ({
                             ...prev,
-                            [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage],
+                            [selectedChatId]: [...(prev[selectedChatId] || []), fallbackAssistantMessage],
                         }))
+                    } catch (fallbackError) {
+                        console.error('Fallback API also failed:', fallbackError)
+                        throw fallbackError
                     }
                 }
             } catch (error) {
                 console.error('Error sending message:', error)
+
+                // Ensure we don't have duplicate error messages
                 const errorMessage: Message = {
-                    id: (Date.now() + 1).toString(),
+                    id: (Date.now() + 3).toString(),
                     content: "Sorry, there was an error processing your request. Please try again.",
                     sender: "assistant",
                 }
-                setChatHistories(prev => ({
-                    ...prev,
-                    [selectedChatId]: [...(prev[selectedChatId] || []), errorMessage],
-                }))
+
+                setChatHistories(prev => {
+                    const updated = { ...prev }
+                    const messages = [...(updated[selectedChatId] || [])]
+
+                    // Check if the last message is already an error message to avoid duplicates
+                    const lastMessage = messages[messages.length - 1]
+                    if (!(lastMessage && lastMessage.sender === 'assistant' && lastMessage.content.includes('error processing'))) {
+                        messages.push(errorMessage)
+                    }
+
+                    updated[selectedChatId] = messages
+                    return updated
+                })
             } finally {
                 setIsTyping(false)
             }
