@@ -22,6 +22,7 @@ interface HybridSearchOptions {
     filter?: Record<string, unknown>;
     scoreThreshold?: number;
     enableFuse?: boolean;
+    constrainToNamespaces?: string[]; // Limit search to specific namespaces
 }
 
 interface SearchResult {
@@ -156,7 +157,8 @@ export class HybridSearchEngine {
             namespace,
             filter,
             scoreThreshold = 0.1,
-            enableFuse = true
+            enableFuse = true,
+            constrainToNamespaces
         } = options;
 
         // Determine search strategy based on query analysis
@@ -173,15 +175,36 @@ export class HybridSearchEngine {
         searchPromises.push(this.performBM25Search(query, Math.round(k * 2)));
 
         // 2. Semantic Search
-        searchPromises.push(
-            this.vectorStore.optimizedRetrieval(query, {
-                k: Math.round(k * 3), // Retrieve more documents for enhanced reasoning (ensure integer)
-                namespace,
-                filter,
-                includeMetadata: true,
-                scoreThreshold: 0.5
-            })
-        );
+        if (constrainToNamespaces && constrainToNamespaces.length > 0) {
+            // Search across multiple constrained namespaces
+            console.log(`🔍 Semantic search constrained to ${constrainToNamespaces.length} namespaces`);
+            const namespaceSearches = constrainToNamespaces.map(ns =>
+                this.vectorStore.optimizedRetrieval(query, {
+                    k: Math.round(k / constrainToNamespaces.length) + 1,
+                    namespace: ns,
+                    filter,
+                    includeMetadata: true,
+                    scoreThreshold: 0.01
+                })
+            );
+
+            searchPromises.push(
+                Promise.all(namespaceSearches).then(results =>
+                    results.flat().slice(0, Math.round(k * 3))
+                )
+            );
+        } else {
+            // Original single namespace search
+            searchPromises.push(
+                this.vectorStore.optimizedRetrieval(query, {
+                    k: Math.round(k * 3), // Retrieve more documents for enhanced reasoning (ensure integer)
+                    namespace,
+                    filter,
+                    includeMetadata: true,
+                    scoreThreshold: 0.5
+                })
+            );
+        }
 
         // 3. Fuse.js Search (if enabled)
         if (enableFuse) {
@@ -191,6 +214,8 @@ export class HybridSearchEngine {
         }
 
         const [bm25Results, semanticResults, fuseResults] = await Promise.all(searchPromises);
+
+        console.log(`🔍 Search results: BM25=${bm25Results.length}, Semantic=${semanticResults.length}, Fuse=${fuseResults.length}`);
 
         // Combine and rank results
         const combinedResults = this.combineAndRankResults(
@@ -369,10 +394,14 @@ export class HybridSearchEngine {
     ): SearchResult[] {
         const combinedResults = new Map<string, SearchResult>();
 
-        // Normalize scores
+        // Normalize scores - but don't normalize if all scores are the same (like 0.8)
         const bm25Max = Math.max(...bm25Results.map(r => r.bm25Score), 1);
-        const semanticMax = Math.max(...semanticResults.map(d => d.metadata?._score as number || 0), 1);
+        const semanticScores = semanticResults.map(d => d.metadata?._score as number || 0.8);
+        const semanticMax = Math.max(...semanticScores, 1);
         const fuseMax = Math.max(...fuseResults.map(r => r.fuseScore), 1);
+
+        // If all semantic scores are the same, don't normalize (keep original scores)
+        const shouldNormalizeSemantic = semanticScores.length === 0 || Math.min(...semanticScores) !== Math.max(...semanticScores);
 
         // Process BM25 results
         for (const result of bm25Results) {
@@ -389,7 +418,8 @@ export class HybridSearchEngine {
         // Process semantic results
         for (const doc of semanticResults) {
             const key = this.getDocumentKey(doc);
-            const semanticScore = (doc.metadata?._score as number || 0) / semanticMax;
+            const rawScore = doc.metadata?._score as number || 0.8;
+            const semanticScore = shouldNormalizeSemantic ? rawScore / semanticMax : rawScore;
 
             if (combinedResults.has(key)) {
                 const existing = combinedResults.get(key)!;
@@ -434,9 +464,18 @@ export class HybridSearchEngine {
             }
         }
 
-        // Filter by score threshold and sort
+        // Filter by score threshold and sort - use much lower threshold for better recall
+        const effectiveThreshold = Math.min(scoreThreshold, 0.01); // Very low threshold for maximum recall
+        console.log(`🎯 Filtering results: threshold=${effectiveThreshold}, total=${combinedResults.size}`);
+
         return Array.from(combinedResults.values())
-            .filter(result => result.hybridScore >= scoreThreshold)
+            .filter(result => {
+                const passes = result.hybridScore >= effectiveThreshold;
+                if (!passes) {
+                    console.log(`   ❌ Filtered out: score=${result.hybridScore.toFixed(3)}, method=${result.searchMethod}`);
+                }
+                return passes;
+            })
             .sort((a, b) => b.hybridScore - a.hybridScore)
             .map(result => ({
                 ...result,

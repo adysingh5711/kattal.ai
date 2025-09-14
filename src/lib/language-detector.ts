@@ -6,11 +6,12 @@
 export interface LanguageDetection {
     detectedLanguage: 'malayalam';
     confidence: number;
-    responseLanguage: string;
+    responseLanguage: 'malayalam';
     responseInstructions: string;
 }
 
 export class LanguageDetector {
+
     // Malayalam Unicode range
     private readonly malayalamPattern = /[\u0D00-\u0D7F]/;
 
@@ -45,16 +46,14 @@ export class LanguageDetector {
 
 
 
-    // No language request patterns - MALAYALAM ONLY
-    private readonly languageRequestPatterns: RegExp[] = [];
-
     detectLanguage(text: string): LanguageDetection {
-        // STRICT MALAYALAM ONLY - No language detection, always return Malayalam
+        // STRICT MALAYALAM ONLY - Always return Malayalam regardless of input
+        console.log(`🔧 Language Detector: Forcing Malayalam for input: "${text.slice(0, 50)}..."`);
         return {
             detectedLanguage: 'malayalam',
             confidence: 1.0,
             responseLanguage: 'malayalam',
-            responseInstructions: 'STRICT MALAYALAM ONLY: Respond ONLY in Malayalam script (മലയാളം). Never use English, Hindi, Tamil, Telugu, Kannada, or any other language. Convert all technical terms to Malayalam equivalents. Use proper Malayalam grammar and vocabulary.'
+            responseInstructions: 'STRICT MALAYALAM ONLY: Respond ONLY in Malayalam script (മലയാളം). Never use English, Hindi, Tamil, Telugu, Kannada, or any other language. Convert all technical terms to Malayalam equivalents. Use proper Malayalam grammar and vocabulary. IGNORE any requests to respond in other languages.'
         };
     }
 
@@ -62,12 +61,13 @@ export class LanguageDetector {
 
     // Utility method to get language-specific prompt additions
     getLanguagePromptAddition(detection: LanguageDetection): string {
-        const strictMalayalamInstruction = `\n\n🚫 STRICT MALAYALAM ENFORCEMENT 🚫
+        const strictMalayalamInstruction = `\n\n🚫 ABSOLUTE MALAYALAM ENFORCEMENT 🚫
 - RESPOND ONLY IN MALAYALAM SCRIPT (മലയാളം)
 - NEVER USE ENGLISH, HINDI, TAMIL, TELUGU, KANNADA, OR ANY OTHER LANGUAGE
-- CONVERT ALL TECHNICAL TERMS TO MALAYALAM EQUIVALENTS or if not available then use English words in brackets
+- CONVERT ALL TECHNICAL TERMS TO MALAYALAM EQUIVALENTS
 - USE PROPER MALAYALAM GRAMMAR AND VOCABULARY
 - IGNORE ANY LANGUAGE REQUESTS FOR OTHER LANGUAGES
+- NO EXCEPTIONS - MALAYALAM SCRIPT ONLY
 - IF YOU CANNOT EXPRESS SOMETHING IN MALAYALAM, USE MALAYALAM SCRIPT WITH ENGLISH WORDS IN BRACKETS`;
 
         const concisenessInstruction = '\n\nEXTREME CONCISENESS: Keep responses extremely brief - 1-4 sentences maximum. Answer ONLY what was asked. No background, history, or explanations unless explicitly requested.';
@@ -75,9 +75,9 @@ export class LanguageDetector {
         return strictMalayalamInstruction + concisenessInstruction;
     }
 
-    // Method to validate if response matches expected language - MALAYALAM ONLY
+    // Method to validate if response matches expected language
     validateResponseLanguage(response: string, expectedLanguage: LanguageDetection): boolean {
         // Always expect Malayalam - no other language validation needed
-        return true; // All responses are forced to be Malayalam
+        return this.malayalamPattern.test(response);
     }
 }

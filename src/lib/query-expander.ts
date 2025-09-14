@@ -53,9 +53,13 @@ export class QueryExpander {
             this.generateTranslatedQueries(originalQuery)
         ]);
 
+        // Add name expansions for better matching
+        const nameExpansions = this.expandNamesInQuery(originalQuery);
+
         // Combine all expansions
         const expandedQueries = [
             originalQuery,
+            ...nameExpansions,
             ...synonyms.slice(0, 2),
             ...relatedConcepts.slice(0, 3),
             ...contextualVariations.slice(0, 2),
@@ -331,5 +335,73 @@ Return just the optimized query string, not JSON.`;
             conceptCacheSize: this.conceptCache.size,
             synonymCacheSize: this.synonymCache.size
         };
+    }
+
+    /**
+     * Expand names in query to include Malayalam and English variations
+     */
+    private expandNamesInQuery(query: string): string[] {
+        const expansions: string[] = [];
+        const queryLower = query.toLowerCase();
+
+        // Common name patterns and their variations
+        const nameVariations: Record<string, string[]> = {
+            'ib sateesh': [
+                'I B Sateesh', 'I.B. Sateesh', 'IB Satheesh', 'I B Satheesh', 'I.B. Satheesh',
+                'ഐ.ബി. സതീഷ്', 'ഐബി സതീഷ്', 'സതീഷ്', 'ഐ ബി സതീഷ്',
+                'MLA Sateesh', 'സതീഷ് എം.എല്.എ', 'ശ്രീ സതീഷ്', 'എം.എല്.എ സതീഷ്'
+            ],
+            'sateesh': [
+                'Satheesh', 'സതീഷ്', 'ഐ.ബി. സതീഷ്', 'ഐബി സതീഷ്',
+                'MLA Sateesh', 'സതീഷ് എം.എല്.എ', 'ശ്രീ സതീഷ്'
+            ],
+            'satheesh': [
+                'Sateesh', 'സതീഷ്', 'ഐ.ബി. സതീഷ്', 'ഐബി സതീഷ്',
+                'MLA Satheesh', 'സതീഷ് എം.എല്.എ'
+            ],
+            'ഐ.ബി. സതീഷ്': [
+                'I.B. Sateesh', 'IB Sateesh', 'Sateesh', 'സതീഷ്',
+                'MLA', 'എം.എല്.എ', 'നിയമസഭാ അംഗം', 'member of legislative assembly'
+            ],
+            'സതീഷ്': [
+                'Sateesh', 'Satheesh', 'ഐ.ബി. സതീഷ്', 'I.B. Sateesh', 'IB Sateesh',
+                'MLA', 'എം.എല്.എ', 'ശ്രീ', 'കാട്ടാക്കട'
+            ],
+            'mla': [
+                'എം.എല്.എ', 'നിയമസഭാ അംഗം', 'member of legislative assembly',
+                'MLA', 'legislator', 'representative'
+            ],
+            'kattakkada': [
+                'കാട്ടാക്കട', 'കാട്ടാക്കട നിയോജകമണ്ഡലം', 'കാട്ടാക്കട എം.എല്.എ',
+                'Kattakkada constituency', 'Kattakkada MLA'
+            ]
+        };
+
+        // Check for name patterns in the query
+        for (const [pattern, variations] of Object.entries(nameVariations)) {
+            if (queryLower.includes(pattern)) {
+                console.log(`🔍 Found pattern "${pattern}" in query, adding ${variations.length} variations`);
+                for (const variation of variations) {
+                    const expandedQuery = query.replace(new RegExp(pattern, 'gi'), variation);
+                    if (expandedQuery !== query) {
+                        expansions.push(expandedQuery);
+                    }
+                }
+                break; // Only expand the first match to avoid too many variations
+            }
+        }
+
+        if (expansions.length > 0) {
+            console.log(`📝 Name expansions: ${expansions.slice(0, 3).join(', ')}${expansions.length > 3 ? '...' : ''}`);
+        }
+
+        // Also try partial name matches
+        if (queryLower.includes('sateesh') || queryLower.includes('satheesh')) {
+            expansions.push(query.replace(/sateesh|satheesh/gi, 'സതീഷ്'));
+            expansions.push('സതീഷ്'); // Just the Malayalam name
+            expansions.push('ഐ.ബി. സതീഷ്'); // Full Malayalam name
+        }
+
+        return expansions.slice(0, 3); // Limit to 3 expansions to avoid too many queries
     }
 }

@@ -180,7 +180,9 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         // Use adaptive retrieval with hybrid search capabilities
         const hybridSearchEngine = new HybridSearchEngine(optimizedVectorStore);
-        const adaptiveRetriever = new AdaptiveRetriever(vectorStore, undefined, undefined, hybridSearchEngine);
+        const adaptiveRetriever = new AdaptiveRetriever(optimizedVectorStore as any, undefined, undefined, hybridSearchEngine);
+
+        console.log(`🔍 Using AdaptiveRetriever with OptimizedVectorStore for: "${sanitizedQuestion}"`);
         const retrievalResult = await adaptiveRetriever.retrieve(sanitizedQuestion, analysis, chatHistory);
 
         // Enhance retrieval with additional context if needed
@@ -201,6 +203,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         // Step 3: Advanced Response Synthesis
         const synthesisStartTime = Date.now();
+        console.log(`🔧 Using LANGCHAIN route with ${retrievalResult.documents.length} documents`);
         const synthesis = await responseSynthesizer.synthesizeResponse(
             sanitizedQuestion,
             analysis,

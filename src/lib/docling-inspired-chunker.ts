@@ -20,19 +20,19 @@ export class OpenAITokenizerWrapper implements TokenizerWrapper {
     constructor(modelName?: string) {
         // Use environment variable as default, allow override for testing
         this.modelName = modelName || env.EMBEDDING_MODEL;
-        
+
         // Map embedding models to appropriate tokenizer models
         let tokenizerModel: string;
-        
+
         if (this.modelName.includes("3-large") || this.modelName.includes("3-small")) {
             tokenizerModel = "text-embedding-3-large";
         } else if (this.modelName.includes("ada-002")) {
-            tokenizerModel = "text-embedding-ada-002"; 
+            tokenizerModel = "text-embedding-ada-002";
         } else {
             // Default to gpt-4 encoding for most OpenAI models
             tokenizerModel = "gpt-4";
         }
-        
+
         this.encoding = encoding_for_model(tokenizerModel as any);
     }
 

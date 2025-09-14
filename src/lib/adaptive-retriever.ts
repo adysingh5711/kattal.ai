@@ -168,15 +168,73 @@ export class AdaptiveRetriever {
     }
 
     private async standardRetrieval(query: string, analysis: QueryAnalysis): Promise<RetrievalResult> {
-        const retriever = this.vectorStore.asRetriever({
-            searchType: "similarity",
-            k: Math.round(analysis.suggestedK * 1.5), // More documents for better context (ensure integer)
-        });
+        console.log(`🔍 Starting enhanced retrieval for: "${query}"`);
 
-        const documents = await retriever.invoke(query);
+        // Check if this is a person query (like IB Sateesh)
+        const isPersonQuery = query.toLowerCase().includes('സതീഷ്') || query.toLowerCase().includes('sateesh');
+
+        let documents: Document[] = [];
+
+        // If we have an OptimizedVectorStore, use its namespace features
+        if ('optimizedRetrieval' in this.vectorStore) {
+            console.log(`✅ Using OptimizedVectorStore with namespace support`);
+            const optimizedStore = this.vectorStore as any; // Cast to access optimizedRetrieval
+
+            if (isPersonQuery) {
+                console.log(`👤 Person query detected for "${query}", searching prioritized namespaces`);
+
+                // Priority namespaces for person queries
+                const priorityNamespaces = [
+                    'table_public_docs_pdf_md_website_scraped_pdfs_md_activityreport2018_2019_md',
+                    'table_public_docs_pdf_md_website_scraped_pdfs_md_activityreport2017_2018_md',
+                    'table_public_docs_pdf_md_website_scraped_pdfs_md_waterqualityreport_md',
+                    'table_public_docs_pdf_md_website_scraped_site_content_md',
+                    'heading_public_docs_pdf_md_website_scraped_pdfs_md_activityreport2018_2019_md',
+                    'text_public_docs_pdf_md_website_scraped_pdfs_md_activityreport2018_2019_md',
+                    'text_public_docs_pdf_md_website_scraped_pdfs_md_activityreport2017_2018_md',
+                    'list_public_docs_pdf_md_website_scraped_pdfs_md_activityreport2018_2019_md'
+                ];
+
+                // Search across priority namespaces
+                console.log(`🎯 Searching ${priorityNamespaces.length} priority namespaces for IB Sateesh`);
+                for (const namespace of priorityNamespaces.slice(0, 6)) {
+                    try {
+                        console.log(`   🔍 Searching: ${namespace.slice(-50)}...`);
+                        const namespaceDocs = await optimizedStore.optimizedRetrieval(query, {
+                            k: 3,
+                            namespace,
+                            scoreThreshold: 0.01,
+                            includeMetadata: true
+                        });
+                        console.log(`   📄 Found ${namespaceDocs.length} docs in this namespace`);
+                        documents.push(...namespaceDocs);
+
+                        if (documents.length >= analysis.suggestedK) break;
+                    } catch (error) {
+                        console.warn(`❌ Failed to search namespace ${namespace}:`, error);
+                    }
+                }
+
+                console.log(`📚 Total documents found: ${documents.length}`);
+            } else {
+                // Standard optimized retrieval
+                documents = await optimizedStore.optimizedRetrieval(query, {
+                    k: Math.round(analysis.suggestedK * 1.5),
+                    scoreThreshold: 0.3,
+                    includeMetadata: true
+                });
+            }
+        } else {
+            // Fallback to standard vector store retrieval
+            const retriever = this.vectorStore.asRetriever({
+                searchType: "similarity",
+                k: Math.round(analysis.suggestedK * 1.5),
+            });
+            documents = await retriever.invoke(query);
+        }
 
         return {
-            documents,
+            documents: documents.slice(0, analysis.suggestedK),
             retrievalStrategy: 'standard',
             confidence: 0.8,
             crossReferences: []
@@ -518,4 +576,5 @@ export class AdaptiveRetriever {
 
         return insights;
     }
+
 }

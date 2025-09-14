@@ -49,6 +49,12 @@ export class ResponseSynthesizer {
         documents: Document[]
     ): Promise<ResponseSynthesis> {
         console.log(`🔄 Synthesizing human-like response for: "${query}"`);
+        console.log(`📚 Documents for synthesis: ${documents.length}`);
+        documents.forEach((doc, i) => {
+            const namespace = doc.metadata?.namespace || 'unknown';
+            const source = doc.metadata?.source || 'unknown';
+            console.log(`   Doc ${i + 1} [${namespace.slice(-30)}...] [${source.slice(-40)}...]: ${doc.pageContent.slice(0, 200)}...`);
+        });
 
         // Step 1: Analyze the evidence and build reasoning chain
         const reasoningSteps = await this.buildReasoningChain(query, queryAnalysis, documents);
@@ -197,37 +203,88 @@ export class ResponseSynthesizer {
         // Get language-specific instructions
         const languageInstructions = this.languageDetector.getLanguagePromptAddition(analysis.languageDetection);
 
-        const synthesisPrompt = `Create a precise, comprehensive response by analyzing ALL available evidence deeply.
+        // First, let's check if the documents actually contain the name or MLA references
+        const nameVariations = [
+            'ഐ.ബി. സതീഷ്', 'ഐബി സതീഷ്', 'സതീഷ്', 'I.B. Sateesh', 'IB Sateesh', 'Sateesh',
+            'ശ്രീ. ഐ. ബി. സതീഷ്', 'ശ്രീ ഐ ബി സതീഷ്', 'ശ്രീ സതീഷ്',
+            'ഐ. ബി. സതീഷ്', 'ഐ ബി സതീഷ്', 'ഐബി സതീഷ്',
+            '.എം.എല്.എ', 'എം.എല്.എ', 'MLA', 'സതീഷ് .എം.എല്.എ',
+            'കാട്ടാക്കട എം.എല്.എ', 'കാട്ടാക്കട നിയോജകമണ്ഡലം', 'Kattakkada MLA',
+            'ഐ. ബി. സതീഷ് എം. എല്', 'ഐ.ബി.സതീഷ്.എം.എല്.എ', 'ഐ.ബി സതീഷ് എം.എല്.എ'
+        ];
+
+        const documentsWithName = documents.filter(doc => {
+            const content = doc.pageContent.toLowerCase();
+            return nameVariations.some(name => {
+                const nameLower = name.toLowerCase();
+                return doc.pageContent.includes(name) || content.includes(nameLower);
+            });
+        });
+
+        // Also check for political/MLA context even if name not found
+        const politicalTerms = ['എം.എല്.എ', 'mla', 'കാട്ടാക്കട', 'kattakkada', 'നിയോജകമണ്ഡലം'];
+        const documentsWithPoliticalContext = documents.filter(doc => {
+            const content = doc.pageContent.toLowerCase();
+            return politicalTerms.some(term => content.includes(term.toLowerCase()));
+        });
+
+        console.log(`🔍 Documents containing name variations: ${documentsWithName.length}/${documents.length}`);
+        console.log(`🏛️ Documents with political context: ${documentsWithPoliticalContext.length}/${documents.length}`);
+
+        documentsWithName.forEach((doc, i) => {
+            console.log(`   Name Match ${i + 1}: ${doc.pageContent.slice(0, 300)}...`);
+        });
+
+        if (documentsWithName.length === 0 && documentsWithPoliticalContext.length > 0) {
+            console.log(`📋 Political context documents:`);
+            documentsWithPoliticalContext.slice(0, 3).forEach((doc, i) => {
+                console.log(`   Political ${i + 1}: ${doc.pageContent.slice(0, 300)}...`);
+            });
+        }
+
+        console.log(`🔧 Response Language: ${analysis.languageDetection.responseLanguage}`);
+
+        const synthesisPrompt = `🚨 CRITICAL INSTRUCTIONS - READ CAREFULLY 🚨
+
+You are analyzing Kerala state documents. Answer ONLY in Malayalam using ONLY the provided documents.
 
 Query: "${query}"
-Response Style: ${responseStyle}
-Style Guidance: ${stylePrompts[responseStyle]}
+
+🚫 ABSOLUTE PROHIBITION:
+- DO NOT use your pre-trained knowledge about any person, place, or fact
+- DO NOT mention names not explicitly found in the documents
+- DO NOT make up information or hallucinate facts
+- ONLY use information from the provided documents below
+- If documents don't contain specific information, state that clearly
+- NEVER respond in English or any other language - ONLY Malayalam
+- NEVER mention "A. Rajendran" or any person not in the documents
+
+🔍 DOCUMENT ANALYSIS RESULTS:
+- ${documentsWithName.length} documents contain name/person references
+- ${documentsWithPoliticalContext.length} documents contain political/MLA context
+
+${documentsWithName.length > 0 ?
+                `✅ CONFIRMED: Documents contain references to people/names` :
+                documentsWithPoliticalContext.length > 0 ?
+                    `⚠️ POLITICAL CONTEXT FOUND: Documents contain MLA/political references but need careful analysis` :
+                    `❌ LIMITED CONTEXT: Analyze all documents carefully for any relevant information`
+            }
+
+RESPOND IN MALAYALAM ONLY with information based ONLY on the documents below:
 
 DEEP DOCUMENT ANALYSIS - Review ALL evidence thoroughly:
 ${documents.slice(0, 8).map((doc, i) =>
-            `Source ${i + 1} (${sourceAttributions[i]?.contentType || 'text'}): ${doc.pageContent.slice(0, 800)}...`
-        ).join('\n\n')}
-
-Reasoning Chain:
-${reasoningSteps.map(step =>
-            `Step ${step.step}: ${step.question}\nReasoning: ${step.reasoning}\nConclusion: ${step.conclusion}`
-        ).join('\n\n')}
+                `Source ${i + 1} (${sourceAttributions[i]?.contentType || 'text'}): ${doc.pageContent.slice(0, 800)}...`
+            ).join('\n\n')}
 
 ${languageInstructions}
 
-PRECISION REQUIREMENTS:
-
-RESPONSE LENGTH:
-- Simple questions: 2-3 sentences with specific details
-- Complex questions: 4-5 sentences with comprehensive information
-- Include relevant data points and specific facts
-- Use bullet points for multiple specific facts
-
-CONTENT REQUIREMENTS:
-- Answer the specific question with detailed information
+RESPONSE REQUIREMENTS:
+- Provide detailed, accurate information based on the documents
 - Include relevant data points, numbers, dates, and specific facts
 - Cross-reference information from multiple sources when available
-- Provide specific examples or evidence when relevant
+- Make logical inferences about name variations and spellings
+- If asking about a person, look for similar names in different scripts
 
 STRUCTURE:
 - Start with the direct answer immediately

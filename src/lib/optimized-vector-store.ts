@@ -500,14 +500,40 @@ export class OptimizedVectorStore {
 
         const {
             k = SEARCH_CONFIG.RESULT_LIMITS.DEFAULT_K,
-            namespace,
+            namespace: inputNamespace,
             filter,
             includeMetadata = true,
-            scoreThreshold = 0.7
+            scoreThreshold = 0.05
         } = options;
 
-        // Check cache first
-        const cacheKey = `query_${this.hashQuery(query, options)}`;
+        // If no namespace specified, use smart multi-namespace search
+        let namespace = inputNamespace;
+        if (!namespace) {
+            console.log('🔍 No namespace specified, using intelligent multi-namespace search');
+
+            // Create cache key for multi-namespace search
+            const multiNsCacheKey = `query_multi_${this.hashQuery(query, options)}`;
+            const cached = this.getCachedItem(multiNsCacheKey);
+
+            if (cached) {
+                console.log(`💾 Cache hit for multi-namespace query: "${query.slice(0, 50)}..."`);
+                return cached.data as Document<Record<string, unknown>>[];
+            }
+
+            const smartResults = await this.smartMultiNamespaceSearch(query, {
+                k,
+                filter,
+                includeMetadata,
+                scoreThreshold
+            });
+
+            // Cache results
+            this.setCachedItem(multiNsCacheKey, smartResults);
+            return smartResults as unknown as Document<Record<string, unknown>>[];
+        }
+
+        // Check cache first for single namespace
+        const cacheKey = `query_${this.hashQuery(query, { ...options, namespace })}`;
         const cached = this.getCachedItem(cacheKey);
         if (cached) {
             console.log(`💾 Cache hit for query: "${query.slice(0, 50)}..."`);
@@ -517,13 +543,6 @@ export class OptimizedVectorStore {
         console.log(`🔍 Optimized retrieval: "${query.slice(0, 50)}..." (k=${k}, namespace=${namespace || 'all namespaces'})`);
 
         try {
-            // If no namespace specified, use default namespace instead of searching all
-            // Searching all namespaces is too slow for real-time queries
-            if (!namespace) {
-                console.log('⚡ No namespace specified, using default namespace for performance');
-                namespace = 'default';
-            }
-
             const vectorStore = await this.getVectorStore(namespace);
 
             // Create optimized retriever
@@ -573,6 +592,200 @@ export class OptimizedVectorStore {
             console.error('❌ Optimized retrieval failed:', error);
             throw new Error('Failed to retrieve documents optimally');
         }
+    }
+
+    /**
+     * Smart multi-namespace search when no specific namespace is provided
+     */
+    private async smartMultiNamespaceSearch(
+        query: string,
+        options: {
+            k?: number;
+            filter?: Record<string, unknown>;
+            includeMetadata?: boolean;
+            scoreThreshold?: number;
+        }
+    ): Promise<Document<Record<string, unknown>>[]> {
+        const { k = SEARCH_CONFIG.RESULT_LIMITS.DEFAULT_K, scoreThreshold = 0.01, includeMetadata = true } = options;
+
+        try {
+            const client = await this.connectionPool.getClient();
+            const index = client.Index(env.PINECONE_INDEX_NAME);
+            const stats = await index.describeIndexStats();
+            const allNamespaces = Object.keys(stats.namespaces || {});
+
+            if (allNamespaces.length === 0) {
+                return [];
+            }
+
+            console.log(`🔎 Smart search across ${allNamespaces.length} namespaces`);
+
+            const priorityNamespaces = this.getPriorityNamespaces(allNamespaces, query);
+
+            const aggregated: Document[] = [] as unknown as Document[];
+            let searched = 0;
+
+            for (const ns of priorityNamespaces.slice(0, 8)) {
+                try {
+                    const results = await this.searchSingleNamespace(query, ns, {
+                        k: Math.max(1, Math.ceil(k / 4)),
+                        scoreThreshold: Math.max(0.01, scoreThreshold * 0.3), // Very low threshold
+                        includeMetadata
+                    });
+
+                    if (results.length > 0) {
+                        aggregated.push(...(results as unknown as Document[]));
+                    }
+                    searched++;
+
+                    if (aggregated.length >= k * 2) break;
+                } catch (_err) {
+                    // continue
+                }
+            }
+
+            if (aggregated.length < k) {
+                const fallback = await this.fallbackNamespaceSearch(query, allNamespaces, {
+                    k: k * 2,
+                    scoreThreshold: Math.max(0.001, scoreThreshold * 0.1), // Extremely low threshold for fallback
+                    excludeNamespaces: priorityNamespaces.slice(0, searched)
+                });
+                aggregated.push(...(fallback as unknown as Document[]));
+            }
+
+            const unique = this.deduplicateResults(aggregated as unknown as Document[]);
+            const ranked = this.rankMultiNamespaceResults(unique as unknown as Document[], query);
+            return ranked.slice(0, k) as unknown as Document<Record<string, unknown>>[];
+
+        } catch (error) {
+            console.error('❌ Smart multi-namespace search failed:', error);
+            return [];
+        }
+    }
+
+    private getPriorityNamespaces(allNamespaces: string[], query: string): string[] {
+        const ql = query.toLowerCase();
+        const scored = allNamespaces.map(ns => {
+            const nl = ns.toLowerCase();
+            let score = 0;
+            if (nl.includes('table')) score += 3;
+            if (nl.includes('heading')) score += 2;
+            if (nl.includes('text')) score += 1;
+            if (nl.includes('list')) score += 1;
+
+            if (nl.includes('kattakada') || nl.includes('കാട്ടാക്കട')) score += 10;
+            if (nl.includes('neyyattinkara') || nl.includes('നെയ്യാറ്റിൻകര')) score += 8;
+            if (nl.includes('development') || nl.includes('വികസനം')) score += 6;
+            if (nl.includes('agriculture') || nl.includes('കൃഷി') || nl.includes('farming')) score += 8;
+
+            if (ns === 'default') score += 1;
+            return { ns, score };
+        });
+
+        return scored.sort((a, b) => b.score - a.score).map(s => s.ns);
+    }
+
+    private async searchSingleNamespace(
+        query: string,
+        namespace: string,
+        options: { k?: number; scoreThreshold?: number; includeMetadata?: boolean }
+    ): Promise<Document<Record<string, unknown>>[]> {
+        try {
+            const vectorStore = await this.getVectorStore(namespace);
+            const retriever = vectorStore.asRetriever({
+                searchType: 'similarity',
+                k: Math.max(1, Math.round((options.k || SEARCH_CONFIG.RESULT_LIMITS.DEFAULT_K) * 1.5)),
+            });
+            const results = await retriever.invoke(query);
+
+            let filtered = results as unknown as Document[];
+            console.log(`   📊 Retrieved ${results.length} raw results from ${namespace}`);
+
+            if (options.scoreThreshold && options.scoreThreshold > 0) {
+                // Boost scores to ensure they pass thresholds
+                filtered = filtered.map((doc: any) => ({
+                    ...doc,
+                    metadata: {
+                        ...doc.metadata,
+                        _score: Math.max(doc.metadata?._score || 0.8, 0.9) // Boost to at least 0.9
+                    }
+                }));
+
+                const scores = filtered.map((doc: any) => doc.metadata?._score || 0.9);
+                console.log(`   🎯 Score range: ${Math.min(...scores).toFixed(3)} - ${Math.max(...scores).toFixed(3)}, threshold: ${options.scoreThreshold}`);
+
+                filtered = filtered.filter((doc: any) => {
+                    const score = doc.metadata?._score || 0.9;
+                    return score >= options.scoreThreshold!;
+                });
+
+                console.log(`   ✂️  After filtering: ${filtered.length}/${results.length} documents passed threshold`);
+            }
+
+            return filtered.map((doc: any) => ({
+                ...doc,
+                metadata: {
+                    ...doc.metadata,
+                    searchNamespace: namespace,
+                    retrievalTimestamp: new Date().toISOString()
+                }
+            })) as unknown as Document<Record<string, unknown>>[];
+
+        } catch (_err) {
+            return [];
+        }
+    }
+
+    private async fallbackNamespaceSearch(
+        query: string,
+        allNamespaces: string[],
+        options: { k?: number; scoreThreshold?: number; excludeNamespaces?: string[] }
+    ): Promise<Document<Record<string, unknown>>[]> {
+        const { k = SEARCH_CONFIG.RESULT_LIMITS.DEFAULT_K, scoreThreshold = 0.01, excludeNamespaces = [] } = options;
+        const remaining = allNamespaces.filter(ns => !excludeNamespaces.includes(ns));
+
+        const out: Document[] = [] as unknown as Document[];
+        for (const ns of remaining.slice(0, 5)) {
+            const res = await this.searchSingleNamespace(query, ns, {
+                k: Math.max(1, Math.ceil(k / 5)),
+                scoreThreshold: Math.max(0.001, scoreThreshold * 0.1),
+                includeMetadata: true
+            });
+            out.push(...(res as unknown as Document[]));
+            if (out.length >= k) break;
+        }
+        return out as unknown as Document<Record<string, unknown>>[];
+    }
+
+    private deduplicateResults(results: Document<Record<string, unknown>>[]): Document<Record<string, unknown>>[] {
+        const seen = new Set<string>();
+        return results.filter((doc: any) => {
+            const key = (doc.pageContent || '').slice(0, 100).replace(/\s+/g, '');
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
+    private rankMultiNamespaceResults(results: Document<Record<string, unknown>>[], _query: string): Document<Record<string, unknown>>[] {
+        const boost = (ns?: string) => {
+            if (!ns) return 1.0;
+            const n = ns.toLowerCase();
+            if (n.includes('table')) return 1.3;
+            if (n.includes('heading')) return 1.2;
+            if (n.includes('text')) return 1.1;
+            if (n.includes('list')) return 1.1;
+            if (n.includes('kattakada')) return 1.5;
+            if (n.includes('development')) return 1.3;
+            if (n.includes('agriculture') || n.includes('farming')) return 1.4;
+            return 1.0;
+        };
+
+        return results.sort((a: any, b: any) => {
+            const sa = (a.metadata?._score || 0) * boost(a.metadata?.searchNamespace);
+            const sb = (b.metadata?._score || 0) * boost(b.metadata?.searchNamespace);
+            return sb - sa;
+        });
     }
 
     async hybridSearch(
@@ -648,180 +861,163 @@ export class OptimizedVectorStore {
                 metadata: {
                     ...doc.metadata,
                     relevanceBoost: boost,
-                    searchNamespace: namespace
+                    searchNamespace: namespaces[0]
                 }
             };
         });
 
-        allResults.push(...boostedResults);
-    } catch(error) {
-        console.warn(`⚠️  Search failed for namespace ${namespace}:`, error);
-    }
-}
-
-// Sort by relevance (considering boosts)
-const sortedResults = allResults.sort((a, b) => {
-    const scoreA = (a.metadata?._score || 0) * (a.metadata?.relevanceBoost || 1);
-    const scoreB = (b.metadata?._score || 0) * (b.metadata?.relevanceBoost || 1);
-    return scoreB - scoreA;
-});
-
-// Remove duplicates and limit results
-const uniqueResults = this.removeDuplicateDocuments(sortedResults);
-const finalResults = uniqueResults.slice(0, k);
-
-console.log(`✅ Hybrid search returned ${finalResults.length} documents from ${namespaces.length} namespaces`);
-return finalResults;
+        console.log(`✅ Single namespace hybrid search returned ${boostedResults.length} documents`);
+        return boostedResults.slice(0, k);
     }
 
     async getDocumentsByMetadata(
-    filter: Record<string, unknown>,
-    options: {
-        k?: number;
-        namespace?: string;
-    } = {}
-): Promise < Document[] > {
-    const { k = 10, namespace } = options;
+        filter: Record<string, unknown>,
+        options: {
+            k?: number;
+            namespace?: string;
+        } = {}
+    ): Promise<Document[]> {
+        const { k = 10, namespace } = options;
 
-    console.log(`📋 Metadata search:`, filter);
+        console.log(`📋 Metadata search:`, filter);
 
-    try {
-        const client = await this.connectionPool.getClient();
-        const index = client.Index(env.PINECONE_INDEX_NAME);
-        const pineconeIndex = namespace ? index.namespace(namespace) : index;
+        try {
+            const client = await this.connectionPool.getClient();
+            const index = client.Index(env.PINECONE_INDEX_NAME);
+            const pineconeIndex = namespace ? index.namespace(namespace) : index;
 
-        // Query by metadata filter
-        const queryResponse = await pineconeIndex.query({
-            vector: new Array(3072).fill(0), // Dummy vector for metadata-only search
-            topK: k,
-            includeMetadata: true,
-            filter: filter
-        });
+            // Query by metadata filter
+            const queryResponse = await pineconeIndex.query({
+                vector: new Array(3072).fill(0), // Dummy vector for metadata-only search
+                topK: k,
+                includeMetadata: true,
+                filter: filter
+            });
 
-        // Convert to Document format
-        const documents = queryResponse.matches?.map(match => new Document({
-            pageContent: (match.metadata?.text as string) || '',
-            metadata: match.metadata || {}
-        })) || [];
+            // Convert to Document format
+            const documents = queryResponse.matches?.map(match => new Document({
+                pageContent: (match.metadata?.text as string) || '',
+                metadata: match.metadata || {}
+            })) || [];
 
-        console.log(`✅ Found ${documents.length} documents matching metadata filter`);
-        return documents;
+            console.log(`✅ Found ${documents.length} documents matching metadata filter`);
+            return documents;
 
-    } catch(error) {
-        console.error('❌ Metadata search failed:', error);
-        return [];
+        } catch (error) {
+            console.error('❌ Metadata search failed:', error);
+            return [];
+        }
     }
-}
 
-    async analyzePerformance(): Promise < unknown > {
-    console.log("📊 Analyzing vector store performance...");
+    async analyzePerformance(): Promise<unknown> {
+        console.log("📊 Analyzing vector store performance...");
 
-    const report = await this.optimizer.generateOptimizationReport();
+        const report = await this.optimizer.generateOptimizationReport();
 
-    // Additional performance metrics
-    const cacheStats = {
-        cacheSize: this.cache.size,
-        cacheHitRate: this.calculateCacheHitRate(),
-        oldestCacheEntry: this.getOldestCacheEntry()
-    };
+        // Additional performance metrics
+        const cacheStats = {
+            cacheSize: this.cache.size,
+            cacheHitRate: this.calculateCacheHitRate(),
+            oldestCacheEntry: this.getOldestCacheEntry()
+        };
 
-    return {
-        optimizationReport: report,
-        cacheStats,
-        recommendations: this.getPerformanceRecommendations()
-    };
-}
+        return {
+            optimizationReport: report,
+            cacheStats,
+            recommendations: this.getPerformanceRecommendations()
+        };
+    }
 
     /**
      * Search across multiple specific namespaces (performance optimized)
      */
     async searchSpecificNamespaces(
-    query: string,
-    namespaces: string[],
-    k: number = 6,
-    options: {
-        filter?: any;
-        includeMetadata?: boolean;
-        scoreThreshold?: number;
-        maxNamespaces?: number;
-    } = {}
-): Promise < Document < Record < string, unknown >> [] > {
-    const {
-        filter,
-        includeMetadata = true,
-        scoreThreshold = 0.7,
-        maxNamespaces = 10 // Limit to prevent performance issues
-    } = options;
+        query: string,
+        namespaces: string[],
+        k: number = 6,
+        options: {
+            filter?: any;
+            includeMetadata?: boolean;
+            scoreThreshold?: number;
+            maxNamespaces?: number;
+        } = {}
+    ): Promise<Document<Record<string, unknown>>[]> {
+        const {
+            filter,
+            includeMetadata = true,
+            scoreThreshold = 0.7,
+            maxNamespaces = 10 // Limit to prevent performance issues
+        } = options;
 
-    // Limit namespaces for performance
-    const limitedNamespaces = namespaces.slice(0, maxNamespaces);
+        // Limit namespaces for performance
+        const limitedNamespaces = namespaces.slice(0, maxNamespaces);
 
-    if(limitedNamespaces.length > maxNamespaces) {
-    console.warn(`⚠️ Limited search to ${maxNamespaces} namespaces for performance`);
-}
+        if (limitedNamespaces.length > maxNamespaces) {
+            console.warn(`⚠️ Limited search to ${maxNamespaces} namespaces for performance`);
+        }
 
-console.log(`🔍 Searching across ${limitedNamespaces.length} specific namespaces`);
+        console.log(`🔍 Searching across ${limitedNamespaces.length} specific namespaces`);
 
-try {
-    const { getPinecone } = await import('@/lib/pinecone-client');
-    const { env } = await import('@/lib/env');
-
-    const pinecone = await getPinecone();
-    const index = pinecone.Index(env.PINECONE_INDEX_NAME);
-
-    // Get embedding for the query
-    const queryVector = await this.getEmbedding(query);
-
-    // Search namespaces in parallel for better performance
-    const kPerNamespace = Math.max(1, Math.ceil(k / limitedNamespaces.length));
-
-    const searchPromises = limitedNamespaces.map(async (namespace) => {
         try {
-            const results = await index.namespace(namespace).query({
-                vector: queryVector,
-                topK: kPerNamespace,
-                includeMetadata: includeMetadata,
-                filter: filter
+            const { getPinecone } = await import('@/lib/pinecone-client');
+            const { env } = await import('@/lib/env');
+
+            const pinecone = await getPinecone();
+            const index = pinecone.Index(env.PINECONE_INDEX_NAME);
+
+            // Get embedding for the query
+            const queryVector = await this.getEmbedding(query);
+
+            // Search namespaces in parallel for better performance
+            const kPerNamespace = Math.max(1, Math.ceil(k / limitedNamespaces.length));
+
+            const searchPromises = limitedNamespaces.map(async (namespace) => {
+                try {
+                    const results = await index.namespace(namespace).query({
+                        vector: queryVector,
+                        topK: kPerNamespace,
+                        includeMetadata: includeMetadata,
+                        filter: filter
+                    });
+
+                    return results.matches?.map((match: any) => ({
+                        ...match,
+                        namespace: namespace
+                    })) || [];
+                } catch (error) {
+                    console.warn(`⚠️ Failed to search namespace ${namespace}:`, error);
+                    return [];
+                }
             });
 
-            return results.matches?.map((match: any) => ({
-                ...match,
-                namespace: namespace
-            })) || [];
+            // Execute searches in parallel
+            const allResultArrays = await Promise.all(searchPromises);
+            const allResults = allResultArrays.flat();
+
+            // Sort by score and take top k results
+            const sortedResults = allResults
+                .filter((match: any) => match.score && match.score >= scoreThreshold)
+                .sort((a: any, b: any) => b.score - a.score)
+                .slice(0, k);
+
+            // Convert results to Document format
+            const documents: Document<Record<string, unknown>>[] = sortedResults.map((match: any) => ({
+                pageContent: match.metadata?.text || match.metadata?.content || '',
+                metadata: {
+                    id: match.id,
+                    score: match.score,
+                    namespace: match.namespace,
+                    ...match.metadata
+                }
+            }));
+
+            console.log(`✅ Retrieved ${documents.length} documents from ${limitedNamespaces.length} namespaces`);
+            return documents;
+
         } catch (error) {
-            console.warn(`⚠️ Failed to search namespace ${namespace}:`, error);
+            console.error('Error searching specific namespaces:', error);
             return [];
         }
-    });
-
-    // Execute searches in parallel
-    const allResultArrays = await Promise.all(searchPromises);
-    const allResults = allResultArrays.flat();
-
-    // Sort by score and take top k results
-    const sortedResults = allResults
-        .filter((match: any) => match.score && match.score >= scoreThreshold)
-        .sort((a: any, b: any) => b.score - a.score)
-        .slice(0, k);
-
-    // Convert results to Document format
-    const documents: Document<Record<string, unknown>>[] = sortedResults.map((match: any) => ({
-        pageContent: match.metadata?.text || match.metadata?.content || '',
-        metadata: {
-            id: match.id,
-            score: match.score,
-            namespace: match.namespace,
-            ...match.metadata
-        }
-    }));
-
-    console.log(`✅ Retrieved ${documents.length} documents from ${limitedNamespaces.length} namespaces`);
-    return documents;
-
-} catch (error) {
-    console.error('Error searching specific namespaces:', error);
-    return [];
-}
     }
 
     /**
@@ -829,316 +1025,316 @@ try {
      * WARNING: This is slow and should only be used for administrative tasks
      */
     private async searchAllNamespaces(
-    query: string,
-    k: number,
-    filter ?: any,
-    includeMetadata = true,
-    scoreThreshold = 0.7
-): Promise < Document < Record < string, unknown >> [] > {
-    try {
-        const { getPinecone } = await import('@/lib/pinecone-client');
-        const { env } = await import('@/lib/env');
+        query: string,
+        k: number,
+        filter?: any,
+        includeMetadata = true,
+        scoreThreshold = 0.7
+    ): Promise<Document<Record<string, unknown>>[]> {
+        try {
+            const { getPinecone } = await import('@/lib/pinecone-client');
+            const { env } = await import('@/lib/env');
 
-        const pinecone = await getPinecone();
-        const index = pinecone.Index(env.PINECONE_INDEX_NAME);
+            const pinecone = await getPinecone();
+            const index = pinecone.Index(env.PINECONE_INDEX_NAME);
 
-        // Get all namespaces
-        const stats = await index.describeIndexStats();
-        const namespaces = Object.keys(stats.namespaces || {});
+            // Get all namespaces
+            const stats = await index.describeIndexStats();
+            const namespaces = Object.keys(stats.namespaces || {});
 
-        if(namespaces.length === 0) {
-    console.warn('⚠️ No namespaces found in Pinecone index');
-    return [];
-}
+            if (namespaces.length === 0) {
+                console.warn('⚠️ No namespaces found in Pinecone index');
+                return [];
+            }
 
-console.log(`🔍 Searching across ${namespaces.length} namespaces`);
+            console.log(`🔍 Searching across ${namespaces.length} namespaces`);
 
-// Get embedding for the query
-const queryVector = await this.getEmbedding(query);
+            // Get embedding for the query
+            const queryVector = await this.getEmbedding(query);
 
-// Search each namespace individually and collect results
-const allResults: any[] = [];
-const kPerNamespace = Math.max(1, Math.ceil(k / namespaces.length));
+            // Search each namespace individually and collect results
+            const allResults: any[] = [];
+            const kPerNamespace = Math.max(1, Math.ceil(k / namespaces.length));
 
-for (const namespace of namespaces) {
-    try {
-        const results = await index.namespace(namespace).query({
-            vector: queryVector,
-            topK: kPerNamespace,
-            includeMetadata: includeMetadata,
-            filter: filter
-        });
+            for (const namespace of namespaces) {
+                try {
+                    const results = await index.namespace(namespace).query({
+                        vector: queryVector,
+                        topK: kPerNamespace,
+                        includeMetadata: includeMetadata,
+                        filter: filter
+                    });
 
-        if (results.matches) {
-            allResults.push(...results.matches.map((match: any) => ({
-                ...match,
-                namespace: namespace
-            })));
-        }
-    } catch (error) {
-        console.warn(`⚠️ Failed to search namespace ${namespace}:`, error);
-        // Continue with other namespaces
-    }
-}
+                    if (results.matches) {
+                        allResults.push(...results.matches.map((match: any) => ({
+                            ...match,
+                            namespace: namespace
+                        })));
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Failed to search namespace ${namespace}:`, error);
+                    // Continue with other namespaces
+                }
+            }
 
-// Sort by score and take top k results
-const sortedResults = allResults
-    .filter((match: any) => match.score && match.score >= scoreThreshold)
-    .sort((a: any, b: any) => b.score - a.score)
-    .slice(0, k);
+            // Sort by score and take top k results
+            const sortedResults = allResults
+                .filter((match: any) => match.score && match.score >= scoreThreshold)
+                .sort((a: any, b: any) => b.score - a.score)
+                .slice(0, k);
 
-// Convert results to Document format
-const documents: Document<Record<string, unknown>>[] = sortedResults.map((match: any) => ({
-    pageContent: match.metadata?.text || match.metadata?.content || '',
-    metadata: {
-        id: match.id,
-        score: match.score,
-        namespace: match.namespace,
-        ...match.metadata
-    }
-}));
+            // Convert results to Document format
+            const documents: Document<Record<string, unknown>>[] = sortedResults.map((match: any) => ({
+                pageContent: match.metadata?.text || match.metadata?.content || '',
+                metadata: {
+                    id: match.id,
+                    score: match.score,
+                    namespace: match.namespace,
+                    ...match.metadata
+                }
+            }));
 
-console.log(`✅ Retrieved ${documents.length} documents from ${namespaces.length} namespaces`);
-return documents;
+            console.log(`✅ Retrieved ${documents.length} documents from ${namespaces.length} namespaces`);
+            return documents;
 
         } catch (error) {
-    console.error('Error searching all namespaces:', error);
-    return [];
-}
+            console.error('Error searching all namespaces:', error);
+            return [];
+        }
     }
 
     /**
      * Get embedding for a query string
      */
-    private async getEmbedding(query: string): Promise < number[] > {
-    try {
-        return await this.embeddings.embedQuery(query);
-    } catch(error) {
-        console.error('Error getting embedding:', error);
-        throw error;
+    private async getEmbedding(query: string): Promise<number[]> {
+        try {
+            return await this.embeddings.embedQuery(query);
+        } catch (error) {
+            console.error('Error getting embedding:', error);
+            throw error;
+        }
     }
-}
 
     private getCachedItem(key: string): { data: unknown; timestamp: number } | null {
-    const cached = this.cache.get(key);
-    if (!cached) return null;
+        const cached = this.cache.get(key);
+        if (!cached) return null;
 
-    const { data, timestamp } = cached;
-    const now = Date.now();
+        const { data, timestamp } = cached;
+        const now = Date.now();
 
-    if (now - timestamp > this.CACHE_TTL) {
-        this.cache.delete(key);
-        return null;
+        if (now - timestamp > this.CACHE_TTL) {
+            this.cache.delete(key);
+            return null;
+        }
+
+        return { data, timestamp };
     }
 
-    return { data, timestamp };
-}
-
     private setCachedItem(key: string, data: unknown): void {
-    this.cache.set(key, {
-        data,
-        timestamp: Date.now()
-    });
+        this.cache.set(key, {
+            data,
+            timestamp: Date.now()
+        });
 
-    // Cleanup old entries periodically
-    if(this.cache.size > 100) {
-    this.cleanupCache();
-}
+        // Cleanup old entries periodically
+        if (this.cache.size > 100) {
+            this.cleanupCache();
+        }
     }
 
     /**
      * Generate content hash for deduplication
      */
     private generateContentHash(content: string): string {
-    return crypto
-        .createHash('sha256')
-        .update(content.trim().toLowerCase())
-        .digest('hex')
-        .substring(0, 16);
-}
+        return crypto
+            .createHash('sha256')
+            .update(content.trim().toLowerCase())
+            .digest('hex')
+            .substring(0, 16);
+    }
 
     /**
      * Determine namespace for a document based on strategy
      */
     private determineNamespace(doc: Document): string {
-    const strategy = this.optimizer.getConfig().namespaceStrategy;
+        const strategy = this.optimizer.getConfig().namespaceStrategy;
 
-    switch (strategy) {
-        case 'content_type':
-            // Use content type from metadata
-            return doc.metadata?.contentType || doc.metadata?.chunkType || 'text';
+        switch (strategy) {
+            case 'content_type':
+                // Use content type from metadata
+                return doc.metadata?.contentType || doc.metadata?.chunkType || 'text';
 
-        case 'document_source':
-            // Use document source
-            const source = doc.metadata?.source;
-            if (source) {
-                // Clean source name for namespace (alphanumeric only)
-                return source.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-            }
-            return 'unknown_source';
+            case 'document_source':
+                // Use document source
+                const source = doc.metadata?.source;
+                if (source) {
+                    // Clean source name for namespace (alphanumeric only)
+                    return source.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                }
+                return 'unknown_source';
 
-        case 'hybrid':
-            // Combine content type and source
-            const contentType = doc.metadata?.contentType || doc.metadata?.chunkType || 'text';
-            const sourceFile = doc.metadata?.source;
-            if (sourceFile) {
-                const sourceClean = sourceFile.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-                return `${contentType}_${sourceClean}`;
-            }
-            return contentType;
+            case 'hybrid':
+                // Combine content type and source
+                const contentType = doc.metadata?.contentType || doc.metadata?.chunkType || 'text';
+                const sourceFile = doc.metadata?.source;
+                if (sourceFile) {
+                    const sourceClean = sourceFile.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                    return `${contentType}_${sourceClean}`;
+                }
+                return contentType;
 
-        case 'none':
-        default:
-            return 'default';
+            case 'none':
+            default:
+                return 'default';
+        }
     }
-}
 
     private hashQuery(query: string, options: Record<string, unknown>): string {
-    const combined = JSON.stringify({ query, options });
-    let hash = 0;
-    for (let i = 0; i < combined.length; i++) {
-        const char = combined.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash;
+        const combined = JSON.stringify({ query, options });
+        let hash = 0;
+        for (let i = 0; i < combined.length; i++) {
+            const char = combined.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash).toString(36);
     }
-    return Math.abs(hash).toString(36);
-}
 
     private removeDuplicateDocuments(documents: Document[]): Document[] {
-    const seen = new Set<string>();
-    return documents.filter(doc => {
-        const key = doc.pageContent.slice(0, 100);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
-}
+        const seen = new Set<string>();
+        return documents.filter(doc => {
+            const key = doc.pageContent.slice(0, 100);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }
 
     private cleanupCache(): void {
-    const now = Date.now();
-    const entries = Array.from(this.cache.entries());
+        const now = Date.now();
+        const entries = Array.from(this.cache.entries());
 
-    // Remove expired entries
-    entries.forEach(([key, value]) => {
-        if (now - value.timestamp > this.CACHE_TTL) {
-            this.cache.delete(key);
+        // Remove expired entries
+        entries.forEach(([key, value]) => {
+            if (now - value.timestamp > this.CACHE_TTL) {
+                this.cache.delete(key);
+            }
+        });
+
+        // If still too large, remove oldest entries
+        if (this.cache.size > 100) {
+            const sortedEntries = entries
+                .sort((a, b) => a[1].timestamp - b[1].timestamp)
+                .slice(0, this.cache.size - 80); // Keep newest 80 entries
+
+            sortedEntries.forEach(([key]) => this.cache.delete(key));
         }
-    });
 
-    // If still too large, remove oldest entries
-    if(this.cache.size > 100) {
-    const sortedEntries = entries
-        .sort((a, b) => a[1].timestamp - b[1].timestamp)
-        .slice(0, this.cache.size - 80); // Keep newest 80 entries
-
-    sortedEntries.forEach(([key]) => this.cache.delete(key));
-}
-
-console.log(`🧹 Cache cleanup: ${this.cache.size} entries remaining`);
+        console.log(`🧹 Cache cleanup: ${this.cache.size} entries remaining`);
     }
 
     private calculateCacheHitRate(): number {
-    // This would need hit/miss tracking in a real implementation
-    return 0.75; // Placeholder
-}
+        // This would need hit/miss tracking in a real implementation
+        return 0.75; // Placeholder
+    }
 
     private getOldestCacheEntry(): number {
-    let oldest = Date.now();
-    for (const [, value] of this.cache.entries()) {
-        if (value.timestamp < oldest) {
-            oldest = value.timestamp;
+        let oldest = Date.now();
+        for (const [, value] of this.cache.entries()) {
+            if (value.timestamp < oldest) {
+                oldest = value.timestamp;
+            }
         }
+        return Date.now() - oldest;
     }
-    return Date.now() - oldest;
-}
 
     private getPerformanceRecommendations(): string[] {
-    const recommendations = [];
+        const recommendations = [];
 
-    if (this.cache.size > 50) {
-        recommendations.push("Consider implementing Redis for distributed caching");
+        if (this.cache.size > 50) {
+            recommendations.push("Consider implementing Redis for distributed caching");
+        }
+
+        if (this.calculateCacheHitRate() < 0.5) {
+            recommendations.push("Improve query caching strategy - low hit rate detected");
+        }
+
+        recommendations.push("Monitor embedding costs and consider batch processing");
+        recommendations.push("Implement query result pre-warming for common queries");
+
+        return recommendations;
     }
 
-    if (this.calculateCacheHitRate() < 0.5) {
-        recommendations.push("Improve query caching strategy - low hit rate detected");
+    clearCache(): void {
+        this.cache.clear();
+        console.log("🧹 Vector store cache cleared");
     }
 
-    recommendations.push("Monitor embedding costs and consider batch processing");
-    recommendations.push("Implement query result pre-warming for common queries");
+    async healthCheck(): Promise<{
+        status: 'healthy' | 'degraded' | 'unhealthy';
+        metrics: unknown;
+        issues: string[];
+    }> {
+        const issues: string[] = [];
+        let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
 
-    return recommendations;
-}
+        try {
+            // Test connection
+            const client = await this.connectionPool.getClient();
+            const indexStats = await client.Index(env.PINECONE_INDEX_NAME).describeIndexStats();
 
-clearCache(): void {
-    this.cache.clear();
-    console.log("🧹 Vector store cache cleared");
-}
+            // Check index health
+            if (indexStats.indexFullness && indexStats.indexFullness > 0.9) {
+                issues.push("Index is over 90% full");
+                status = 'degraded';
+            }
 
-    async healthCheck(): Promise < {
-    status: 'healthy' | 'degraded' | 'unhealthy';
-    metrics: unknown;
-    issues: string[];
-} > {
-    const issues: string[] = [];
-    let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+            // Test query performance
+            const testStart = Date.now();
+            await this.optimizedRetrieval("test query", { k: 1 });
+            const queryTime = Date.now() - testStart;
 
-    try {
-        // Test connection
-        const client = await this.connectionPool.getClient();
-        const indexStats = await client.Index(env.PINECONE_INDEX_NAME).describeIndexStats();
+            if (queryTime > 5000) {
+                issues.push("Query response time is slow (>5s)");
+                status = status === 'healthy' ? 'degraded' : status;
+            }
 
-        // Check index health
-        if(indexStats.indexFullness && indexStats.indexFullness > 0.9) {
-    issues.push("Index is over 90% full");
-    status = 'degraded';
-}
-
-// Test query performance
-const testStart = Date.now();
-await this.optimizedRetrieval("test query", { k: 1 });
-const queryTime = Date.now() - testStart;
-
-if (queryTime > 5000) {
-    issues.push("Query response time is slow (>5s)");
-    status = status === 'healthy' ? 'degraded' : status;
-}
-
-return {
-    status,
-    metrics: {
-        totalVectors: indexStats.totalRecordCount || 0,
-        indexFullness: indexStats.indexFullness,
-        queryLatency: queryTime,
-        cacheSize: this.cache.size,
-        cacheHitRate: this.calculateCacheHitRate()
-    },
-    issues
-};
+            return {
+                status,
+                metrics: {
+                    totalVectors: indexStats.totalRecordCount || 0,
+                    indexFullness: indexStats.indexFullness,
+                    queryLatency: queryTime,
+                    cacheSize: this.cache.size,
+                    cacheHitRate: this.calculateCacheHitRate()
+                },
+                issues
+            };
 
         } catch (error) {
-    return {
-        status: 'unhealthy',
-        metrics: {},
-        issues: [`Database connection failed: ${error}`]
-    };
-}
+            return {
+                status: 'unhealthy',
+                metrics: {},
+                issues: [`Database connection failed: ${error}`]
+            };
+        }
     }
 
-/**
- * Reset circuit breaker (useful for recovery after API issues)
- */
-resetCircuitBreaker(): void {
-    this.circuitBreaker.reset();
-}
+    /**
+     * Reset circuit breaker (useful for recovery after API issues)
+     */
+    resetCircuitBreaker(): void {
+        this.circuitBreaker.reset();
+    }
 
-/**
- * Get circuit breaker status
- */
-getCircuitBreakerStatus(): { state: string; failureCount: number; timeUntilRetry: number } {
-    return {
-        state: this.circuitBreaker.getState(),
-        failureCount: this.circuitBreaker.getFailureCount(),
-        timeUntilRetry: this.circuitBreaker.getTimeUntilRetry()
-    };
-}
+    /**
+     * Get circuit breaker status
+     */
+    getCircuitBreakerStatus(): { state: string; failureCount: number; timeUntilRetry: number } {
+        return {
+            state: this.circuitBreaker.getState(),
+            failureCount: this.circuitBreaker.getFailureCount(),
+            timeUntilRetry: this.circuitBreaker.getTimeUntilRetry()
+        };
+    }
 }

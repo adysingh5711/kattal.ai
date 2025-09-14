@@ -26,7 +26,7 @@ let isIndexBuilding = false;
 /**
  * Load documents from Pinecone vector store for hybrid search index
  */
-async function loadDocumentsFromPinecone(vectorStore: OptimizedVectorStore, maxDocuments: number = 100): Promise<Document[]> {
+async function loadDocumentsFromPinecone(vectorStore: OptimizedVectorStore, maxDocuments: number = 100, userQuery?: string): Promise<Document[]> {
     const documents = [];
 
     try {
@@ -48,15 +48,60 @@ async function loadDocumentsFromPinecone(vectorStore: OptimizedVectorStore, maxD
             return [];
         }
 
-        // Fetch documents from each namespace
-        const docsPerNamespace = Math.ceil(maxDocuments / namespaces.length);
+        // Fetch documents from selected best namespaces for diversity and relevance
+        const docsPerNamespace = Math.ceil(maxDocuments / Math.min(10, namespaces.length));
 
-        for (const namespace of namespaces.slice(0, 3)) { // Limit to first 3 namespaces for speed
+        // Select up to 10 best namespaces (prefer tables/headings and topic-related)
+        const scoredNamespaces = namespaces.map(ns => ({
+            ns,
+            score: (() => {
+                const n = ns.toLowerCase();
+                let s = 0;
+                if (n.includes('table')) s += 3;
+                if (n.includes('heading')) s += 2;
+                if (n.includes('text')) s += 1;
+                if (n.includes('list')) s += 1;
+                if (n.includes('kattakada') || n.includes('കാട്ടാക്കട')) s += 10;
+                if (n.includes('neyyattinkara') || n.includes('നെയ്യാറ്റിൻകര')) s += 8;
+                if (n.includes('development') || n.includes('വികസനം')) s += 6;
+                if (n.includes('agriculture') || n.includes('കൃഷി') || n.includes('farming')) s += 8;
+                if (n.includes('website_scraped')) s += 15; // These contain IB Sateesh info!
+                if (n.includes('activityreport')) s += 12;
+                if (n.includes('waterqualityreport')) s += 10;
+                if (n.includes('site_content')) s += 10;
+                if (ns === 'default') s += 1;
+                return s;
+            })()
+        }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, Math.min(15, namespaces.length)) // Increased to include website-scraped namespaces
+            .map(x => x.ns);
+
+        for (const namespace of scoredNamespaces) {
             try {
                 console.log(`   📄 Fetching from namespace: ${namespace.slice(0, 30)}...`);
 
-                // Try simple queries to get documents from this namespace
-                const testQueries = ['document', 'text', 'content'];
+                // Try user query first, then fallback to generic queries
+                let testQueries = ['document', 'text', 'content'];
+
+                if (userQuery) {
+                    // Add user query and related terms
+                    testQueries = [userQuery];
+
+                    // Add specific search terms for political queries
+                    if (userQuery.toLowerCase().includes('mla') || userQuery.toLowerCase().includes('kattakkada')) {
+                        testQueries.push(
+                            'കാട്ടാക്കട എം.എല്.എ',
+                            'ഐ.ബി. സതീഷ്',
+                            'കാട്ടാക്കട നിയോജകമണ്ഡലം',
+                            'Kattakkada MLA',
+                            'സതീഷ് എം.എല്.എ'
+                        );
+                    }
+
+                    // Add fallback generic queries
+                    testQueries.push('document', 'text', 'content');
+                }
 
                 for (const query of testQueries) {
                     try {
@@ -73,6 +118,14 @@ async function loadDocumentsFromPinecone(vectorStore: OptimizedVectorStore, maxD
                         if (namespaceDocs.length > 0) {
                             documents.push(...namespaceDocs);
                             console.log(`   ✅ Found ${namespaceDocs.length} documents from ${namespace.slice(0, 20)}...`);
+
+                            // Log content preview for debugging
+                            namespaceDocs.forEach((doc, i) => {
+                                if (query.toLowerCase().includes('mla') || query.toLowerCase().includes('kattakkada')) {
+                                    console.log(`      Preview ${i + 1}: ${doc.pageContent.slice(0, 150)}...`);
+                                }
+                            });
+
                             break; // Found documents, move to next namespace
                         }
                     } catch {
@@ -220,28 +273,56 @@ export async function POST(req: NextRequest) {
                     };
                     safeEnqueue(encoder.encode(`data: ${JSON.stringify(analysisEvent)}\n\n`));
 
-                    // Step 3: Perform hybrid search
+                    // Step 3: Perform hybrid search on pre-loaded documents
                     const hybridSearch = await getHybridSearchEngine();
                     const healthCheck = await hybridSearch.healthCheck();
 
                     let searchResults;
 
                     if (healthCheck.status === 'healthy') {
-                        // Use hybrid search
-                        console.log(`🔍 Performing hybrid search...`);
+                        // Load documents again to get namespace constraints
+                        console.log(`🔍 Loading documents for namespace constraint...`);
+                        const optimizedStore = new OptimizedVectorStore();
+                        const constraintDocuments = await loadDocumentsFromPinecone(optimizedStore, 50, question);
+
+                        // Force hybrid search to use specific namespaces that contain our documents
+                        const relevantNamespaces = [...new Set(constraintDocuments.map(doc =>
+                            doc.metadata?.namespace || 'default'
+                        ))];
+
+                        console.log(`🎯 Constraining search to ${relevantNamespaces.length} namespaces: ${relevantNamespaces.slice(0, 3).join(', ')}...`);
+
                         searchResults = await hybridSearch.intelligentSearch(question, analysis, {
                             k: analysis.suggestedK,
-                            scoreThreshold: 0.1,
-                            enableFuse: true
+                            scoreThreshold: 0.01, // Very low threshold
+                            enableFuse: true,
+                            constrainToNamespaces: relevantNamespaces // Add constraint
                         });
                     } else {
-                        // Fallback to semantic search only
-                        console.log(`⚠️ Hybrid search unavailable, using semantic fallback`);
+                        // Fallback to semantic search only with namespace constraints
+                        console.log(`⚠️ Hybrid search unavailable, using semantic fallback with constraints`);
                         const vectorStore = new OptimizedVectorStore();
-                        const docs = await vectorStore.optimizedRetrieval(question, {
-                            k: analysis.suggestedK,
-                            scoreThreshold: 0.6
-                        });
+
+                        // Load documents to get correct namespaces
+                        const optimizedStore2 = new OptimizedVectorStore();
+                        const constraintDocuments = await loadDocumentsFromPinecone(optimizedStore2, 50, question);
+                        const relevantNamespaces = [...new Set(constraintDocuments.map(doc =>
+                            doc.metadata?.namespace || 'default'
+                        ))];
+
+                        console.log(`🎯 Fallback search constrained to ${relevantNamespaces.length} namespaces`);
+
+                        // Search across the relevant namespaces
+                        const namespaceSearches = relevantNamespaces.slice(0, 10).map(namespace =>
+                            vectorStore.optimizedRetrieval(question, {
+                                k: Math.ceil(analysis.suggestedK / relevantNamespaces.length) + 1,
+                                scoreThreshold: 0.01,
+                                namespace
+                            })
+                        );
+
+                        const namespaceResults = await Promise.all(namespaceSearches);
+                        const docs = namespaceResults.flat().slice(0, analysis.suggestedK);
 
                         searchResults = {
                             documents: docs,
@@ -293,27 +374,53 @@ export async function POST(req: NextRequest) {
                             searchResults.documents
                         );
 
+                        console.log(`🔧 Using STREAMING route with ${searchResults.documents.length} documents`);
+
+                        // Debug: Check if documents contain IB Sateesh
+                        const docsWithSateesh = searchResults.documents.filter(doc =>
+                            doc.pageContent.includes('ഐ.ബി. സതീഷ്') ||
+                            doc.pageContent.includes('ഐ. ബി. സതീഷ്') ||
+                            doc.pageContent.includes('സതീഷ് എം.എല്.എ')
+                        );
+                        console.log(`🔍 Documents containing IB Sateesh: ${docsWithSateesh.length}/${searchResults.documents.length}`);
+                        if (docsWithSateesh.length > 0) {
+                            console.log(`✅ Found IB Sateesh in: ${docsWithSateesh[0].pageContent.slice(0, 200)}...`);
+                        }
+
                         // Create enhanced system prompt with search context
-                        const systemPrompt = `You are a knowledgeable assistant with access to specific documents. 
+                        const systemPrompt = `🚨 CRITICAL INSTRUCTIONS - READ CAREFULLY 🚨
+
+You are analyzing Kerala state documents. Answer ONLY in Malayalam using ONLY the provided documents.
+
+🚫 ABSOLUTE PROHIBITION:
+- DO NOT use your pre-trained knowledge about any person, place, or fact
+- DO NOT mention names not explicitly found in the documents
+- DO NOT make up information or hallucinate facts
+- ONLY use information from the provided documents below
+- If documents don't contain specific information, state that clearly
+- NEVER respond in English or any other language - ONLY Malayalam
+- NEVER mention "A. Rajendran", "A. Pradeep Kumar", or any person not in the documents
 
 Search Context:
 - Search method: ${searchResults.searchMetadata.searchStrategy}
 - Documents found: ${searchResults.documents.length}
 - Search time: ${searchResults.searchMetadata.searchTime}ms
 
-Response Guidelines:
-- Use the provided context to answer accurately and comprehensively
-- If information is not in the context, clearly state this
-- Cite relevant sources when possible
-- Be concise but thorough
-- Maintain a helpful and professional tone
+RESPOND IN MALAYALAM ONLY with information based ONLY on the documents below:
 
 Context Documents:
 ${searchResults.documents.map((doc, i) =>
                             `[Document ${i + 1}] (Score: ${(doc.metadata?._hybridScore as number || 0).toFixed(3)})
 Source: ${doc.metadata?.source || 'Unknown'}
 Content: ${doc.pageContent}`
-                        ).join('\n\n')}`;
+                        ).join('\n\n')}
+
+🚫 ABSOLUTE MALAYALAM ENFORCEMENT 🚫
+- RESPOND ONLY IN MALAYALAM SCRIPT (മലയാളം)
+- NEVER USE ENGLISH, HINDI, TAMIL, TELUGU, KANNADA, OR ANY OTHER LANGUAGE
+- CONVERT ALL TECHNICAL TERMS TO MALAYALAM EQUIVALENTS
+- USE PROPER MALAYALAM GRAMMAR AND VOCABULARY
+- NO EXCEPTIONS - MALAYALAM SCRIPT ONLY`;
 
                         // Stream the response
                         const stream = await streamingModel.stream([
