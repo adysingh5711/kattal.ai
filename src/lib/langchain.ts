@@ -304,8 +304,8 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                     const searchResponse = await index.namespace(namespace).query({
                         vector: queryEmbedding,
                         topK: Math.ceil(analysis.suggestedK / namespaces.length),
-                        includeMetadata: true,
-                        filter: {} // No filters for now
+                        includeMetadata: true
+                        // Removed empty filter object - Pinecone doesn't allow empty filters
                     });
 
                     const namespaceDocs = (searchResponse.matches || []).map(match => ({

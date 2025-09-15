@@ -56,7 +56,7 @@ export class MalayalamPineconeProcessor {
         namespace: 'malayalam-docs',
         chunkSize: 600, // Optimal for Malayalam text density
         chunkOverlap: 80,  // Good context preservation
-        enforceLanguage: true,
+        enforceLanguage: false, // Set to false to process all documents
         preserveTableStructure: true,
         enableDeduplication: true
     };
@@ -361,7 +361,7 @@ export class MalayalamPineconeProcessor {
     }
 
     /**
-     * Check if content contains Malayalam (accepts mixed English-Malayalam content)
+     * Check if content is relevant to Kerala/Malayalam context (accepts English documents about Kerala)
      */
     private isMalayalamContent(content: string): boolean {
         // Malayalam Unicode range: U+0D00-U+0D7F
@@ -369,22 +369,35 @@ export class MalayalamPineconeProcessor {
         const malayalamMatches = content.match(malayalamRegex) || [];
         const totalChars = content.replace(/\s/g, '').length;
 
-        // Accept content with at least 10% Malayalam characters (allows mixed content)
-        // This is more permissive for documents that contain both English and Malayalam
+        // Accept content with at least 5% Malayalam characters (more permissive)
         const malayalamRatio = malayalamMatches.length / Math.max(totalChars, 1);
-        const hasSignificantMalayalam = malayalamRatio >= 0.1;
+        const hasSignificantMalayalam = malayalamRatio >= 0.05;
 
-        // Also check for common Malayalam words/patterns
+        // Malayalam keywords
         const malayalamKeywords = [
             'പഞ്ചായത്ത്', 'വികസന', 'പദ്ധതി', 'ബജറ്റ്', 'സർക്കാർ', 'നിയമസഭ',
             'കാട്ടക്കട', 'തിരുവനന്തപുരം', 'കേരളം', 'മുഖ്യമന്ത്രി', 'മന്ത്രി'
         ];
 
-        const hasKeywords = malayalamKeywords.some(keyword =>
+        const hasMalayalamKeywords = malayalamKeywords.some(keyword =>
             content.toLowerCase().includes(keyword.toLowerCase())
         );
 
-        return hasSignificantMalayalam || hasKeywords;
+        // Kerala/India related English keywords (for English documents about Kerala)
+        const keralaKeywords = [
+            'thiruvananthapuram', 'kerala', 'kattakada', 'neyyattinkara', 'kollam',
+            'alappuzha', 'kochi', 'thrissur', 'palakkad', 'malappuram', 'kozhikode',
+            'kannur', 'kasaragod', 'district', 'panchayat', 'assembly', 'development',
+            'project', 'budget', 'government', 'minister', 'collector', 'statistics',
+            'handbook', 'report', 'plan', 'activity', 'water', 'jal', 'rain'
+        ];
+
+        const hasKeralaKeywords = keralaKeywords.some(keyword =>
+            content.toLowerCase().includes(keyword.toLowerCase())
+        );
+
+        // Accept if it has Malayalam content OR Kerala-related English content
+        return hasSignificantMalayalam || hasMalayalamKeywords || hasKeralaKeywords;
     }
 
     /**
