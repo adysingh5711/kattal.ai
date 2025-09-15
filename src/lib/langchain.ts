@@ -5,15 +5,12 @@
 // import { HumanMessage, AIMessage } from "@langchain/core/messages";
 // import { streamingModel, nonStreamingModel } from "./llm";
 // import { QA_TEMPLATE } from "./prompt-templates";
-// Legacy vector-store removed - using OptimizedVectorStore
+// Simplified LangChain integration for Malayalam system
+// Note: Complex components removed as part of streamlining
+
 import { getPinecone } from "./pinecone-client";
-import { QueryAnalyzer } from "./query-analyzer";
-import { AdaptiveRetriever } from "./adaptive-retriever";
-import { ResponseSynthesizer } from "./response-synthesizer";
-import { ValidationResult } from "./quality-validator";
-import { PerformanceOptimizer } from "./performance-optimizer";
-import { OptimizedVectorStore } from "./optimized-vector-store";
-import { HybridSearchEngine } from "./hybrid-search-engine";
+import { streamingModel } from "./llm";
+import { QA_TEMPLATE } from "./prompt-templates";
 import {
     isEnvironmentalQuery,
     executeEnvironmentalDataTool,
@@ -21,15 +18,116 @@ import {
     type EnvironmentalToolResult
 } from "./ai-tools";
 
+// Simplified interfaces for streamlined system
+interface ValidationResult {
+    overallScore: number;
+    factualAccuracy: number;
+    completeness: number;
+    coherence: number;
+    sourceReliability: number;
+    responseQuality: number;
+    issues: Array<{
+        type: 'factual_error' | 'missing_info' | 'coherence_issue' | 'source_problem' | 'tone_issue';
+        severity: 'low' | 'medium' | 'high';
+        description: string;
+        suggestion: string;
+        affectedSection?: string;
+    }>;
+    improvements: string[];
+    confidence: number;
+}
+
+// Mock query analysis for simplified system
+interface QueryAnalysis {
+    queryType: string;
+    complexity: number;
+    keyEntities: string[];
+    requiresCrossReference: boolean;
+    dataTypesNeeded: string[];
+    reasoningSteps: string[];
+    suggestedK: number;
+}
+
+// Simplified query analyzer
+class SimpleQueryAnalyzer {
+    async classifyQuery(query: string, _chatHistory?: string): Promise<QueryAnalysis> {
+        const lowerQuery = query.toLowerCase();
+
+        // Simple classification
+        let queryType = 'FACTUAL';
+        let complexity = 1;
+
+        if (lowerQuery.includes('compare') || lowerQuery.includes('difference')) {
+            queryType = 'COMPARATIVE';
+            complexity = 2;
+        } else if (lowerQuery.includes('why') || lowerQuery.includes('how')) {
+            queryType = 'INFERENTIAL';
+            complexity = 3;
+        } else if (lowerQuery.includes('analyze') || lowerQuery.includes('trend')) {
+            queryType = 'ANALYTICAL';
+            complexity = 3;
+        }
+
+        return {
+            queryType,
+            complexity,
+            keyEntities: [],
+            requiresCrossReference: complexity > 2,
+            dataTypesNeeded: ['text'],
+            reasoningSteps: [],
+            suggestedK: Math.min(8, complexity * 2)
+        };
+    }
+}
+
+// Simplified performance optimizer
+class SimplePerformanceOptimizer {
+    async optimizeQuery(query: string, analysis: QueryAnalysis, _chatHistory?: string) {
+        return {
+            shouldCache: false,
+            estimatedTime: analysis.complexity * 1000
+        };
+    }
+
+    trackPerformance(metrics: Record<string, unknown>) {
+        console.log('Performance metrics:', metrics);
+    }
+}
+
+// Simplified response synthesizer
+class SimpleResponseSynthesizer {
+    async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>) {
+        // Simple response synthesis using streaming model
+        const context = documents.map(doc => doc.pageContent).join('\n\n');
+        const prompt = QA_TEMPLATE.replace('{context}', context).replace('{question}', query);
+
+        const response = await streamingModel.invoke(prompt);
+
+        return {
+            synthesizedResponse: response.content as string,
+            responseStyle: 'factual',
+            confidence: 0.8,
+            completeness: 'complete' as const,
+            sourceAttribution: documents.map(doc => ({
+                source: String(doc.metadata?.source || 'unknown'),
+                relevance: 0.8,
+                usedFor: 'context',
+                contentType: 'text' as const,
+                pageReference: String(doc.metadata?.page || '1')
+            })),
+            reasoningChain: ['Simplified response synthesis']
+        };
+    }
+}
+
 type callChainArgs = {
     question: string;
     chatHistory: string;
 };
 
-// Initialize Phase 3 components
-const responseSynthesizer = new ResponseSynthesizer();
-const performanceOptimizer = new PerformanceOptimizer();
-const optimizedVectorStore = new OptimizedVectorStore();
+// Initialize simplified components
+const responseSynthesizer = new SimpleResponseSynthesizer();
+const performanceOptimizer = new SimplePerformanceOptimizer();
 
 export async function callChain({ question, chatHistory }: callChainArgs) {
     const overallStartTime = Date.now();
@@ -38,7 +136,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         const sanitizedQuestion = question.trim().replaceAll("\n", " ");
 
         // Step 1: Performance optimization and caching check
-        const queryAnalyzer = new QueryAnalyzer();
+        const queryAnalyzer = new SimpleQueryAnalyzer();
         const analysis = await queryAnalyzer.classifyQuery(sanitizedQuestion, chatHistory);
 
         const optimizationResult = await performanceOptimizer.optimizeQuery(
@@ -171,35 +269,90 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             }
         }
 
-        // Step 2: Retrieval (fast path for simple queries)
+        // Step 2: Real Pinecone retrieval with proper embedding
         const retrievalStartTime = Date.now();
+        let retrievalResult: {
+            documents: Array<{ pageContent: string; metadata: Record<string, unknown> }>;
+            retrievalStrategy: string;
+            crossReferences: string[];
+        };
+        let retrievalTime = 0;
 
-        // Enhanced retrieval with hybrid search for deeper document analysis
-        const pineconeClient = await getPinecone();
-        const vectorStore = await optimizedVectorStore.getVectorStore();
+        try {
+            // Get real embedding for the query
+            const { OpenAIEmbeddings } = await import('@langchain/openai');
+            const { env } = await import('./env');
 
-        // Use adaptive retrieval with hybrid search capabilities
-        const hybridSearchEngine = new HybridSearchEngine(optimizedVectorStore);
-        const adaptiveRetriever = new AdaptiveRetriever(optimizedVectorStore as any, undefined, undefined, hybridSearchEngine);
-
-        console.log(`🔍 Using AdaptiveRetriever with OptimizedVectorStore for: "${sanitizedQuestion}"`);
-        const retrievalResult = await adaptiveRetriever.retrieve(sanitizedQuestion, analysis, chatHistory);
-
-        // Enhance retrieval with additional context if needed
-        if (retrievalResult.documents.length < 5) {
-            const additionalDocs = await optimizedVectorStore.optimizedRetrieval(sanitizedQuestion, {
-                k: 15, // More documents for enhanced reasoning and inference
-                scoreThreshold: 0.5, // Lower threshold to catch more contextual content
+            const embeddings = new OpenAIEmbeddings({
+                openAIApiKey: env.OPENAI_API_KEY,
+                modelName: 'text-embedding-3-large'
             });
 
-            // Merge and deduplicate documents
-            const existingSources = new Set(retrievalResult.documents.map(doc => doc.metadata?.source));
-            const newDocs = additionalDocs.filter(doc => !existingSources.has(doc.metadata?.source));
-            retrievalResult.documents = [...retrievalResult.documents, ...newDocs];
-        }
-        const retrievalTime = Date.now() - retrievalStartTime;
+            // Generate real embedding for the query
+            const queryEmbedding = await embeddings.embedQuery(sanitizedQuestion);
 
-        console.log(`🔍 Retrieval: ${retrievalResult.retrievalStrategy}, Documents: ${retrievalResult.documents.length} (${retrievalTime}ms)`);
+            // Real Pinecone search
+            const pineconeClient = await getPinecone();
+            const index = pineconeClient.Index(env.PINECONE_INDEX_NAME);
+
+            // Search across multiple namespaces for better results
+            const namespaces = ['default', 'malayalam-docs', 'tables', 'headings'];
+            const allDocuments: Array<{ pageContent: string; metadata: Record<string, unknown> }> = [];
+
+            for (const namespace of namespaces) {
+                try {
+                    const searchResponse = await index.namespace(namespace).query({
+                        vector: queryEmbedding,
+                        topK: Math.ceil(analysis.suggestedK / namespaces.length),
+                        includeMetadata: true,
+                        filter: {} // No filters for now
+                    });
+
+                    const namespaceDocs = (searchResponse.matches || []).map(match => ({
+                        pageContent: String(match.metadata?.text || match.metadata?.content || ''),
+                        metadata: {
+                            ...match.metadata,
+                            namespace,
+                            score: match.score
+                        }
+                    }));
+
+                    allDocuments.push(...namespaceDocs);
+                } catch (error) {
+                    console.warn(`Failed to search namespace ${namespace}:`, error);
+                }
+            }
+
+            // Sort by score and deduplicate
+            const uniqueDocuments = allDocuments
+                .filter((doc, index, self) =>
+                    index === self.findIndex(d => d.pageContent === doc.pageContent)
+                )
+                .sort((a, b) => (b.metadata.score as number || 0) - (a.metadata.score as number || 0))
+                .slice(0, analysis.suggestedK);
+
+            retrievalTime = Date.now() - retrievalStartTime;
+            console.log(`🔍 Real Pinecone retrieval: ${uniqueDocuments.length} documents from ${namespaces.length} namespaces (${retrievalTime}ms)`);
+
+            retrievalResult = {
+                documents: uniqueDocuments,
+                retrievalStrategy: 'real_pinecone_multi_namespace',
+                crossReferences: []
+            };
+
+        } catch (error) {
+            console.error('Pinecone retrieval error:', error);
+
+            // Fallback to empty result if Pinecone fails
+            retrievalResult = {
+                documents: [],
+                retrievalStrategy: 'fallback_empty',
+                crossReferences: []
+            };
+
+            retrievalTime = Date.now() - retrievalStartTime;
+            console.log(`🔍 Fallback retrieval: 0 documents (${retrievalTime}ms)`);
+        }
 
         // Step 3: Advanced Response Synthesis
         const synthesisStartTime = Date.now();

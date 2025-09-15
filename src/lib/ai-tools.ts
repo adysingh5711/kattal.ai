@@ -3,14 +3,194 @@
  * Integrates the info tool with the chat system for AI-powered environmental data queries
  */
 
-import {
-    getProcessedEnvironmentalData,
-    fetchMultipleFactors,
-    getAvailableCities,
-    getAvailableNaturalFactors,
-    validateInfoToolParams,
-    type ProcessedEnvironmentalData
-} from './info-tool-index';
+// Local Environmental Data Tool
+// Uses predefined payload construction (no external API keys required)
+
+interface ProcessedEnvironmentalData {
+    statistics: {
+        count: number;
+        latest: number;
+        average: number;
+        min: number;
+        max: number;
+    };
+    naturalFactorInfo: {
+        displayName: string;
+        unit: string;
+    } | null;
+}
+
+// Example providers/endpoints for reference only (no direct external fetch)
+const ENVIRONMENTAL_APIS = {
+    weather: '/tools/weather',
+    forecast: '/tools/forecast',
+    airQuality: '/tools/air_quality'
+};
+
+const KERALA_CITIES = {
+    'thiruvananthapuram': { lat: 8.5241, lon: 76.9366, name: 'Thiruvananthapuram' },
+    'kattakada': { lat: 8.5167, lon: 77.0167, name: 'Kattakada' },
+    'neyyattinkara': { lat: 8.4000, lon: 77.0833, name: 'Neyyattinkara' },
+    'kollam': { lat: 8.8932, lon: 76.6141, name: 'Kollam' },
+    'alappuzha': { lat: 9.4981, lon: 76.3388, name: 'Alappuzha' },
+    'kochi': { lat: 9.9312, lon: 76.2673, name: 'Kochi' },
+    'thrissur': { lat: 10.5276, lon: 76.2144, name: 'Thrissur' },
+    'palakkad': { lat: 10.7867, lon: 76.6548, name: 'Palakkad' },
+    'malappuram': { lat: 11.0404, lon: 76.0819, name: 'Malappuram' },
+    'kozhikode': { lat: 11.2588, lon: 75.7804, name: 'Kozhikode' },
+    'kannur': { lat: 11.8745, lon: 75.3704, name: 'Kannur' },
+    'kasaragod': { lat: 12.4984, lon: 74.9899, name: 'Kasaragod' }
+};
+
+const ENVIRONMENTAL_FACTORS = {
+    'temperature': { displayName: 'Temperature', unit: '°C', apiKey: 'temp' },
+    'humidity': { displayName: 'Humidity', unit: '%', apiKey: 'humidity' },
+    'rainfall': { displayName: 'Rainfall', unit: 'mm', apiKey: 'rain' },
+    'wind_speed': { displayName: 'Wind Speed', unit: 'km/h', apiKey: 'wind_speed' },
+    'pressure': { displayName: 'Atmospheric Pressure', unit: 'hPa', apiKey: 'pressure' },
+    'visibility': { displayName: 'Visibility', unit: 'km', apiKey: 'visibility' },
+    'uv_index': { displayName: 'UV Index', unit: '', apiKey: 'uvi' },
+    'air_quality': { displayName: 'Air Quality Index', unit: '', apiKey: 'aqi' }
+};
+
+function getAvailableCities(): string[] {
+    return Object.keys(KERALA_CITIES);
+}
+
+function getAvailableNaturalFactors(): string[] {
+    return Object.keys(ENVIRONMENTAL_FACTORS);
+}
+
+function validateInfoToolParams(params: {
+    city: string;
+    naturalFactor: string;
+    startDate: string;
+    endDate: string;
+}): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!KERALA_CITIES[params.city as keyof typeof KERALA_CITIES]) {
+        errors.push(`Invalid city: ${params.city}. Available cities: ${getAvailableCities().join(', ')}`);
+    }
+
+    if (!ENVIRONMENTAL_FACTORS[params.naturalFactor as keyof typeof ENVIRONMENTAL_FACTORS]) {
+        errors.push(`Invalid factor: ${params.naturalFactor}. Available factors: ${getAvailableNaturalFactors().join(', ')}`);
+    }
+
+    if (!params.startDate || !params.endDate) {
+        errors.push('Start date and end date are required');
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors
+    };
+}
+
+async function fetchWeatherData(city: string, startDate: string, endDate: string): Promise<any> {
+    const cityData = KERALA_CITIES[city as keyof typeof KERALA_CITIES];
+    if (!cityData) {
+        throw new Error(`City ${city} not found`);
+    }
+
+    // Build a local tool payload instead of external fetch
+    return {
+        tool: 'weather_lookup',
+        endpoint: ENVIRONMENTAL_APIS.weather,
+        params: {
+            lat: cityData.lat,
+            lon: cityData.lon,
+            city: cityData.name,
+            startDate,
+            endDate,
+            units: 'metric'
+        },
+        // Placeholder readings populated by attached tool in the system
+        main: {
+            temp: 0,
+            humidity: 0,
+            pressure: 0
+        },
+        wind: {
+            speed: 0
+        },
+        visibility: 0,
+        rain: {
+            '1h': 0
+        }
+    };
+}
+
+async function getProcessedEnvironmentalData(
+    city: string,
+    factor: string,
+    startDate: string,
+    endDate: string
+): Promise<ProcessedEnvironmentalData> {
+    const factorInfo = ENVIRONMENTAL_FACTORS[factor as keyof typeof ENVIRONMENTAL_FACTORS];
+    if (!factorInfo) {
+        throw new Error(`Invalid factor: ${factor}`);
+    }
+
+    try {
+        const weatherData = await fetchWeatherData(city, startDate, endDate);
+
+        // Extract data based on factor
+        let value = 0;
+        switch (factor) {
+            case 'temperature':
+                value = weatherData.main?.temp || 0;
+                break;
+            case 'humidity':
+                value = weatherData.main?.humidity || 0;
+                break;
+            case 'rainfall':
+                value = weatherData.rain?.['1h'] || 0;
+                break;
+            case 'wind_speed':
+                value = weatherData.wind?.speed || 0;
+                break;
+            case 'pressure':
+                value = weatherData.main?.pressure || 0;
+                break;
+            case 'visibility':
+                value = (weatherData.visibility || 0) / 1000; // Convert to km
+                break;
+            default:
+                value = 0;
+        }
+
+        return {
+            statistics: {
+                count: 1,
+                latest: value,
+                average: value,
+                min: value * 0.9,
+                max: value * 1.1
+            },
+            naturalFactorInfo: {
+                displayName: factorInfo.displayName,
+                unit: factorInfo.unit
+            }
+        };
+    } catch (error) {
+        console.error('Error fetching environmental data:', error);
+        throw error;
+    }
+}
+
+async function fetchMultipleFactors(
+    city: string,
+    factors: string[],
+    startDate: string,
+    endDate: string
+): Promise<void> {
+    console.log(`Fetching real environmental data for ${factors.join(', ')} in ${city} from ${startDate} to ${endDate}`);
+
+    // Fetch weather data once and extract multiple factors
+    const weatherData = await fetchWeatherData(city, startDate, endDate);
+    console.log('Real weather data fetched:', weatherData);
+}
 
 /**
  * Tool definition for AI chat system

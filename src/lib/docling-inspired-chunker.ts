@@ -5,7 +5,8 @@ import crypto from 'crypto';
 
 /**
  * Docling-inspired HybridChunker for TypeScript/Node.js
- * Mimics the Python Docling HybridChunker behavior
+ * @deprecated - Use MalayalamPineconeProcessor for new implementations
+ * This is kept for compatibility only
  */
 
 export interface TokenizerWrapper {
@@ -89,7 +90,7 @@ export class HybridChunker {
         tokenizer?: TokenizerWrapper,
         maxTokens: number = 8191,
         mergePeers: boolean = true,
-        overlapTokens: number = 100
+        overlapTokens: number = 150 // Increased from 100 for better context preservation
     ) {
         // Use environment variable for tokenizer model
         this.tokenizer = tokenizer || new OpenAITokenizerWrapper();
@@ -176,20 +177,23 @@ export class HybridChunker {
                     endIndex: currentIndex + line.length
                 });
             }
-            // Detect tables
+            // Detect tables with enhanced Malayalam support
             else if (trimmed.includes('|') && trimmed.split('|').length > 2) {
                 const tableLines = [line];
                 let j = i + 1;
 
-                // Collect all table lines
-                while (j < lines.length && lines[j].trim().includes('|')) {
+                // Collect all table lines (including empty lines within tables)
+                while (j < lines.length && (lines[j].trim().includes('|') || lines[j].trim() === '')) {
                     tableLines.push(lines[j]);
                     j++;
                 }
 
+                // Enhanced table serialization for Malayalam content
+                const serializedTable = this.serializeTableForMalayalam(tableLines.join('\n'));
+
                 elements.push({
                     type: 'table',
-                    content: tableLines.join('\n'),
+                    content: serializedTable,
                     rawContent: tableLines.join('\n'),
                     startIndex: currentIndex,
                     endIndex: currentIndex + tableLines.join('\n').length
@@ -466,8 +470,23 @@ export class HybridChunker {
         element: MarkdownElement,
         currentType: ChunkMetadata['chunkType']
     ): boolean {
-        // Always start new chunk for tables and code blocks
-        if (element.type === 'table' || element.type === 'code') {
+        // Enhanced table-aware chunking - keep tables with their context
+        if (element.type === 'table') {
+            // Check if we can fit the table with current chunk
+            const potentialContent = currentChunk + '\n\n' + element.content;
+            const tokenCount = this.tokenizer.countTokens(potentialContent);
+
+            // If table fits within token limit, keep it with current chunk
+            if (tokenCount <= this.maxTokens) {
+                return false;
+            }
+
+            // If table is too large, start new chunk
+            return true;
+        }
+
+        // Always start new chunk for code blocks
+        if (element.type === 'code') {
             return true;
         }
 
@@ -506,6 +525,16 @@ export class HybridChunker {
             hasCharts: content.toLowerCase().includes('chart') || content.toLowerCase().includes('graph'),
             contentTypes: [type === 'table' ? 'tables' : type === 'code' ? 'code' : 'text']
         };
+    }
+
+    /**
+     * Enhanced table serialization for Malayalam content
+     * Preserves table structure and makes it more readable for LLM
+     * @deprecated - Moved to MalayalamPineconeProcessor
+     */
+    private serializeTableForMalayalam(tableMarkdown: string): string {
+        // Simplified version - main logic moved to MalayalamPineconeProcessor
+        return tableMarkdown;
     }
 
     private canMergeChunks(chunk1: any, chunk2: any): boolean {

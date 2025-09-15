@@ -1,5 +1,5 @@
 import { getChunkedDocsFromPDF, getChunkedDocsIncrementally } from "@/lib/pdf-loader";
-import { OptimizedVectorStore } from "@/lib/optimized-vector-store";
+import { processMalayalamDocuments } from "@/lib/malayalam-pinecone-processor";
 
 /**
  * Enhanced document preparation script using Docling-inspired chunking and OpenAI embeddings
@@ -13,9 +13,7 @@ const mode = process.argv[2] || 'incremental';
         console.log("🚀 Starting Enhanced Document Preparation with Docling-inspired Chunking");
         console.log("=".repeat(70));
 
-        // Initialize the optimized vector store (with enhanced Docling chunking)
-        const vectorStore = new OptimizedVectorStore();
-        console.log("✅ Optimized vector store initialized (with Docling-inspired chunking)");
+        console.log("✅ Malayalam processor will handle chunking and storage");
 
         if (mode === 'full' || mode === 'legacy') {
             console.log("\n🔄 Running in FULL REBUILD mode with Enhanced Processing...");
@@ -23,7 +21,7 @@ const mode = process.argv[2] || 'incremental';
 
             console.log("\n📄 Loading and chunking documents with hybrid chunker...");
             const docs = await getChunkedDocsFromPDF();
-            console.log(`📊 Loaded ${docs.length} document chunks`);
+            console.log(`📊 Loaded ${docs.length} markdown documents`);
 
             // Enhanced document analysis
             console.log("\n🔍 Analyzing document composition...");
@@ -48,8 +46,12 @@ const mode = process.argv[2] || 'incremental';
             console.log(`🧩 Chunk Types: ${Array.from(chunkTypes.entries()).map(([type, count]) => `${type}: ${count}`).join(', ')}`);
             console.log(`🔤 Total Tokens: ${totalTokens.toLocaleString()}`);
 
-            console.log("\n🚀 Embedding and storing documents with enhanced metadata...");
-            await vectorStore.embedAndStoreDocs(docs);
+            console.log("\n🚀 Processing and storing documents via Malayalam processor...");
+            const result = await processMalayalamDocuments(
+                docs.map(d => ({ content: d.pageContent, filename: d.metadata.source || 'unknown.md', source: d.metadata.source || 'unknown' })),
+                { namespace: 'malayalam-docs' }
+            );
+            console.log("✅ Stored:", result);
 
             console.log("\n✅ Enhanced document preparation completed successfully!");
 
@@ -57,14 +59,14 @@ const mode = process.argv[2] || 'incremental';
             console.log("\n🔄 Running in INCREMENTAL mode with Enhanced Processing...");
             console.log("✅ Only new or changed documents will be processed with enhanced chunking");
 
-            const result = await getChunkedDocsIncrementally({
-                enableBackup: true,
-                batchSize: 50
-            });
+            const result = await getChunkedDocsIncrementally({});
 
             if (result.documents.length > 0) {
                 console.log(`\n🔄 Processing ${result.documents.length} new/updated chunks with enhanced embedding...`);
-                await vectorStore.embedAndStoreDocs(result.documents);
+                const store = await processMalayalamDocuments(
+                    result.documents.map(d => ({ content: d.pageContent, filename: d.metadata.source || 'unknown.md', source: d.metadata.source || 'unknown' })),
+                    { namespace: 'malayalam-docs' }
+                );
 
                 console.log('\n📊 ENHANCED INCREMENTAL UPDATE SUMMARY:');
                 console.log('='.repeat(60));

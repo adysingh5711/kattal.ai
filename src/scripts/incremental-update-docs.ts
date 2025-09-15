@@ -1,5 +1,5 @@
 import { getChunkedDocsIncrementally, getDocumentStatus } from "@/lib/pdf-loader";
-import { getPinecone } from "@/lib/pinecone-client";
+import { processMalayalamDocuments } from "@/lib/malayalam-pinecone-processor";
 
 /**
  * Script to add new documents incrementally without disturbing existing data
@@ -14,8 +14,7 @@ const command = process.argv[2] || 'update';
 (async () => {
     try {
         console.log('🚀 Starting incremental document update...');
-        const pineconeClient = await getPinecone();
-        console.log("🔗 Connected to Pinecone");
+        console.log("🔗 Ready to process Malayalam documents");
 
         switch (command) {
             case 'status':
@@ -74,11 +73,7 @@ async function updateDocuments(options = {}): Promise<void> {
 
     const startTime = Date.now();
 
-    const result = await getChunkedDocsIncrementally({
-        enableBackup: true,
-        batchSize: 50,
-        ...options
-    });
+    const result = await getChunkedDocsIncrementally({});
 
     const totalTime = Date.now() - startTime;
 
@@ -110,7 +105,7 @@ async function updateDocuments(options = {}): Promise<void> {
     }
 
     // Performance insights
-    if (result.updateResult.processedChunks > 0) {
+    if (result.documents.length > 0) {
         const chunksPerSecond = result.updateResult.processedChunks / (totalTime / 1000);
         console.log(`\n⚡ Performance: ${chunksPerSecond.toFixed(1)} chunks/second`);
 
@@ -118,6 +113,14 @@ async function updateDocuments(options = {}): Promise<void> {
             const skipRatio = result.updateResult.skippedDocuments / result.updateResult.totalDocuments;
             console.log(`💡 Efficiency: ${(skipRatio * 100).toFixed(1)}% documents skipped (no changes)`);
         }
+    }
+
+    // Store documents via Malayalam processor
+    if (result.documents.length > 0) {
+        await processMalayalamDocuments(
+            result.documents.map(d => ({ content: d.pageContent, filename: d.metadata.source || 'unknown.md', source: d.metadata.source || 'unknown' })),
+            { namespace: 'malayalam-docs' }
+        );
     }
 
     // Recommendations

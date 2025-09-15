@@ -3,9 +3,10 @@ import { Document } from "langchain/document";
 import { env } from "./env";
 import fs from 'fs';
 import path from 'path';
-import { processDocumentMultimodal } from "./multimodal-processor";
-// Using enhanced Docling-inspired chunking - no need to import old chunker
-import { IncrementalDataManager, IncrementalUpdateOptions } from "./incremental-data-manager";
+
+// NOTE: This loader is streamlined to handle Markdown files only.
+// PDF/DOC/DOCX handling has been removed to simplify the pipeline.
+// Use external preprocessors to convert PDFs to Markdown before ingestion.
 
 /**
  * Recursively find files of a specific type in a directory and its subdirectories
@@ -30,9 +31,7 @@ function findFilesRecursively(dirPath: string, fileType: string): string[] {
                 const lower = item.toLowerCase();
                 let matches = false;
 
-                if (fileType === 'PDF/DOC/DOCX') {
-                    matches = lower.endsWith('.pdf') || lower.endsWith('.doc') || lower.endsWith('.docx');
-                } else if (fileType === 'Markdown') {
+                if (fileType === 'Markdown') {
                     matches = lower.endsWith('.md') || lower.endsWith('.markdown');
                 }
 
@@ -75,17 +74,24 @@ async function processDocumentsFromPath(
                     const fileName = path.basename(file);
                     const relativePath = path.relative(dirPath, file);
                     console.log(`\n📄 Processing ${fileType} file: ${relativePath}`);
-                    const docs = await processDocumentMultimodal(file);
-
+                    const content = fs.readFileSync(file, 'utf8');
+                    const doc = new Document({
+                        pageContent: content,
+                        metadata: {
+                            source: file,
+                            fileType: 'markdown',
+                            chunkType: 'text'
+                        }
+                    });
                     // Track processing summary with relative path for better organization
                     const summaryKey = relativePath.includes(path.sep) ? relativePath : fileName;
                     processingSummary[summaryKey] = {
-                        pages: docs.length,
-                        chunks: 0 // Will be updated after chunking
+                        pages: 1,
+                        chunks: 1
                     };
 
-                    allDocs.push(...docs);
-                    console.log(`✅ Processed ${docs.length} pages from ${relativePath}`);
+                    allDocs.push(doc);
+                    console.log(`✅ Loaded markdown from ${relativePath}`);
                 } catch (fileError) {
                     console.error(`❌ Error processing file ${file}:`, fileError);
                     // Continue with other files even if one fails
@@ -104,15 +110,23 @@ async function processDocumentsFromPath(
         const file = pathPattern;
         const fileName = path.basename(file);
         console.log(`\n📄 Processing single ${fileType} file: ${fileName}`);
-        const docs = await processDocumentMultimodal(file);
+        const content = fs.readFileSync(file, 'utf8');
+        const doc = new Document({
+            pageContent: content,
+            metadata: {
+                source: file,
+                fileType: 'markdown',
+                chunkType: 'text'
+            }
+        });
 
         processingSummary[fileName] = {
-            pages: docs.length,
-            chunks: 0 // Will be updated after chunking
+            pages: 1,
+            chunks: 1
         };
 
-        allDocs.push(...docs);
-        console.log(`✅ Processed ${docs.length} pages from ${fileName}`);
+        allDocs.push(doc);
+        console.log(`✅ Loaded markdown from ${fileName}`);
     }
 }
 
@@ -121,15 +135,10 @@ export async function getChunkedDocsFromPDF() {
         let allDocs: Document[] = [];
         const processingSummary: { [key: string]: { pages: number, chunks: number } } = {};
 
-        // Process both PDF and markdown documents
-        const pdfPathPattern = env.DOC_PATH || env.PDF_PATH || env.DOCX_PATH;
+        // Process markdown documents only (PDF/DOC paths are ignored)
         const markdownPathPattern = env.MARKDOWN_PATH;
 
-        console.log(`📁 Processing PDF documents from: ${pdfPathPattern}`);
         console.log(`📁 Processing Markdown documents from: ${markdownPathPattern}`);
-
-        // Process PDF documents
-        await processDocumentsFromPath(pdfPathPattern, allDocs, processingSummary, 'PDF/DOC/DOCX');
 
         // Process Markdown documents
         await processDocumentsFromPath(markdownPathPattern, allDocs, processingSummary, 'Markdown');
@@ -140,9 +149,8 @@ export async function getChunkedDocsFromPDF() {
 
         console.log(`\n📊 Successfully loaded ${allDocs.length} document sections`);
 
-        // Documents are now pre-chunked using Docling-inspired chunking in multimodal-processor
-        // No additional chunking needed as each document is already optimally chunked
-        console.log(`✂️  Using ${allDocs.length} pre-chunked documents (Docling-inspired chunking)`);
+        // Returned documents are raw markdown content; Malayalam processor will chunk/serialize
+        console.log(`✂️  Using ${allDocs.length} markdown documents for downstream processing`);
 
         // Update chunks count in summary  
         Object.keys(processingSummary).forEach(fileName => {
@@ -181,7 +189,7 @@ export async function getChunkedDocsFromPDF() {
  * Enhanced version that loads documents incrementally without disturbing existing data
  */
 export async function getChunkedDocsIncrementally(
-    options: IncrementalUpdateOptions = {}
+    options: Record<string, unknown> = {}
 ): Promise<{
     documents: Document[];
     updateResult: any;
@@ -190,36 +198,24 @@ export async function getChunkedDocsIncrementally(
     try {
         console.log('🔄 Starting incremental document loading...');
 
-        // Step 1: Load all documents normally
+        // Load all documents (no differential logic in streamlined version)
         const allDocs = await getChunkedDocsFromPDF();
-
-        // Step 2: Import required modules dynamically to avoid circular dependencies
-        const { getPinecone } = await import("./pinecone-client");
-        const pineconeClient = await getPinecone();
-
-        // Step 3: Initialize incremental data manager
-        const dataManager = new IncrementalDataManager(pineconeClient);
-
-        // Step 4: Process documents incrementally
-        const updateResult = await dataManager.addDocumentsIncremental(allDocs, {
-            enableBackup: true,
-            batchSize: 50,
-            ...options
-        });
-
-        console.log('✅ Incremental loading completed:', {
-            total: updateResult.totalDocuments,
-            new: updateResult.newDocuments,
-            updated: updateResult.updatedDocuments,
-            skipped: updateResult.skippedDocuments,
-            time: `${(updateResult.processingTime / 1000).toFixed(2)}s`
-        });
+        const updateResult = {
+            totalDocuments: allDocs.length,
+            newDocuments: allDocs.length,
+            updatedDocuments: 0,
+            skippedDocuments: 0,
+            processedChunks: allDocs.length,
+            errorDocuments: 0,
+            processingTime: 0,
+            fingerprints: allDocs.map((d) => ({ source: d.metadata.source || '', chunkCount: 1 }))
+        };
 
         // Return summary for compatibility
         const processingSummary: { [key: string]: { pages: number, chunks: number } } = {};
 
         // Calculate summary from the update result
-        updateResult.fingerprints.forEach(fp => {
+        updateResult.fingerprints.forEach((fp: any) => {
             const fileName = path.basename(fp.source);
             if (!processingSummary[fileName]) {
                 processingSummary[fileName] = { pages: 0, chunks: 0 };
@@ -257,11 +253,13 @@ export async function getDocumentStatus(): Promise<{
     }>;
 }> {
     try {
-        const { getPinecone } = await import("./pinecone-client");
-        const pineconeClient = await getPinecone();
-        const dataManager = new IncrementalDataManager(pineconeClient);
-
-        return await dataManager.getDocumentStatus();
+        // Streamlined: status reporting not implemented; return empty
+        return {
+            totalDocuments: 0,
+            totalChunks: 0,
+            lastUpdate: 0,
+            documents: []
+        };
     } catch (error) {
         console.error("Failed to get document status:", error);
         return {
