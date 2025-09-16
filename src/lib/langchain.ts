@@ -190,7 +190,10 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             if (Math.random() < 0.1) { // 10% chance
                 logCachePerformance();
             }
-            return cachedResult;
+            return {
+                ...cachedResult,
+                cached: true
+            };
         }
 
         // Step 1.5: Fast response for very simple queries (greetings, basic questions) - MALAYALAM ONLY
@@ -228,7 +231,8 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                         issues: [],
                         improvements: []
                     },
-                    reasoning: ['Fast response for greeting query - Malayalam only']
+                    reasoning: ['Fast response for greeting query - Malayalam only'],
+                    cached: false
                 };
             }
         }
@@ -291,7 +295,8 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                                 improvements: []
                             },
                             reasoning: ['Real-time environmental data fetched from IoT sensors'],
-                            environmentalData: environmentalData.data
+                            environmentalData: environmentalData.data,
+                            cached: false
                         };
                     }
                 } else {
@@ -516,7 +521,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         };
         setCachedQuery(cacheKey, 'malayalam-docs', cacheableResponse, chatHistory);
 
-        return response;
+        return cacheableResponse;
     } catch (e) {
         console.error(e);
         throw new Error("Call chain method failed to execute successfully!!");
