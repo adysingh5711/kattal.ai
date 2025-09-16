@@ -54,6 +54,7 @@
     "dotenv": "^16.6.1",
     "gsap": "^3.13.0",
     "langchain": "^0.3.30",
+    "lru-cache": "^11.2.1",
     "lucide-react": "^0.525.0",
     "mammoth": "^1.10.0",
     "motion": "^12.23.6",

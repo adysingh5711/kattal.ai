@@ -17,6 +17,7 @@ import {
     extractParametersFromQuery,
     type EnvironmentalToolResult
 } from "./ai-tools";
+import { getCachedQuery, setCachedQuery, logCachePerformance } from "./query-cache";
 
 // Simplified interfaces for streamlined system
 interface ValidationResult {
@@ -53,29 +54,46 @@ class SimpleQueryAnalyzer {
     async classifyQuery(query: string, _chatHistory?: string): Promise<QueryAnalysis> {
         const lowerQuery = query.toLowerCase();
 
-        // Simple classification
+        // Enhanced classification for better document retrieval
         let queryType = 'FACTUAL';
-        let complexity = 1;
+        let complexity = 2; // Start with higher baseline for better retrieval
 
-        if (lowerQuery.includes('compare') || lowerQuery.includes('difference')) {
+        // Enhanced Malayalam query analysis
+        const malayalamQuestionWords = ['എന്ത്', 'എങ്ങനെ', 'എവിടെ', 'എപ്പോൾ', 'ആര്', 'എന്തുകൊണ്ട്', 'ചെയ്യാമോ', 'ഉണ്ടോ'];
+        const analyticalWords = ['how', 'why', 'explain', 'എങ്ങനെ', 'എന്തുകൊണ്ട്', 'വിശദീകരിക്കുക'];
+        const complexWords = ['compare', 'analyze', 'relationship', 'തുലനം', 'വിശകലനം', 'ബന്ധം'];
+
+        // Extract entities (place names, topics)
+        const entities = [];
+        if (lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('kattakada')) entities.push('Kattakada');
+        if (lowerQuery.includes('കപ്പ') || lowerQuery.includes('tapioca')) entities.push('Tapioca');
+        if (lowerQuery.includes('കൃഷി') || lowerQuery.includes('cultivation')) entities.push('Agriculture');
+        if (lowerQuery.includes('തിരുവനന്തപുരം') || lowerQuery.includes('thiruvananthapuram')) entities.push('Thiruvananthapuram');
+
+        if (lowerQuery.includes('compare') || lowerQuery.includes('difference') || lowerQuery.includes('തുലനം')) {
             queryType = 'COMPARATIVE';
-            complexity = 2;
-        } else if (lowerQuery.includes('why') || lowerQuery.includes('how')) {
+            complexity = 3;
+        } else if (analyticalWords.some(word => lowerQuery.includes(word))) {
             queryType = 'INFERENTIAL';
-            complexity = 3;
-        } else if (lowerQuery.includes('analyze') || lowerQuery.includes('trend')) {
+            complexity = 4;
+        } else if (complexWords.some(word => lowerQuery.includes(word))) {
             queryType = 'ANALYTICAL';
-            complexity = 3;
+            complexity = 4;
+        }
+
+        // Agricultural queries need more context
+        if (lowerQuery.includes('കൃഷി') || lowerQuery.includes('cultivation') || lowerQuery.includes('farming')) {
+            complexity = Math.max(complexity, 3);
         }
 
         return {
             queryType,
             complexity,
-            keyEntities: [],
+            keyEntities: entities,
             requiresCrossReference: complexity > 2,
             dataTypesNeeded: ['text'],
             reasoningSteps: [],
-            suggestedK: Math.min(8, complexity * 2)
+            suggestedK: Math.max(6, Math.min(12, complexity * 3)) // Minimum 6, maximum 12 documents
         };
     }
 }
@@ -99,7 +117,12 @@ class SimpleResponseSynthesizer {
     async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>) {
         // Simple response synthesis using streaming model
         const context = documents.map(doc => doc.pageContent).join('\n\n');
-        const prompt = QA_TEMPLATE.replace('{context}', context).replace('{question}', query);
+
+        console.log(`🔍 DEBUG: Context length: ${context.length} characters`);
+        console.log(`🔍 DEBUG: Context preview: ${context.substring(0, 200)}...`);
+        console.log(`🔍 DEBUG: Query: ${query}`);
+
+        const prompt = QA_TEMPLATE.replace('{context}', context).replace('{input}', query);
 
         const response = await streamingModel.invoke(prompt);
 
@@ -158,6 +181,17 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             needsCrossRef: analysis.requiresCrossReference,
             estimatedTime: optimizationResult.estimatedTime
         });
+
+        // Check cache first for faster responses
+        const cacheKey = sanitizedQuestion;
+        const cachedResult = getCachedQuery(cacheKey, 'malayalam-docs', chatHistory);
+        if (cachedResult) {
+            // Log cache performance periodically
+            if (Math.random() < 0.1) { // 10% chance
+                logCachePerformance();
+            }
+            return cachedResult;
+        }
 
         // Step 1.5: Fast response for very simple queries (greetings, basic questions) - MALAYALAM ONLY
         if (analysis.complexity === 1 && !analysis.requiresCrossReference) {
@@ -285,54 +319,42 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
             const embeddings = new OpenAIEmbeddings({
                 openAIApiKey: env.OPENAI_API_KEY,
-                modelName: 'text-embedding-3-large'
+                modelName: 'text-embedding-3-large',
+                dimensions: 1024 // Match the Pinecone index dimensions
             });
 
             // Generate real embedding for the query
             const queryEmbedding = await embeddings.embedQuery(sanitizedQuestion);
 
-            // Real Pinecone search
+            // Use LangChain's PineconeStore for proper document retrieval
+            const { PineconeStore } = await import('@langchain/pinecone');
             const pineconeClient = await getPinecone();
             const index = pineconeClient.Index(env.PINECONE_INDEX_NAME);
 
-            // Search across multiple namespaces for better results
-            const namespaces = ['default', 'malayalam-docs', 'tables', 'headings'];
-            const allDocuments: Array<{ pageContent: string; metadata: Record<string, unknown> }> = [];
+            // Create PineconeStore instance
+            const vectorStore = new PineconeStore(embeddings, {
+                pineconeIndex: index,
+                namespace: 'malayalam-docs'
+            });
 
-            for (const namespace of namespaces) {
-                try {
-                    const searchResponse = await index.namespace(namespace).query({
-                        vector: queryEmbedding,
-                        topK: Math.ceil(analysis.suggestedK / namespaces.length),
-                        includeMetadata: true
-                        // Removed empty filter object - Pinecone doesn't allow empty filters
-                    });
+            // Use similarity search with score
+            const docs = await vectorStore.similaritySearchWithScore(sanitizedQuestion, 8);
 
-                    const namespaceDocs = (searchResponse.matches || []).map(match => ({
-                        pageContent: String(match.metadata?.text || match.metadata?.content || ''),
-                        metadata: {
-                            ...match.metadata,
-                            namespace,
-                            score: match.score
-                        }
-                    }));
+            console.log(`🔍 LangChain search found ${docs.length} documents`);
 
-                    allDocuments.push(...namespaceDocs);
-                } catch (error) {
-                    console.warn(`Failed to search namespace ${namespace}:`, error);
+            const uniqueDocuments = docs.map(([doc, score]) => ({
+                pageContent: doc.pageContent,
+                metadata: {
+                    ...doc.metadata,
+                    score: score,
+                    namespace: 'malayalam-docs'
                 }
-            }
+            }));
 
-            // Sort by score and deduplicate
-            const uniqueDocuments = allDocuments
-                .filter((doc, index, self) =>
-                    index === self.findIndex(d => d.pageContent === doc.pageContent)
-                )
-                .sort((a, b) => (b.metadata.score as number || 0) - (a.metadata.score as number || 0))
-                .slice(0, analysis.suggestedK);
+            console.log(`🔍 Processed ${uniqueDocuments.length} documents with content`);
 
             retrievalTime = Date.now() - retrievalStartTime;
-            console.log(`🔍 Real Pinecone retrieval: ${uniqueDocuments.length} documents from ${namespaces.length} namespaces (${retrievalTime}ms)`);
+            console.log(`🔍 Real Pinecone retrieval: ${uniqueDocuments.length} documents from malayalam-docs namespace (${retrievalTime}ms)`);
 
             retrievalResult = {
                 documents: uniqueDocuments,
@@ -381,6 +403,11 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         console.log(`🔍 Quality Score: ${(validation.overallScore * 100).toFixed(1)}% (skipped validation for speed)`);
 
+        // Alert on low quality responses
+        if (validation.overallScore < 0.6) {
+            console.warn(`⚠️ Low quality response detected: ${(validation.overallScore * 100).toFixed(1)}% for "${sanitizedQuestion.substring(0, 50)}..."`);
+        }
+
         // Step 5: Track performance metrics
         const totalTime = Date.now() - overallStartTime;
         performanceOptimizer.trackPerformance({
@@ -393,6 +420,14 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             documentsRetrieved: retrievalResult.documents.length,
             qualityScore: validation.overallScore
         });
+
+        // Production performance monitoring
+        if (totalTime > 3000) {
+            console.warn(`⚠️ Slow query detected: ${totalTime}ms for "${sanitizedQuestion.substring(0, 50)}..."`);
+        }
+
+        // Log performance metrics for production monitoring
+        console.log(`📈 Performance: ${totalTime}ms total (retrieval: ${retrievalTime}ms, synthesis: ${synthesisTime}ms, docs: ${retrievalResult.documents.length})`);
 
         // Prepare enhanced response
         const enhancedSources = synthesis.sourceAttribution.map(attr => ({
@@ -472,6 +507,14 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             response.environmentalData = environmentalData.data;
             response.environmentalSummary = environmentalData.summary;
         }
+
+        // Cache the result for future queries (add required cache properties)
+        const cacheableResponse = {
+            ...response,
+            cached: false,
+            cacheTimestamp: Date.now()
+        };
+        setCachedQuery(cacheKey, 'malayalam-docs', cacheableResponse, chatHistory);
 
         return response;
     } catch (e) {

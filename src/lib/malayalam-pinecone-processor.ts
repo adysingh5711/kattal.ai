@@ -51,11 +51,11 @@ export class MalayalamPineconeProcessor {
     private vectorStore: PineconeStore | null = null;
     private seenHashes: Set<string> = new Set();
 
-    // Optimal settings for Malayalam MD files
+    // Optimal settings for Malayalam MD files (production optimized)
     private readonly defaultOptions: ProcessingOptions = {
         namespace: 'malayalam-docs',
-        chunkSize: 600, // Optimal for Malayalam text density
-        chunkOverlap: 80,  // Good context preservation
+        chunkSize: 1000, // Larger chunks for better context (production optimized)
+        chunkOverlap: 150, // Better context preservation (production optimized)
         enforceLanguage: false, // Set to false to process all documents
         preserveTableStructure: true,
         enableDeduplication: true
