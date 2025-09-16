@@ -1,5 +1,6 @@
 import { getChunkedDocsFromPDF, getChunkedDocsIncrementally } from "@/lib/pdf-loader";
 import { processMalayalamDocuments } from "@/lib/malayalam-pinecone-processor";
+import { env } from "@/lib/env";
 
 /**
  * Enhanced document preparation script using Docling-inspired chunking and OpenAI embeddings
@@ -49,7 +50,7 @@ const mode = process.argv[2] || 'incremental';
             console.log("\n🚀 Processing and storing documents via Malayalam processor...");
             const result = await processMalayalamDocuments(
                 docs.map(d => ({ content: d.pageContent, filename: d.metadata.source || 'unknown.md', source: d.metadata.source || 'unknown' })),
-                { namespace: 'malayalam-docs', enforceLanguage: false }
+                { namespace: env.PINECONE_NAMESPACE || 'malayalam-docs', enforceLanguage: false }
             );
             console.log("✅ Stored:", result);
 
@@ -65,7 +66,7 @@ const mode = process.argv[2] || 'incremental';
                 console.log(`\n🔄 Processing ${result.documents.length} new/updated chunks with enhanced embedding...`);
                 const store = await processMalayalamDocuments(
                     result.documents.map(d => ({ content: d.pageContent, filename: d.metadata.source || 'unknown.md', source: d.metadata.source || 'unknown' })),
-                    { namespace: 'malayalam-docs', enforceLanguage: false }
+                    { namespace: env.PINECONE_NAMESPACE || 'malayalam-docs', enforceLanguage: false }
                 );
 
                 console.log('\n📊 ENHANCED INCREMENTAL UPDATE SUMMARY:');

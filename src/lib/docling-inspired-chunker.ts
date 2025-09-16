@@ -26,7 +26,7 @@ export class OpenAITokenizerWrapper implements TokenizerWrapper {
         let tokenizerModel: string;
 
         if (this.modelName.includes("3-large") || this.modelName.includes("3-small")) {
-            tokenizerModel = "text-embedding-3-large";
+            tokenizerModel = env.EMBEDDING_MODEL;
         } else if (this.modelName.includes("ada-002")) {
             tokenizerModel = "text-embedding-ada-002";
         } else {

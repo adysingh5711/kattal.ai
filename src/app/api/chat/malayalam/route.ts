@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { streamingModel } from "@/lib/llm";
 import { SystemMessage, HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
 import { MalayalamPineconeProcessor } from "@/lib/malayalam-pinecone-processor";
+import { env } from "@/lib/env";
 
 interface Message {
     role: "user" | "assistant";
@@ -37,7 +38,7 @@ async function initializeMalayalamProcessor(): Promise<MalayalamPineconeProcesso
  */
 export async function POST(request: NextRequest) {
     try {
-        const { messages, namespaces = ['malayalam-docs'] }: {
+        const { messages, namespaces = [env.PINECONE_NAMESPACE || 'malayalam-docs'] }: {
             messages: Message[];
             namespaces?: string[];
         } = await request.json();

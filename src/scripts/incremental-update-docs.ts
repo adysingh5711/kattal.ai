@@ -1,5 +1,6 @@
 import { getChunkedDocsIncrementally, getDocumentStatus } from "@/lib/pdf-loader";
 import { processMalayalamDocuments } from "@/lib/malayalam-pinecone-processor";
+import { env } from "@/lib/env";
 
 /**
  * Script to add new documents incrementally without disturbing existing data
@@ -119,7 +120,7 @@ async function updateDocuments(options = {}): Promise<void> {
     if (result.documents.length > 0) {
         await processMalayalamDocuments(
             result.documents.map(d => ({ content: d.pageContent, filename: d.metadata.source || 'unknown.md', source: d.metadata.source || 'unknown' })),
-            { namespace: 'malayalam-docs' }
+            { namespace: env.PINECONE_NAMESPACE || 'malayalam-docs' }
         );
     }
 

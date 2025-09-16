@@ -66,6 +66,16 @@ const envSchema = z.object({
 
     // Timing
     INDEX_INIT_TIMEOUT: z.coerce.number().min(1, 'INDEX_INIT_TIMEOUT must be a number > 0'),
+
+    // Pinecone Configuration
+    PINECONE_NAMESPACE: z.string().trim().min(1, 'PINECONE_NAMESPACE is required').optional(),
+
+    // Search Configuration
+    DEFAULT_SEARCH_K: z.coerce.number().min(1, 'DEFAULT_SEARCH_K must be a number > 0').optional(),
+
+    // Chunking Configuration
+    CHUNK_SIZE: z.coerce.number().min(100, 'CHUNK_SIZE must be at least 100').optional(),
+    CHUNK_OVERLAP: z.coerce.number().min(0, 'CHUNK_OVERLAP must be non-negative').optional(),
 });
 
 // Environment validation - only on server side
@@ -76,7 +86,21 @@ export const env = (() => {
     }
 
     try {
-        return envSchema.parse(process.env);
+        const parsedEnv = envSchema.parse(process.env);
+
+        // Apply hardcoded defaults for optional values
+        return {
+            ...parsedEnv,
+            PINECONE_NAMESPACE: parsedEnv.PINECONE_NAMESPACE || 'malayalam-docs',
+            DEFAULT_SEARCH_K: parsedEnv.DEFAULT_SEARCH_K || 5,
+            CHUNK_SIZE: parsedEnv.CHUNK_SIZE || 1000,
+            CHUNK_OVERLAP: parsedEnv.CHUNK_OVERLAP || 150,
+        } as typeof parsedEnv & {
+            PINECONE_NAMESPACE: string;
+            DEFAULT_SEARCH_K: number;
+            CHUNK_SIZE: number;
+            CHUNK_OVERLAP: number;
+        };
     } catch (error) {
         console.error('❌ Invalid environment variables:', error);
         throw new Error('Invalid environment variables');

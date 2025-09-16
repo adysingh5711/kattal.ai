@@ -126,7 +126,7 @@ async function testQueryPerformance() {
 
         try {
             const startTime = Date.now();
-            const docs = await searchMalayalamDocuments(query, ['malayalam-docs'], { k: 5 });
+            const docs = await searchMalayalamDocuments(query, [env.PINECONE_NAMESPACE || 'malayalam-docs'], { k: env.DEFAULT_SEARCH_K || 5 });
             const endTime = Date.now();
             const queryTime = endTime - startTime;
 

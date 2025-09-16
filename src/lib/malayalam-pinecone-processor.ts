@@ -53,9 +53,9 @@ export class MalayalamPineconeProcessor {
 
     // Optimal settings for Malayalam MD files (production optimized)
     private readonly defaultOptions: ProcessingOptions = {
-        namespace: 'malayalam-docs',
-        chunkSize: 1000, // Larger chunks for better context (production optimized)
-        chunkOverlap: 150, // Better context preservation (production optimized)
+        namespace: env.PINECONE_NAMESPACE || 'malayalam-docs',
+        chunkSize: env.CHUNK_SIZE || 1000, // Larger chunks for better context (production optimized)
+        chunkOverlap: env.CHUNK_OVERLAP || 150, // Better context preservation (production optimized)
         enforceLanguage: false, // Set to false to process all documents
         preserveTableStructure: true,
         enableDeduplication: true
@@ -63,8 +63,8 @@ export class MalayalamPineconeProcessor {
 
     constructor() {
         this.embeddings = new OpenAIEmbeddings({
-            modelName: "text-embedding-3-large", // Best for multilingual content
-            dimensions: 1024, // Reduced dimensions for faster processing
+            modelName: env.EMBEDDING_MODEL, // Best for multilingual content
+            dimensions: env.EMBEDDING_DIMENSIONS, // Reduced dimensions for faster processing
         });
     }
 
@@ -517,7 +517,7 @@ export async function processMalayalamDocuments(
  */
 export async function searchMalayalamDocuments(
     query: string,
-    namespaces: string[] = ['malayalam-docs'],
+    namespaces: string[] = [env.PINECONE_NAMESPACE || 'malayalam-docs'],
     options: { k?: number; scoreThreshold?: number } = {}
 ): Promise<Document[]> {
     const processor = new MalayalamPineconeProcessor();

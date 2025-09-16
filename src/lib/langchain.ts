@@ -18,6 +18,7 @@ import {
     type EnvironmentalToolResult
 } from "./ai-tools";
 import { getCachedQuery, setCachedQuery, logCachePerformance } from "./query-cache";
+import { env } from "./env";
 
 // Simplified interfaces for streamlined system
 interface ValidationResult {
@@ -184,7 +185,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         // Check cache first for faster responses
         const cacheKey = sanitizedQuestion;
-        const cachedResult = getCachedQuery(cacheKey, 'malayalam-docs', chatHistory);
+        const cachedResult = getCachedQuery(cacheKey, env.PINECONE_NAMESPACE || 'malayalam-docs', chatHistory);
         if (cachedResult) {
             // Log cache performance periodically
             if (Math.random() < 0.1) { // 10% chance
@@ -324,8 +325,8 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
             const embeddings = new OpenAIEmbeddings({
                 openAIApiKey: env.OPENAI_API_KEY,
-                modelName: 'text-embedding-3-large',
-                dimensions: 1024 // Match the Pinecone index dimensions
+                modelName: env.EMBEDDING_MODEL,
+                dimensions: env.EMBEDDING_DIMENSIONS // Match the Pinecone index dimensions
             });
 
             // Generate real embedding for the query
@@ -339,7 +340,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             // Create PineconeStore instance
             const vectorStore = new PineconeStore(embeddings, {
                 pineconeIndex: index,
-                namespace: 'malayalam-docs'
+                namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
             });
 
             // Use similarity search with score
@@ -352,14 +353,14 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 metadata: {
                     ...doc.metadata,
                     score: score,
-                    namespace: 'malayalam-docs'
+                    namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
                 }
             }));
 
             console.log(`🔍 Processed ${uniqueDocuments.length} documents with content`);
 
             retrievalTime = Date.now() - retrievalStartTime;
-            console.log(`🔍 Real Pinecone retrieval: ${uniqueDocuments.length} documents from malayalam-docs namespace (${retrievalTime}ms)`);
+            console.log(`🔍 Real Pinecone retrieval: ${uniqueDocuments.length} documents from ${env.PINECONE_NAMESPACE || 'malayalam-docs'} namespace (${retrievalTime}ms)`);
 
             retrievalResult = {
                 documents: uniqueDocuments,
@@ -519,7 +520,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             cached: false,
             cacheTimestamp: Date.now()
         };
-        setCachedQuery(cacheKey, 'malayalam-docs', cacheableResponse, chatHistory);
+        setCachedQuery(cacheKey, env.PINECONE_NAMESPACE || 'malayalam-docs', cacheableResponse, chatHistory);
 
         return cacheableResponse;
     } catch (e) {
