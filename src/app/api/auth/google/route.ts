@@ -5,8 +5,8 @@ import { env } from "@/lib/env";
 export async function GET() {
     const supabase = await createClient();
 
-    // Use production URL for the redirect
-    const baseUrl = 'https://kattal-ai.vercel.app';
+    // Use environment URL for the redirect
+    const baseUrl = env.NEXT_PUBLIC_SITE_URL || 'https://kattal-ai.vercel.app';
     console.log('Google OAuth - Base URL:', baseUrl);
     console.log('Google OAuth - Environment:', env.NODE_ENV);
     console.log('Google OAuth - NEXT_PUBLIC_SITE_URL:', env.NEXT_PUBLIC_SITE_URL);

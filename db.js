@@ -1,5 +1,5 @@
 import postgres from 'postgres'
-import { env } from "./env"
+import { env } from "./src/lib/env"
 
 const connectionString = env.DATABASE_URL
 

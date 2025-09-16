@@ -4,6 +4,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import StructuredData from "./structured-data";
+import { env } from "@/lib/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,14 +48,14 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL('https://kattal-ai.vercel.app'),
+  metadataBase: new URL(env.NEXT_PUBLIC_SITE_URL || 'https://kattal-ai.vercel.app'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://kattal-ai.vercel.app',
+    url: env.NEXT_PUBLIC_SITE_URL || 'https://kattal-ai.vercel.app',
     title: 'Kattal AI - Know Your District, Instantly',
     description: 'Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics.',
     siteName: 'Kattal AI',

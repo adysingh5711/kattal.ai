@@ -38,9 +38,9 @@ const envSchema = z.object({
 
     // API keys
     OPENAI_API_KEY: z.string().trim().min(1, 'OPENAI_API_KEY is required'),
-    OPENROUTER_API_KEY: z.string().trim().min(1, 'OPENROUTER_API_KEY is required'),
+    OPENROUTER_API_KEY: z.string().trim().min(1, 'OPENROUTER_API_KEY is required').optional(),
     PINECONE_API_KEY: z.string().trim().min(1, 'PINECONE_API_KEY is required'),
-    AWS_API_KEY: z.string().trim().min(1, 'AWS_API_KEY is required'),
+    AWS_API_KEY: z.string().trim().min(1, 'AWS_API_KEY is required').optional(),
 
     // Supabase Configuration
     DATABASE_URL: z.string().trim().min(1, 'DATABASE_URL is required'),
@@ -59,9 +59,9 @@ const envSchema = z.object({
     EMBEDDING_DIMENSIONS: z.coerce.number().min(1, 'EMBEDDING_DIMENSIONS must be a number > 0'),
 
     // Document paths
-    PDF_PATH: z.string().trim().min(1, 'PDF_PATH is required'),
-    DOCX_PATH: z.string().trim().min(1, 'DOCX_PATH is required'),
-    DOC_PATH: z.string().trim().min(1, 'DOC_PATH is required'),
+    PDF_PATH: z.string().trim().min(1, 'PDF_PATH is required').optional(),
+    DOCX_PATH: z.string().trim().min(1, 'DOCX_PATH is required').optional(),
+    DOC_PATH: z.string().trim().min(1, 'DOC_PATH is required').optional(),
     MARKDOWN_PATH: z.string().trim().min(1, 'MARKDOWN_PATH is required'),
 
     // Timing

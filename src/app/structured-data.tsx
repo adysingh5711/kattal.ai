@@ -1,4 +1,5 @@
 import Script from 'next/script'
+import { env } from '@/lib/env'
 
 export default function StructuredData() {
   const structuredData = {
@@ -6,7 +7,7 @@ export default function StructuredData() {
     "@type": "WebApplication",
     "name": "Kattal AI",
     "description": "Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics.",
-    "url": "https://kattal-ai.vercel.app",
+    "url": env.NEXT_PUBLIC_SITE_URL || "https://kattal-ai.vercel.app",
     "applicationCategory": "ProductivityApplication",
     "operatingSystem": "Web Browser",
     "browserRequirements": "Requires JavaScript. Requires HTML5.",
@@ -14,7 +15,7 @@ export default function StructuredData() {
     "author": {
       "@type": "Organization",
       "name": "Kattal AI Team",
-      "url": "https://kattal-ai.vercel.app",
+      "url": env.NEXT_PUBLIC_SITE_URL || "https://kattal-ai.vercel.app",
       "member": {
         "@type": "Person",
         "name": "Aditya Singh",

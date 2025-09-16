@@ -128,7 +128,7 @@ Kattal AI is a cutting-edge web application that revolutionizes the way users in
    OPENAI_API_KEY=your_openai_api_key
    PINECONE_API_KEY=your_pinecone_api_key
    PINECONE_ENVIRONMENT=your_pinecone_environment
-   PINECONE_INDEX=your_pinecone_index
+   PINECONE_INDEX_NAME=your_pinecone_index
    ```
 
 4. **Run the development server**
@@ -245,7 +245,7 @@ Kattal AI is a cutting-edge web application that revolutionizes the way users in
 OPENAI_API_KEY=your_openai_api_key
 PINECONE_API_KEY=your_pinecone_api_key
 PINECONE_ENVIRONMENT=your_pinecone_environment
-PINECONE_INDEX=your_pinecone_index
+PINECONE_INDEX_NAME=your_pinecone_index
 
 # Optional: Custom Domain
 NEXT_PUBLIC_SITE_URL=https://kattal-ai.vercel.app
