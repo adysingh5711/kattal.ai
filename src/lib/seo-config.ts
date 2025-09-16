@@ -3,11 +3,13 @@
  * Centralized configuration for consistent metadata across the application
  */
 
+import { env } from './env';
+
 export const seoConfig = {
   // Basic Information
   siteName: 'Kattal AI',
   siteDescription: 'Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics.',
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://kattal-ai.vercel.app',
+  siteUrl: env.NEXT_PUBLIC_SITE_URL || 'https://kattal-ai.vercel.app',
   siteLanguage: 'en',
   siteLocale: 'en_US',
 

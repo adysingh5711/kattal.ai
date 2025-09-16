@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { env } from "@/lib/env";
 
 export async function GET() {
     const supabase = await createClient();
@@ -7,8 +8,8 @@ export async function GET() {
     // Use production URL for the redirect
     const baseUrl = 'https://kattal-ai.vercel.app';
     console.log('Google OAuth - Base URL:', baseUrl);
-    console.log('Google OAuth - Environment:', process.env.NODE_ENV);
-    console.log('Google OAuth - NEXT_PUBLIC_SITE_URL:', process.env.NEXT_PUBLIC_SITE_URL);
+    console.log('Google OAuth - Environment:', env.NODE_ENV);
+    console.log('Google OAuth - NEXT_PUBLIC_SITE_URL:', env.NEXT_PUBLIC_SITE_URL);
 
     // Let Supabase handle the redirect URL (it will use the project configuration)
     const { data, error } = await supabase.auth.signInWithOAuth({

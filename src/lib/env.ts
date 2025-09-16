@@ -29,6 +29,9 @@ ENVIRONMENT VARIABLES SECURITY GUIDE:
 
 // Environment variables schema
 const envSchema = z.object({
+    // Node environment
+    NODE_ENV: z.enum(['development', 'production', 'test']).optional().default('development'),
+
     // LLM provider/model
     LLM_PROVIDER: z.string().trim().min(1, 'LLM_PROVIDER is required'),
     LLM_MODEL: z.string().trim().min(1, 'LLM_MODEL is required'),

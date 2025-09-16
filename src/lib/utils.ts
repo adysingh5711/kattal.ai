@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { env } from "./env"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -15,8 +16,8 @@ export function cn(...inputs: ClassValue[]) {
 export function getBaseUrl(): string {
   // FORCE PRODUCTION URL for authentication redirects
   // This ensures Google OAuth always works with the correct callback URL
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, ''); // Remove trailing slash
+  if (env.NEXT_PUBLIC_SITE_URL) {
+    return env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, ''); // Remove trailing slash
   }
 
   // Fallback to the known production URL

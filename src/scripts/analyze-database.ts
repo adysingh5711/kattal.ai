@@ -1,5 +1,6 @@
 import { getPinecone } from "@/lib/pinecone-client";
 import { searchMalayalamDocuments } from "@/lib/malayalam-pinecone-processor";
+import { env } from "@/lib/env";
 
 async function analyzeDatabasePerformance() {
     console.log("🔍 Comprehensive Database Analysis & Optimization");
@@ -16,7 +17,7 @@ async function analyzeDatabasePerformance() {
         console.log("Status: HEALTHY (basic check)");
 
         // Minimal stats
-        const index = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
+        const index = pinecone.Index(env.PINECONE_INDEX_NAME);
         const stats = await index.describeIndexStats();
         const totalVectors = Object.values(stats.namespaces || {}).reduce((acc: number, ns: unknown) => acc + ((ns as { vectorCount?: number })?.vectorCount || 0), 0);
         console.log(`Total Vectors: ${totalVectors.toLocaleString()}`);
