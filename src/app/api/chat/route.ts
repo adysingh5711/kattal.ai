@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         const responseTime = Date.now() - startTime;
         const errorDetails = showErrorInChat(
-            error,
+            error instanceof Error ? error : new Error(String(error)),
             'api_chat_route',
             {
                 responseTime,
