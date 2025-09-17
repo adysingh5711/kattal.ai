@@ -273,3 +273,45 @@
         font-size: 0.75rem;
     }
 }
+
+/* Loading animation applied to text color */
+.wave-effect {
+    animation: wave-loading 8s ease-in-out infinite;
+    background: linear-gradient(90deg,
+            currentColor 0%,
+            rgba(0, 0, 0, 0.3) 25%,
+            rgba(0, 0, 0, 0.6) 50%,
+            rgba(0, 0, 0, 0.3) 75%,
+            currentColor 100%);
+    background-size: 200% 100%;
+    background-position: -200% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+.dark .wave-effect {
+    background: linear-gradient(90deg,
+            currentColor 0%,
+            rgba(255, 255, 255, 0.3) 25%,
+            rgba(255, 255, 255, 0.6) 50%,
+            rgba(255, 255, 255, 0.3) 75%,
+            currentColor 100%);
+    background-size: 200% 100%;
+    background-position: -200% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+@keyframes wave-loading {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}

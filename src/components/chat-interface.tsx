@@ -29,7 +29,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
     function ChatInterface({ selectedChatId }, ref) {
         const [chatHistories, setChatHistories] = useState<Record<string, Message[]>>({})
         const [inputValue, setInputValue] = useState("")
-        const [isTyping, setIsTyping] = useState(false)
         const messagesEndRef = useRef<HTMLDivElement>(null)
         const textareaRef = useRef<HTMLTextAreaElement>(null)
         const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -102,7 +101,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                 [selectedChatId]: [...(prev[selectedChatId] || []), userMessage],
             }))
             setInputValue("")
-            setIsTyping(true)
 
             // Reset textarea height
             if (textareaRef.current) {
@@ -151,8 +149,8 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                         [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage!],
                     }))
 
-                    let searchMetadata: any = null;
-                    let sources: any[] = [];
+                    let searchMetadata: { query?: string } | null = null;
+                    let sources: Array<{ source: string; relevance: number; usedFor: string; contentType: 'text' | 'table' | 'chart' | 'image'; pageReference?: string }> = [];
                     let hasError = false;
 
                     if (reader) {
@@ -172,8 +170,49 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                             if (data.type === 'search_start') {
                                                 console.log('🔍 Search started:', data.data)
                                                 searchMetadata = data.data
-                                            } else if (data.type === 'search_complete') {
-                                                console.log('✅ Search completed:', data.data)
+                                            } else if (data.type === 'loading_start') {
+                                                console.log('⏳ Loading started:', data.data)
+                                                // Add wave effect to the message
+                                                setChatHistories(prev => {
+                                                    const updated = { ...prev }
+                                                    const messages = [...(updated[selectedChatId] || [])]
+                                                    const lastMessage = messages[messages.length - 1]
+                                                    if (lastMessage && lastMessage.sender === 'assistant') {
+                                                        // Only add marker if it's not already there
+                                                        if (!lastMessage.content.includes('|WAVE_EFFECT|')) {
+                                                            lastMessage.content = lastMessage.content + '|WAVE_EFFECT|'
+                                                        }
+                                                    }
+                                                    updated[selectedChatId] = messages
+                                                    return updated
+                                                })
+                                            } else if (data.type === 'loading_complete') {
+                                                console.log('✅ Loading completed:', data.data)
+                                                // Remove wave effect and prepare for clearing
+                                                setChatHistories(prev => {
+                                                    const updated = { ...prev }
+                                                    const messages = [...(updated[selectedChatId] || [])]
+                                                    const lastMessage = messages[messages.length - 1]
+                                                    if (lastMessage && lastMessage.sender === 'assistant') {
+                                                        lastMessage.content = lastMessage.content.replace(/\|WAVE_EFFECT\|/g, '')
+                                                    }
+                                                    updated[selectedChatId] = messages
+                                                    return updated
+                                                })
+                                            } else if (data.type === 'clear_message') {
+                                                console.log('🧹 Clearing previous message')
+                                                // Clear the previous message content
+                                                assistantMessage!.content = ""
+                                                setChatHistories(prev => {
+                                                    const updated = { ...prev }
+                                                    const messages = [...(updated[selectedChatId] || [])]
+                                                    const lastMessage = messages[messages.length - 1]
+                                                    if (lastMessage && lastMessage.sender === 'assistant') {
+                                                        lastMessage.content = ""
+                                                    }
+                                                    updated[selectedChatId] = messages
+                                                    return updated
+                                                })
                                             } else if (data.type === 'content') {
                                                 // Update message content
                                                 assistantMessage!.content += data.content
@@ -291,7 +330,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     return updated
                 })
             } finally {
-                setIsTyping(false)
+                // Streaming completed
             }
         }
 
@@ -327,10 +366,19 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                             }`}
                                     >
                                         {message.sender === "assistant" ? (
-                                            <MarkdownRenderer
-                                                content={message.content}
-                                                className="text-foreground"
-                                            />
+                                            message.content.includes('|WAVE_EFFECT|') ? (
+                                                <div className="text-foreground wave-effect">
+                                                    <MarkdownRenderer
+                                                        content={message.content.replace(/\|WAVE_EFFECT\|/g, '')}
+                                                        className="text-foreground"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <MarkdownRenderer
+                                                    content={message.content}
+                                                    className="text-foreground"
+                                                />
+                                            )
                                         ) : (
                                             <p>{message.content.split('\n').map((line, idx, arr) => (
                                                 <span key={`${message.id}-line-${idx}`}>
@@ -348,23 +396,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                 </div>
                             ))}
 
-                            {isTyping && (
-                                <div className="flex justify-start">
-                                    <div className="bg-muted rounded-2xl px-4 py-2 rounded-bl-none">
-                                        <div className="flex space-x-1">
-                                            <div
-                                                className="bg-muted-foreground/50 animate-bounce animate-delay-0 w-2 h-2 rounded-full"
-                                            ></div>
-                                            <div
-                                                className="bg-muted-foreground/50 animate-bounce animate-delay-150 w-2 h-2 rounded-full"
-                                            ></div>
-                                            <div
-                                                className="bg-muted-foreground/50 animate-bounce animate-delay-300 w-2 h-2 rounded-full"
-                                            ></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                             <div ref={messagesEndRef} />
                         </div>
                     </ScrollArea>
