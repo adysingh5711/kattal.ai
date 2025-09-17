@@ -9,8 +9,6 @@
 // Note: Complex components removed as part of streamlining
 
 import { getPinecone } from "./pinecone-client";
-import { streamingModel } from "./llm";
-import { QA_TEMPLATE } from "./prompt-templates";
 import {
     isEnvironmentalQuery,
     executeEnvironmentalDataTool,
@@ -113,34 +111,76 @@ class SimplePerformanceOptimizer {
     }
 }
 
-// Simplified response synthesizer
+// Optimized response synthesizer
 class SimpleResponseSynthesizer {
     async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>) {
-        // Simple response synthesis using streaming model
-        const context = documents.map(doc => doc.pageContent).join('\n\n');
+        // Optimize context length to reduce LLM processing time
+        const maxContextLength = 2000; // Further reduced for faster processing
+        let context = documents.map(doc => doc.pageContent).join('\n\n');
 
-        console.log(`🔍 DEBUG: Context length: ${context.length} characters`);
-        console.log(`🔍 DEBUG: Context preview: ${context.substring(0, 200)}...`);
-        console.log(`🔍 DEBUG: Query: ${query}`);
+        // Truncate context if too long
+        if (context.length > maxContextLength) {
+            context = context.substring(0, maxContextLength) + '...';
+            console.log(`🔍 Context truncated from ${documents.map(doc => doc.pageContent).join('\n\n').length} to ${context.length} characters`);
+        }
 
-        const prompt = QA_TEMPLATE.replace('{context}', context).replace('{input}', query);
+        // Use a more concise prompt for faster processing
+        const concisePrompt = `You are a helpful AI assistant that analyzes Kerala state documents and provides information in Malayalam.
 
-        const response = await streamingModel.invoke(prompt);
+🚫 RESPOND ONLY IN MALAYALAM SCRIPT (മലയാളം) - NO EXCEPTIONS
 
-        return {
-            synthesizedResponse: response.content as string,
-            responseStyle: 'factual',
-            confidence: 0.8,
-            completeness: 'complete' as const,
-            sourceAttribution: documents.map(doc => ({
-                source: String(doc.metadata?.source || 'unknown'),
-                relevance: 0.8,
-                usedFor: 'context',
-                contentType: 'text' as const,
-                pageReference: String(doc.metadata?.page || '1')
-            })),
-            reasoningChain: ['Simplified response synthesis']
-        };
+CONTEXT:
+${context}
+
+Question: ${query}
+
+Provide a comprehensive answer in Malayalam Script:`;
+
+        // Use non-streaming model for synthesis (more reliable for single responses)
+        const { nonStreamingModel } = await import('./llm');
+
+        // Add timeout protection to prevent hanging
+        const synthesisPromise = nonStreamingModel.invoke(concisePrompt);
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Synthesis timeout after 12 seconds')), 12000)
+        );
+
+        try {
+            const response = await Promise.race([synthesisPromise, timeoutPromise]) as any;
+
+            return {
+                synthesizedResponse: response.content as string,
+                responseStyle: 'factual',
+                confidence: 0.8,
+                completeness: 'complete' as const,
+                sourceAttribution: documents.map(doc => ({
+                    source: String(doc.metadata?.source || 'unknown'),
+                    relevance: 0.8,
+                    usedFor: 'context',
+                    contentType: 'text' as const,
+                    pageReference: String(doc.metadata?.page || '1')
+                })),
+                reasoningChain: ['Optimized response synthesis']
+            };
+        } catch (error) {
+            console.error(`❌ LLM synthesis failed:`, error);
+
+            // Fallback response when LLM fails
+            return {
+                synthesizedResponse: `ക്ഷമിക്കണം, ഈ ചോദ്യത്തിന് ഉത്തരം നൽകാൻ കഴിഞ്ഞില്ല. ദയവായി വീണ്ടും ശ്രമിക്കുക. (Sorry, I couldn't provide an answer to this question. Please try again.)`,
+                responseStyle: 'fallback',
+                confidence: 0.1,
+                completeness: 'partial' as const,
+                sourceAttribution: documents.map(doc => ({
+                    source: String(doc.metadata?.source || 'unknown'),
+                    relevance: 0.5,
+                    usedFor: 'context',
+                    contentType: 'text' as const,
+                    pageReference: String(doc.metadata?.page || '1')
+                })),
+                reasoningChain: ['Fallback response due to LLM failure']
+            };
+        }
     }
 }
 
@@ -153,11 +193,24 @@ type callChainArgs = {
 const responseSynthesizer = new SimpleResponseSynthesizer();
 const performanceOptimizer = new SimplePerformanceOptimizer();
 
+// Cache expensive objects to avoid recreation on every request
+let cachedEmbeddings: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+let cachedVectorStore: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// Add detailed timing to see exactly where the 11+ seconds are going:
 export async function callChain({ question, chatHistory }: callChainArgs) {
     const overallStartTime = Date.now();
 
     try {
         const sanitizedQuestion = question.trim().replaceAll("\n", " ");
+
+        // Check cache first for faster responses
+        const cacheKey = sanitizedQuestion;
+        const cachedResult = getCachedQuery(cacheKey, env.PINECONE_NAMESPACE || 'malayalam-docs', chatHistory);
+
+        if (cachedResult) {
+            return { ...cachedResult, cached: true };
+        }
 
         // Step 1: Performance optimization and caching check
         const queryAnalyzer = new SimpleQueryAnalyzer();
@@ -175,27 +228,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             // This would be implemented with actual cache retrieval
         }
 
-        console.log(`🧠 Query Analysis:`, {
-            type: analysis.queryType,
-            complexity: analysis.complexity,
-            entities: analysis.keyEntities,
-            needsCrossRef: analysis.requiresCrossReference,
-            estimatedTime: optimizationResult.estimatedTime
-        });
-
-        // Check cache first for faster responses
-        const cacheKey = sanitizedQuestion;
-        const cachedResult = getCachedQuery(cacheKey, env.PINECONE_NAMESPACE || 'malayalam-docs', chatHistory);
-        if (cachedResult) {
-            // Log cache performance periodically
-            if (Math.random() < 0.1) { // 10% chance
-                logCachePerformance();
-            }
-            return {
-                ...cachedResult,
-                cached: true
-            };
-        }
+        // Query analysis completed - no need to log normal operation
 
         // Step 1.5: Fast response for very simple queries (greetings, basic questions) - MALAYALAM ONLY
         if (analysis.complexity === 1 && !analysis.requiresCrossReference) {
@@ -319,36 +352,35 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         let retrievalTime = 0;
 
         try {
-            // Get real embedding for the query
-            const { OpenAIEmbeddings } = await import('@langchain/openai');
-            const { env } = await import('./env');
+            // Reuse cached embeddings instance (saves 1-2 seconds)
+            if (!cachedEmbeddings) {
+                const { OpenAIEmbeddings } = await import('@langchain/openai');
+                cachedEmbeddings = new OpenAIEmbeddings({
+                    openAIApiKey: env.OPENAI_API_KEY,
+                    modelName: env.EMBEDDING_MODEL,
+                    dimensions: env.EMBEDDING_DIMENSIONS
+                });
+            }
 
-            const embeddings = new OpenAIEmbeddings({
-                openAIApiKey: env.OPENAI_API_KEY,
-                modelName: env.EMBEDDING_MODEL,
-                dimensions: env.EMBEDDING_DIMENSIONS // Match the Pinecone index dimensions
-            });
+            // Generate embedding (this is the expensive part - keep it)
+            await cachedEmbeddings.embedQuery(sanitizedQuestion);
 
-            // Generate real embedding for the query
-            const queryEmbedding = await embeddings.embedQuery(sanitizedQuestion);
+            // Reuse cached vector store (saves 1-2 seconds)
+            if (!cachedVectorStore) {
+                const { PineconeStore } = await import('@langchain/pinecone');
+                const pineconeClient = await getPinecone();
+                const index = pineconeClient.Index(env.PINECONE_INDEX_NAME);
 
-            // Use LangChain's PineconeStore for proper document retrieval
-            const { PineconeStore } = await import('@langchain/pinecone');
-            const pineconeClient = await getPinecone();
-            const index = pineconeClient.Index(env.PINECONE_INDEX_NAME);
+                cachedVectorStore = new PineconeStore(cachedEmbeddings, {
+                    pineconeIndex: index,
+                    namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
+                });
+            }
 
-            // Create PineconeStore instance
-            const vectorStore = new PineconeStore(embeddings, {
-                pineconeIndex: index,
-                namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
-            });
+            // Perform Pinecone search
+            const docs = await cachedVectorStore.similaritySearchWithScore(sanitizedQuestion, 8);
 
-            // Use similarity search with score
-            const docs = await vectorStore.similaritySearchWithScore(sanitizedQuestion, 8);
-
-            console.log(`🔍 LangChain search found ${docs.length} documents`);
-
-            const uniqueDocuments = docs.map(([doc, score]) => ({
+            const uniqueDocuments = docs.map(([doc, score]: [any, any]) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
                 pageContent: doc.pageContent,
                 metadata: {
                     ...doc.metadata,
@@ -357,10 +389,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 }
             }));
 
-            console.log(`🔍 Processed ${uniqueDocuments.length} documents with content`);
-
             retrievalTime = Date.now() - retrievalStartTime;
-            console.log(`🔍 Real Pinecone retrieval: ${uniqueDocuments.length} documents from ${env.PINECONE_NAMESPACE || 'malayalam-docs'} namespace (${retrievalTime}ms)`);
 
             retrievalResult = {
                 documents: uniqueDocuments,
@@ -369,6 +398,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             };
 
         } catch (error) {
+            // Log only when there's an actual error
             console.error('Pinecone retrieval error:', error);
 
             // Fallback to empty result if Pinecone fails
@@ -379,20 +409,16 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             };
 
             retrievalTime = Date.now() - retrievalStartTime;
-            console.log(`🔍 Fallback retrieval: 0 documents (${retrievalTime}ms)`);
         }
 
         // Step 3: Advanced Response Synthesis
         const synthesisStartTime = Date.now();
-        console.log(`🔧 Using LANGCHAIN route with ${retrievalResult.documents.length} documents`);
         const synthesis = await responseSynthesizer.synthesizeResponse(
             sanitizedQuestion,
             analysis,
             retrievalResult.documents
         );
         const synthesisTime = Date.now() - synthesisStartTime;
-
-        console.log(`✨ Synthesis complete: ${synthesis.responseStyle} style, confidence: ${(synthesis.confidence * 100).toFixed(1)}% (${synthesisTime}ms)`);
 
         // Step 4: Skip quality validation for speed - focus on document depth instead
         const validation: ValidationResult = {
@@ -407,9 +433,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             confidence: 0.9,
         };
 
-        console.log(`🔍 Quality Score: ${(validation.overallScore * 100).toFixed(1)}% (skipped validation for speed)`);
-
-        // Alert on low quality responses
+        // Alert on low quality responses only
         if (validation.overallScore < 0.6) {
             console.warn(`⚠️ Low quality response detected: ${(validation.overallScore * 100).toFixed(1)}% for "${sanitizedQuestion.substring(0, 50)}..."`);
         }
@@ -432,8 +456,10 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             console.warn(`⚠️ Slow query detected: ${totalTime}ms for "${sanitizedQuestion.substring(0, 50)}..."`);
         }
 
-        // Log performance metrics for production monitoring
-        console.log(`📈 Performance: ${totalTime}ms total (retrieval: ${retrievalTime}ms, synthesis: ${synthesisTime}ms, docs: ${retrievalResult.documents.length})`);
+        // Log performance metrics only for slow queries or errors
+        if (totalTime > 10000) {
+            console.log(`📈 Slow query detected: ${totalTime}ms total (retrieval: ${retrievalTime}ms, synthesis: ${synthesisTime}ms, docs: ${retrievalResult.documents.length})`);
+        }
 
         // Prepare enhanced response
         const enhancedSources = synthesis.sourceAttribution.map(attr => ({

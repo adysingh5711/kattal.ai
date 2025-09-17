@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callChain } from "@/lib/langchain";
+import { showErrorInChat } from "@/lib/error-messages";
 
 interface Message {
     role: "user" | "assistant";
@@ -16,7 +17,15 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const messages: Message[] = body.messages ?? [];
         if (!messages.length || !messages[messages.length - 1].content) {
-            return NextResponse.json("Error: No question in the request", { status: 400 });
+            const errorDetails = showErrorInChat(
+                "No question in the request",
+                'api_validation',
+                { requestBody: body }
+            );
+            return NextResponse.json({
+                error: errorDetails.userMessage,
+                technicalError: errorDetails.technicalMessage
+            }, { status: 400 });
         }
 
         const formattedPreviousMessages = messages.slice(0, -1).map(formatMessage);
@@ -41,9 +50,21 @@ export async function POST(req: NextRequest) {
         return response;
     } catch (error) {
         const responseTime = Date.now() - startTime;
-        console.error(`❌ API Error after ${responseTime}ms:`, error);
+        const errorDetails = showErrorInChat(
+            error,
+            'api_chat_route',
+            {
+                responseTime,
+                endpoint: '/api/chat',
+                timestamp: new Date().toISOString()
+            }
+        );
+        console.error(`❌ API Error after ${responseTime}ms:`, errorDetails.technicalMessage);
         return NextResponse.json(
-            { error: "Something went wrong. Try again!" },
+            {
+                error: errorDetails.userMessage,
+                technicalError: errorDetails.technicalMessage
+            },
             { status: 500 }
         );
     }

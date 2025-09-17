@@ -8,6 +8,7 @@ import { Send } from "lucide-react"
 // import { Paperclip, Mic, Image } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { MarkdownRenderer } from "./markdown-renderer"
+import { showErrorInChat } from "@/lib/error-messages"
 import "./chat-interface.css"
 import Image from "next/image"
 
@@ -149,7 +150,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                         [selectedChatId]: [...(prev[selectedChatId] || []), assistantMessage!],
                     }))
 
-                    let searchMetadata: { query?: string } | null = null;
                     let sources: Array<{ source: string; relevance: number; usedFor: string; contentType: 'text' | 'table' | 'chart' | 'image'; pageReference?: string }> = [];
                     let hasError = false;
 
@@ -168,10 +168,9 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                             const data = JSON.parse(line.slice(6))
 
                                             if (data.type === 'search_start') {
-                                                console.log('🔍 Search started:', data.data)
-                                                searchMetadata = data.data
+                                                // Search started - no need to log normal operation
                                             } else if (data.type === 'loading_start') {
-                                                console.log('⏳ Loading started:', data.data)
+                                                // Loading started - no need to log normal operation
                                                 // Add wave effect to the message
                                                 setChatHistories(prev => {
                                                     const updated = { ...prev }
@@ -187,7 +186,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                                     return updated
                                                 })
                                             } else if (data.type === 'loading_complete') {
-                                                console.log('✅ Loading completed:', data.data)
+                                                // Loading completed - no need to log normal operation
                                                 // Remove wave effect and prepare for clearing
                                                 setChatHistories(prev => {
                                                     const updated = { ...prev }
@@ -200,7 +199,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                                     return updated
                                                 })
                                             } else if (data.type === 'clear_message') {
-                                                console.log('🧹 Clearing previous message')
+                                                // Clearing previous message - no need to log normal operation
                                                 // Clear the previous message content
                                                 assistantMessage!.content = ""
                                                 setChatHistories(prev => {
@@ -227,12 +226,17 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                                     return updated
                                                 })
                                             } else if (data.type === 'done') {
-                                                console.log('🎯 Response complete with sources:', data.data?.sources?.length || 0)
+                                                // Response complete - no need to log normal operation
                                                 sources = data.data?.sources || []
                                                 streamingSucceeded = true
                                             } else if (data.type === 'error') {
                                                 hasError = true
-                                                throw new Error(data.error || 'Streaming error occurred')
+                                                const errorDetails = showErrorInChat(
+                                                    data.error || 'Streaming error occurred',
+                                                    'streaming_response',
+                                                    { streamType: 'chat_stream' }
+                                                );
+                                                throw new Error(errorDetails.technicalMessage)
                                             }
                                         } catch (parseError) {
                                             console.warn('Failed to parse streaming data:', parseError)
@@ -242,9 +246,13 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                 }
                             }
                         } catch (readerError) {
-                            console.error('Stream reading error:', readerError)
+                            const errorDetails = showErrorInChat(
+                                readerError instanceof Error ? readerError : new Error(String(readerError)),
+                                'stream_reading',
+                                { streamType: 'chat_stream' }
+                            );
                             hasError = true
-                            throw readerError
+                            throw new Error(errorDetails.technicalMessage)
                         }
                     }
 
@@ -253,7 +261,12 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     }
 
                 } catch (streamingError) {
-                    console.warn('Streaming failed, using fallback API:', streamingError)
+                    const errorDetails = showErrorInChat(
+                        streamingError instanceof Error ? streamingError : new Error(String(streamingError)),
+                        'streaming_fallback',
+                        { fallbackTo: 'regular_api' }
+                    );
+                    console.warn('Streaming failed, using fallback API:', errorDetails.technicalMessage)
 
                     // Remove the failed streaming message if it was added
                     if (assistantMessage && !streamingSucceeded) {
@@ -286,14 +299,19 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                         })
 
                         if (!fallbackResponse.ok) {
-                            throw new Error(`Fallback API failed with status: ${fallbackResponse.status}`)
+                            const errorDetails = showErrorInChat(
+                                `Fallback API failed with status: ${fallbackResponse.status}`,
+                                'fallback_api_error',
+                                { status: fallbackResponse.status }
+                            );
+                            throw new Error(errorDetails.technicalMessage)
                         }
 
                         const data = await fallbackResponse.json()
 
                         const fallbackAssistantMessage: Message = {
                             id: (Date.now() + 2).toString(),
-                            content: data.text || "Sorry, I couldn't process your request.",
+                            content: data.text || "ക്ഷമിക്കണം, നിങ്ങളുടെ അഭ്യർത്ഥന പ്രോസസ് ചെയ്യാൻ കഴിഞ്ഞില്ല.",
                             sender: "assistant",
                         }
 
@@ -302,17 +320,31 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                             [selectedChatId]: [...(prev[selectedChatId] || []), fallbackAssistantMessage],
                         }))
                     } catch (fallbackError) {
-                        console.error('Fallback API also failed:', fallbackError)
-                        throw fallbackError
+                        const errorDetails = showErrorInChat(
+                            fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError)),
+                            'fallback_api_failed',
+                            { originalError: streamingError }
+                        );
+                        console.error('Fallback API also failed:', errorDetails.technicalMessage)
+                        throw new Error(errorDetails.technicalMessage)
                     }
                 }
             } catch (error) {
-                console.error('Error sending message:', error)
+                // Get Malayalam error message for user and log technical details
+                const errorDetails = showErrorInChat(
+                    error instanceof Error ? error : new Error(String(error)),
+                    'chat_message_send',
+                    {
+                        chatId: selectedChatId,
+                        messageCount: messages.length,
+                        timestamp: new Date().toISOString()
+                    }
+                );
 
                 // Ensure we don't have duplicate error messages
                 const errorMessage: Message = {
                     id: (Date.now() + 3).toString(),
-                    content: "Sorry, there was an error processing your request. Please try again.",
+                    content: errorDetails.userMessage, // Show Malayalam message to user
                     sender: "assistant",
                 }
 
@@ -322,7 +354,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
 
                     // Check if the last message is already an error message to avoid duplicates
                     const lastMessage = messages[messages.length - 1]
-                    if (!(lastMessage && lastMessage.sender === 'assistant' && lastMessage.content.includes('error processing'))) {
+                    if (!(lastMessage && lastMessage.sender === 'assistant' && lastMessage.content.includes('പ്രശ്നമുണ്ട്'))) {
                         messages.push(errorMessage)
                     }
 

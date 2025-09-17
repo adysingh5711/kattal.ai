@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { callChain } from "@/lib/langchain";
 import { streamingModel } from "@/lib/llm";
 import { SystemMessage, HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
+import { showErrorInChat } from "@/lib/error-messages";
 
 interface Message {
     role: "user" | "assistant";
@@ -33,8 +34,16 @@ export async function POST(req: NextRequest) {
         const messages: Message[] = body.messages ?? [];
 
         if (!messages.length || !messages[messages.length - 1].content) {
+            const errorDetails = showErrorInChat(
+                "No question in the request",
+                'stream_api_validation',
+                { requestBody: body }
+            );
             return new Response(
-                JSON.stringify({ error: "No question in the request" }),
+                JSON.stringify({
+                    error: errorDetails.userMessage,
+                    technicalError: errorDetails.technicalMessage
+                }),
                 { status: 400, headers: { "Content-Type": "application/json" } }
             );
         }
@@ -152,10 +161,19 @@ ${result.sources?.map((source: { source: string }) => `- ${source.source}`).join
                     controller.close();
 
                 } catch (error) {
-                    console.error('❌ Error in chat stream:', error);
+                    const errorDetails = showErrorInChat(
+                        error instanceof Error ? error : new Error(String(error)),
+                        'stream_processing',
+                        {
+                            question: question.substring(0, 100),
+                            chatHistoryLength: chatHistory.length,
+                            timestamp: new Date().toISOString()
+                        }
+                    );
+                    console.error('❌ Error in chat stream:', errorDetails.technicalMessage);
                     const errorEvent: StreamEvent = {
                         type: 'error',
-                        error: error instanceof Error ? error.message : 'Unknown error occurred'
+                        error: errorDetails.userMessage // Send Malayalam message to frontend
                     };
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`));
                     controller.close();
@@ -172,9 +190,20 @@ ${result.sources?.map((source: { source: string }) => `- ${source.source}`).join
         });
 
     } catch (error) {
-        console.error('❌ Error in chat stream API:', error);
+        const errorDetails = showErrorInChat(
+            error instanceof Error ? error : new Error(String(error)),
+            'stream_api_route',
+            {
+                endpoint: '/api/chat/stream',
+                timestamp: new Date().toISOString()
+            }
+        );
+        console.error('❌ Error in chat stream API:', errorDetails.technicalMessage);
         return new Response(
-            JSON.stringify({ error: "Internal server error" }),
+            JSON.stringify({
+                error: errorDetails.userMessage,
+                technicalError: errorDetails.technicalMessage
+            }),
             {
                 status: 500,
                 headers: { "Content-Type": "application/json" }
