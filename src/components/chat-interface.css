@@ -89,26 +89,30 @@
 
 .prose p {
     margin-top: 0;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
     line-height: 1.6;
 }
 
-.prose p:last-child {
-    margin-bottom: 0;
-}
-
+/* Compact list styling */
 .prose ul,
 .prose ol {
-    margin-top: 0.5rem;
-    margin-bottom: 0.75rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0.5rem;
     padding-left: 1.5rem;
 }
 
 .prose li {
-    margin-top: 0.25rem;
-    margin-bottom: 0.25rem;
-    line-height: 1.5;
+    margin-top: 0.125rem;
+    margin-bottom: 0.125rem;
+    line-height: 1.6;
 }
+
+/* Override paragraph margins inside list items */
+.prose li p {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
 
 .prose code {
     color: inherit;

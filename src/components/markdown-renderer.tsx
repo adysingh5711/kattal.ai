@@ -2,7 +2,6 @@
 
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
@@ -52,7 +51,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     return (
         <div className={cn("prose prose-sm max-w-none dark:prose-invert", className)}>
             <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks]}
+                remarkPlugins={[remarkGfm]}
                 rehypePlugins={[
                     rehypeRaw,
                     rehypeSanitize, // Use default configuration
@@ -106,19 +105,26 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                             </h6>
                         )
                     },
-                    // Enhanced paragraph styles
-                    p: ({ children }) => {
-                        return <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>
+                    // Simple paragraph with minimal styling
+                    p: ({ children, ...props }) => {
+                        return (
+                            <p
+                                className="prose-paragraph leading-relaxed"
+                                {...props}
+                            >
+                                {children}
+                            </p>
+                        );
                     },
-                    // Enhanced list styles
+                    // Enhanced list styles with compact spacing
                     ul: ({ children }) => {
-                        return <ul className="list-disc list-inside mb-3 space-y-1 ml-2">{children}</ul>
+                        return <ul className="list-disc list-inside">{children}</ul>
                     },
                     ol: ({ children }) => {
-                        return <ol className="list-decimal list-inside mb-3 space-y-1 ml-2">{children}</ol>
+                        return <ol className="list-decimal list-inside">{children}</ol>
                     },
                     li: ({ children, ...props }) => {
-                        return <li className="leading-relaxed" {...props}>{children}</li>
+                        return <li {...props}>{children}</li>
                     },
                     // Enhanced code styles with copy button
                     code: ({ children, className, ...props }) => {
@@ -203,10 +209,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                             )
                         }
                         return <input type={type} {...props} />
-                    },
-                    // Remove default margins from the wrapper
-                    div: ({ children }) => {
-                        return <div className="space-y-0">{children}</div>
                     },
                 }}
             >
