@@ -127,7 +127,7 @@ async function demonstrateNamespaceSearch() {
 }
 
 // Run the main function
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     main()
         .then(() => demonstrateNamespaceSearch())
         .catch(console.error);

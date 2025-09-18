@@ -410,22 +410,55 @@ function generateDataSummary(
 
 /**
  * Check if a query is related to environmental data
+ * Improved logic to avoid false positives for political/administrative queries
  */
 export function isEnvironmentalQuery(query: string): boolean {
-    const environmentalKeywords = [
-        'weather', 'temperature', 'rainfall', 'humidity', 'wind', 'pressure',
-        'climate', 'environmental', 'sensor', 'monitoring', 'data',
-        ...getAvailableCities(),
-        ...getAvailableNaturalFactors()
+    const lowerQuery = query.toLowerCase();
+
+    // First check for political/administrative keywords that should NOT be environmental
+    const politicalKeywords = [
+        'mla', 'എം.എൽ.എ', 'എം.എല്.എ', 'minister', 'മന്ത്രി', 'മുഖ്യമന്ത്രി',
+        'ആര്', 'aaranu', 'who is', 'representative', 'പ്രതിനിധി',
+        'assembly', 'നിയമസഭ', 'constituency', 'മണ്ഡലം', 'election', 'തിരഞ്ഞെടുപ്പ്',
+        'politician', 'രാഷ്ട്രീയക്കാരൻ', 'government', 'സർക്കാർ'
     ];
 
-    const lowerQuery = query.toLowerCase();
-    const result = environmentalKeywords.some(keyword => lowerQuery.includes(keyword.toLowerCase()));
+    // If query contains political keywords, it's not environmental
+    if (politicalKeywords.some(keyword => lowerQuery.includes(keyword.toLowerCase()))) {
+        console.log('🔍 Environmental query detection: Political query detected, returning false');
+        return false;
+    }
+
+    // Core environmental keywords (more specific)
+    const coreEnvironmentalKeywords = [
+        'weather', 'temperature', 'rainfall', 'humidity', 'wind speed', 'pressure',
+        'climate data', 'environmental monitoring', 'sensor data', 'air quality',
+        'uv index', 'visibility', 'weather forecast', 'climate change'
+    ];
+
+    // Natural factors (only if combined with data/measurement keywords)
+    const naturalFactors = getAvailableNaturalFactors();
+    const dataKeywords = ['data', 'measurement', 'reading', 'level', 'index', 'forecast', 'monitor'];
+
+    // Check for core environmental keywords
+    const hasCoreEnvironmental = coreEnvironmentalKeywords.some(keyword =>
+        lowerQuery.includes(keyword.toLowerCase())
+    );
+
+    // Check for natural factors combined with data keywords
+    const hasNaturalFactorWithData = naturalFactors.some(factor =>
+        lowerQuery.includes(factor.toLowerCase())
+    ) && dataKeywords.some(dataKeyword =>
+        lowerQuery.includes(dataKeyword.toLowerCase())
+    );
+
+    const result = hasCoreEnvironmental || hasNaturalFactorWithData;
 
     console.log('🔍 Environmental query detection:', {
         query: query,
         lowerQuery: lowerQuery,
-        keywords: environmentalKeywords,
+        hasCoreEnvironmental,
+        hasNaturalFactorWithData,
         result: result
     });
 

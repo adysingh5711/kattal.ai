@@ -241,7 +241,7 @@ export class MalayalamPineconeProcessor {
         };
     }> {
         const startTime = Date.now();
-        const { k = 6, scoreThreshold = 0.7, includeMetadata = true } = options;
+        const { k = 6, scoreThreshold = 0.5, includeMetadata = true } = options;
 
         console.log(`🔍 Searching across ${namespaces.length} namespaces: ${namespaces.join(', ')}`);
 
@@ -258,7 +258,7 @@ export class MalayalamPineconeProcessor {
                     {
                         namespace,
                         includeMetadata,
-                        scoreThreshold: scoreThreshold * 0.8 // Slightly lower threshold per namespace
+                        scoreThreshold: scoreThreshold * 0.7 // Lower threshold for better recall
                     }
                 );
                 return { namespace, results };

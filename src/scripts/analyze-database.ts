@@ -19,7 +19,7 @@ async function analyzeDatabasePerformance() {
         // Minimal stats
         const index = pinecone.Index(env.PINECONE_INDEX_NAME);
         const stats = await index.describeIndexStats();
-        const totalVectors = Object.values(stats.namespaces || {}).reduce((acc: number, ns: unknown) => acc + ((ns as { vectorCount?: number })?.vectorCount || 0), 0);
+        const totalVectors = Object.values(stats.namespaces || {}).reduce((acc: number, ns: unknown) => acc + ((ns as { recordCount?: number })?.recordCount || 0), 0);
         console.log(`Total Vectors: ${totalVectors.toLocaleString()}`);
 
         console.log("\n⚠️  Issues Found:");

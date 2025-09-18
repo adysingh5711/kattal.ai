@@ -28,6 +28,24 @@ interface StreamEvent {
     error?: string;
 }
 
+/**
+ * Check if query is about specific political facts and return direct answer
+ * This bypasses LLM hallucination for known political information
+ */
+function checkPoliticalQuery(query: string): string | null {
+    const lowerQuery = query.toLowerCase();
+
+    // Kattakkada MLA queries - multiple variations
+    if ((lowerQuery.includes('kattakkada') || lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('കാട്ടാക്കട')) &&
+        (lowerQuery.includes('mla') || lowerQuery.includes('എം.എൽ.എ') || lowerQuery.includes('എം.എല്.എ') ||
+            lowerQuery.includes('aaranu') || lowerQuery.includes('ആര്') || lowerQuery.includes('ആരാണ്') ||
+            lowerQuery.includes('representative') || lowerQuery.includes('member') || lowerQuery.includes('who is'))) {
+        return "കാട്ടക്കട മണ്ഡലത്തിലെ എം.എൽ.എ. ഐ.ബി.സതീഷ് ആണ്.";
+    }
+
+    return null;
+}
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -52,6 +70,41 @@ export async function POST(req: NextRequest) {
         const chatHistory = messages.slice(0, -1).map(m =>
             `${m.role === "user" ? "Human" : "Assistant"}: ${m.content}`
         ).join("\n");
+
+        // Check for direct political responses to avoid LLM hallucination
+        const politicalResponse = checkPoliticalQuery(question);
+        if (politicalResponse) {
+            console.log(`🎯 Direct political response provided for: ${question}`);
+
+            const stream = new ReadableStream({
+                start(controller) {
+                    const encoder = new TextEncoder();
+
+                    // Send the direct response
+                    const contentEvent: StreamEvent = {
+                        type: 'content',
+                        content: politicalResponse
+                    };
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentEvent)}\n\n`));
+
+                    // Send done event
+                    const doneEvent: StreamEvent = {
+                        type: 'done',
+                        data: { sources: [], documentsUsed: 0 }
+                    };
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(doneEvent)}\n\n`));
+                    controller.close();
+                }
+            });
+
+            return new Response(stream, {
+                headers: {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                },
+            });
+        }
 
         // Create streaming response with parallel processing
         const stream = new ReadableStream({

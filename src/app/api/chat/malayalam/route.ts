@@ -20,6 +20,29 @@ interface StreamEvent {
 let globalMalayalamProcessor: MalayalamPineconeProcessor | null = null;
 
 /**
+ * Check if query is about specific political facts and return direct answer
+ * This bypasses LLM hallucination for known political information
+ */
+function checkPoliticalQuery(query: string): string | null {
+    const lowerQuery = query.toLowerCase();
+    
+    // Kattakkada MLA queries - multiple variations
+    if ((lowerQuery.includes('kattakkada') || lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('കാട്ടാക്കട')) && 
+        (lowerQuery.includes('mla') || lowerQuery.includes('എം.എൽ.എ') || lowerQuery.includes('എം.എല്.എ') || 
+         lowerQuery.includes('aaranu') || lowerQuery.includes('ആര്') || lowerQuery.includes('ആരാണ്') ||
+         lowerQuery.includes('representative') || lowerQuery.includes('member'))) {
+        return "കാട്ടക്കട മണ്ഡലത്തിലെ എം.എൽ.എ. ഐ.ബി.സതീഷ് ആണ്.";
+    }
+    
+    // Add more political facts as needed
+    // Example: if (lowerQuery.includes('thiruvananthapuram') && lowerQuery.includes('mla')) {
+    //     return "തിരുവനന്തപുരം മണ്ഡലത്തിലെ എം.എൽ.എ. [NAME] ആണ്.";
+    // }
+    
+    return null;
+}
+
+/**
  * Initialize Malayalam Pinecone Processor
  */
 async function initializeMalayalamProcessor(): Promise<MalayalamPineconeProcessor> {
@@ -79,6 +102,22 @@ export async function POST(request: NextRequest) {
         console.log(`🔍 Malayalam query: "${query.slice(0, 100)}..."`);
         console.log(`📂 Searching namespaces: ${namespaces.join(', ')}`);
 
+        // Pre-process political queries to avoid LLM hallucination
+        const politicalResponse = checkPoliticalQuery(query);
+        if (politicalResponse) {
+            console.log(`🎯 Direct political response provided`);
+            return new Response(JSON.stringify({
+                response: politicalResponse,
+                type: 'direct_political_response'
+            }), {
+                status: 200,
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Cache-Control": "public, max-age=3600" // Cache political responses
+                }
+            });
+        }
+
         // Create streaming response
         const encoder = new TextEncoder();
         const stream = new ReadableStream({
@@ -118,38 +157,23 @@ export async function POST(request: NextRequest) {
                     };
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(searchCompleteEvent)}\n\n`));
 
-                    if (documents.length === 0) {
-                        const noResultsEvent: StreamEvent = {
-                            type: 'content',
-                            content: "ക്ഷമിക്കണം, നിങ്ങളുടെ ചോദ്യത്തിന് അനുയോജ്യമായ ഉത്തരം കണ്ടെത്താൻ കഴിഞ്ഞില്ല. ദയവായി വേറെ വാക്കുകൾ ഉപയോഗിച്ച് ചോദിക്കാൻ ശ്രമിക്കുക."
-                        };
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(noResultsEvent)}\n\n`));
+                    // Even if no documents found, still call LLM for political queries that might have hardcoded info
+                    const context = documents.length === 0
+                        ? "ലഭ്യമായ പ്രമാണങ്ങളിൽ നിന്ന് വിവരങ്ങൾ കണ്ടെത്താൻ കഴിഞ്ഞില്ല."
+                        : documents.map((doc, index) => {
+                            const metadata = doc.metadata;
+                            let contextPart = `\n## പ്രമാണം ${index + 1}: ${metadata.filename || 'അജ്ഞാത പ്രമാണം'}\n`;
 
-                        const doneEvent: StreamEvent = { type: 'done' };
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(doneEvent)}\n\n`));
-                        controller.close();
-                        return;
-                    }
+                            if (metadata.hasTable) {
+                                contextPart += `**പട്ടിക ഉൾപ്പെടുന്നു** (${metadata.tableCount} പട്ടികകൾ)\n\n`;
+                            }
 
-                    // Build context from retrieved documents
-                    const contextParts = documents.map((doc, index) => {
-                        const metadata = doc.metadata;
-                        let context = `\n## പ്രമാണം ${index + 1}: ${metadata.filename || 'അജ്ഞാത പ്രമാണം'}\n`;
+                            contextPart += doc.pageContent;
+                            return contextPart;
+                        }).join('\n\n---\n\n');
 
-                        if (metadata.hasTable) {
-                            context += `**പട്ടിക ഉൾപ്പെടുന്നു**\n`;
-                        }
-
-                        if (metadata.headings && metadata.headings.length > 0) {
-                            context += `**തലക്കെട്ടുകൾ:** ${metadata.headings.join(', ')}\n`;
-                        }
-
-                        context += `\n${doc.pageContent}\n`;
-
-                        return context;
-                    });
-
-                    const fullContext = contextParts.join('\n---\n');
+                    // Use the context we already built above
+                    const fullContext = context;
 
                     // Create Malayalam-focused system prompt for mixed content
                     const systemPrompt = `നിങ്ങൾ ഒരു മലയാളം സഹായിയാണ്. നൽകിയിരിക്കുന്ന പ്രമാണങ്ങളിൽ നിന്നും മാത്രം ഉത്തരം നൽകുക.
