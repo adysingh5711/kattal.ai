@@ -41,7 +41,6 @@ export class OpenAITokenizerWrapper implements TokenizerWrapper {
         return Array.from(this.encoding.encode(text));
     }
 
-
     countTokens(text: string): number {
         return this.encoding.encode(text).length;
     }

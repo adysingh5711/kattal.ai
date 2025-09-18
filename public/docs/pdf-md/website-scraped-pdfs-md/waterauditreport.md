@@ -1,4 +1,4 @@
-<!-- image -->
+
 
 ## WATER AUDIT
 
@@ -59,8 +59,6 @@ Kattakada is situated at the centre of four places: Trivandrum to the west, Neyy
 
 Figure1: Kattakada LAC location map
 
-<!-- image -->
-
 As per Economic  Review 2018, State Planning Board, Kerala, the net annual groundwater availability of the Trivandrum district is 296.24 MCM  whereas  the gross groundwater  draft  for  all  users  of  the  district  is  178.54  MCM,  considering  the  domestic
 
 requirement until 2025 the net ground water availability for future is 114.45 MCM. The stage of ground water development is 60.27%. As per Ground Water information booklet of Trivandrum district  (Ministry  of  Water  Resources,  Central  Ground  Water  Board,  Govt.  of  India)  out  of  12 blocks (prior to reorganisation of blocks), five are 'Semi critical' and nine are 'Safe'. Athiyanuur, Nedumangad, Nemom, Parassala  and  Trivandrum  blocks  in  Trivandrum  district  falls  in  semicritical category.  Kattakkada  LAC  belongs  to 'semi-critical category' as it is located in Nedumangad  and  Nemom  blocks.  The  groundwater  in  Kattakkada  area  is  generally  potable except in few locations. The water is generally alkaline in nature and all the major constituents are within the permissible limit. The groundwater is suitable for domestic and drinking purposes.
@@ -86,8 +84,6 @@ Eight  (8)  public  offices  were  selected  to  be  included  in  this  study. 
 |--------------------|---------------------------------------------------------------------------|
 | Water availability | Public water supply and well                                              |
 
-<!-- image -->
-
 ## ii. Vilavoorkal Grama Panchayath Office
 
 | Location           | Near Pettayil, Kerala 695573 08 0 29'30.5" N, 77 0 01'10.9" E   |
@@ -106,11 +102,8 @@ Eight  (8)  public  offices  were  selected  to  be  included  in  this  study. 
 |--------------------|------------------------------------------------------------------------------------------------|
 | Water availability | Public water supply                                                                            |
 
-<!-- image -->
 
-<!-- image -->
 
-<!-- image -->
 
 ## v. Maranalloor Grama Panchayath Office
 
@@ -130,11 +123,8 @@ Eight  (8)  public  offices  were  selected  to  be  included  in  this  study. 
 |--------------------|---------------------------------------------------------------------------------|
 | Water availability | Well                                                                            |
 
-<!-- image -->
 
-<!-- image -->
 
-<!-- image -->
 
 ## viii.  Malayinkeezh Community Health Centre
 
@@ -148,11 +138,7 @@ The  methodology  of  water  audit  is  the  framework  for  categorizing  and  
 
 Figure 2: AWWA/IWA Water Balance
 
-<!-- image -->
-
 It  is  important  to  understand  that  the  vertical  height  of  each  category  represents  a proportional amount of water. Thus, the height of the System Input category represents all water pumped by the system in a given time period. This amount of water can be broken down into two
-
-<!-- image -->
 
 additional categories, Authorized Use and Water Losses. This vertical height water measurement holds true  across  the  entire  standard  water  balance.  Following  identify  important  relationships just by glancing at the standard water balance.
 
@@ -281,8 +267,6 @@ Therefore based on the above recordings, monitoring and calculation the total wa
 |       4 | Mopping and cleaning                |                   50 |                       7.6 |
 |       5 | Total                               |                  657 |                     100   |
 
-<!-- image -->
-
 ## Water Losses
 
 Water Losses  = System Input -Authorized Use
@@ -349,8 +333,6 @@ Therefore based on the above recordings, monitoring and calculation the total wa
 |       4 | Mopping and cleaning |                 50   |                      9.2  |
 |       5 | Total                |                543.5 |                    100    |
 
-<!-- image -->
-
 ## Water Losses
 
 Water Losses  = System Input -Authorized Use
@@ -368,8 +350,6 @@ System input could not be calculated since the public water supply meter is not 
 ## Authorized Use
 
 The total staff strength at panchayat is 32. It is estimated that usually on a regular working day of the week around 72 people are usually present in the premises which includes staffs, peoples representatives, visitors, etc.
-
-<!-- image -->
 
 Daily drinking water consumption = 1.6 x 72 = 115 L
 
@@ -412,8 +392,6 @@ Therefore based on the above recordings, monitoring and calculation the total wa
 |       3 | Face/hand washing    |                  266 |                     29.85 |
 |       4 | Mopping and cleaning |                   50 |                      5.61 |
 |       5 | Total                |                  891 |                    100    |
-
-<!-- image -->
 
 ## Water Losses
 
@@ -488,8 +466,6 @@ Therefore based on the above recordings, monitoring and calculation the total wa
 |       3 | Face/hand washing    |                  333 |                     30.19 |
 |       4 | Mopping and cleaning |                   50 |                      4.54 |
 |       5 | Total                |                 1102 |                    100    |
-
-<!-- image -->
 
 ## Water Losses
 
@@ -584,8 +560,6 @@ Therefore based on the above recordings, monitoring and calculation the total wa
 |       7 | Gardening                      |                 1500 |                      4    |
 |       8 | Total                          |                 6553 |                    100    |
 
-<!-- image -->
-
 ## Water Losses
 
 - Water Losses  = System Input -Authorized Use
@@ -672,8 +646,6 @@ Therefore based on the above recordings, monitoring and calculation the total wa
 |       6 | Gardening            |                  500 |                      1.14 |
 |       7 | Total                |                 3059 |                    100    |
 
-<!-- image -->
-
 ## Water Losses
 
 - Water Losses  = System Input -Authorized Use
@@ -749,8 +721,6 @@ Therefore based on the above recordings, monitoring and calculation the total wa
 |       3 | Face/hand washing    |                281.5 |                     29.57 |
 |       4 | Mopping and cleaning |                100   |                     10.5  |
 |       5 | Total                |                952   |                    100    |
-
-<!-- image -->
 
 Authorised use for Grama Panchayath building alone is 952 Litres/day.
 
@@ -849,8 +819,6 @@ Therefore based on the above recordings, monitoring and calculation the total wa
 |       5 | Toilet Complex       |                 1100 |                     65.09 |
 |       6 | Total                |                 1690 |                    100    |
 
-<!-- image -->
-
 ## Water Losses
 
 - Water Losses  = System Input -Authorized Use
@@ -897,11 +865,7 @@ Metering  of  separate  buildings  and  key  processes  enables  usage  and  tre
 
 A  number  of  fixtures  (for  example,  hand  basins,  sinks  and  wash  troughs)  have unregulated  water  flows  that  may  lead  to  higher  use.  Installing  flow  restrictors  with
 
-<!-- image -->
-
 balanced  pressure  is  generally  a  cost-effective  way  to  reduce  water  use  without affecting functional requirements.
-
-<!-- image -->
 
 ## · Install dual-flush toilets
 
@@ -915,8 +879,5 @@ Replacing  an  old  toilet  with  an  ultra-low  volume ULV)  1.6  gallon  flush
 - Collecting rainwater will meet the demand for gardening purpose for times of low rainfall
 - Install  water tap aerators or more efficient fixtures. Aerators for hand/utensils washing can reduce the water consumption by 80-90% as per manufacturers
 
-<!-- image -->
 
-<!-- image -->
 
-<!-- image -->

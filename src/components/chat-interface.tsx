@@ -375,7 +375,6 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     disableTransitionOnChange
                 >
 
-
                     {/* Messages */}
                     <ScrollArea className="flex-1 h-full p-4 overflow-y-auto">
                         <div className="absolute inset-0 flex items-end justify-center pointer-events-none z-25">

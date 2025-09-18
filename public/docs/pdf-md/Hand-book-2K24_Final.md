@@ -1,12 +1,9 @@
-<!-- image -->
 
-<!-- image -->
+
 
 ## DISTRICT HAND BOOK 2024
 
 ## ECONOMICS AND STATISTICS DEPARTMENT DISTRICT OFFICE, THIRUVANANTHAPURAM
-
-<!-- image -->
 
 ## Message
 
@@ -14,25 +11,15 @@ The District  Handbook  202 attempt from the District Office, Econ statistical i
 
 I  am  very  glad  to  appreciate  the  sincere  effort  of  Sri. Deputy Director and the entire staff of the dis compiling and publishing this Hand Book.  I hope this Hand Book will be useful for the policymakers, planners, researchers and academicians. Anish  Kumar trict  office for their  de B., dication in
 
-<!-- image -->
-
 District Collector
 
 24/10/ 2024
 
-<!-- image -->
 
-<!-- image -->
 
-<!-- image -->
 
-<!-- image -->
-
-<!-- image -->
 
 Anish Kumar B. Deputy Director
-
-<!-- image -->
 
 ## ABOUT THE BOOK
 
@@ -43,8 +30,6 @@ This  publication  is  divided  into  31  chapters  dealing  with  the  importan
 This publication is the outcome of the earnest efforts of  Smt. Brijila A.S., Smt.  Chitra  J.V.,  and  Kum.  Sruthi  S.  Statistical  Assistant  Grade-II  ,Sri.  Anil M.F.,  Smt.  Priya  Kumari  V.P.,  and  Smt.  Ajitha  A.,  Statistical  Investigator Grade-I , Smt. Asha A., Statistical Inspector,  and Smt. Amrutha E.S., Research Officer, I extend my sincere appreciation to all the staff of this office for their invaluable contributions in making this publication a fruitful one.
 
 Suggestions for improvement are greatly appreciated.
-
-<!-- image -->
 
 | Contents                   | Contents                                                                           | Contents   |
 |----------------------------|------------------------------------------------------------------------------------|------------|
@@ -204,8 +189,6 @@ Suggestions for improvement are greatly appreciated.
 | 29. KUDUMBASREE as on 31-03-2024 | 29. KUDUMBASREE as on 31-03-2024                                                    | 130-133   |
 | 30.AKSHAYA                       | 30.AKSHAYA                                                                          | 133       |
 | 31. NAVAKERALAM KARMAPADHATHI    | 31. NAVAKERALAM KARMAPADHATHI                                                       | 134-136   |
-
-<!-- image -->
 
 ## 1. INTRODUCTION
 
@@ -415,8 +398,6 @@ SC Woman
 |         9 | Vigilance &Anti-corruption Bureau | 1604           |
 |        10 | Women's Help Line                 | 1091           |
 
-<!-- image -->
-
 ## 2. POPULATION CENSUS 2011
 
 At the 2011 census, Thiruvananthapuram had a population of 3,301,427, making  it  the  second  most  populous  district  in  Kerala  after  Malappuram district.  Its population density is the highest in Kerala, with 1,509 inhabitants per square kilometre (3,910/q.Km)
@@ -481,8 +462,6 @@ Source: Census 2011
 | %of Different Age Group in total population | 15-59         |         65.5         | 63.9         |
 | %of Different Age Group in total population | Above 60      |         13.1         | 12.7         |
 
-<!-- image -->
-
 ## 2.4 Religion wise Population - Thiruvananthapuram
 
 | Category              |    Male |   Female |   Total |   Percentage |
@@ -496,9 +475,6 @@ Source: Census 2011
 | Others                |     547 |      535 |    1082 |         0.03 |
 | No Religion Specified |   10420 |    11599 |   22019 |         0.67 |
 
-<!-- image -->
-
-<!-- image -->
 
 ## 3. VITAL  STATISTICS
 
@@ -561,8 +537,6 @@ Civil Registration System may be defined as a continuous recording of vital even
 | Maternal Death (per Lakh |               | Urban         |                13    |     15    |
 | Maternal Death (per Lakh |               | Total         |                39    |     36    |
 
-<!-- image -->
-
 ## 4. AGRICULTURE
 
 Agriculture  plays  an  important  role  in  the  economy  of  the  district. More  than  50%  of  the  total  population  depends  on  agriculture  for  its livelihood.    Still  along  the  midland  and  highland  portions,  agriculture  has  a dominant  role  and  the  district  has  become  a  fast  developing  administrative center.  The major crops cultivated in the district are coconut, tapioca, rubber, plantain, paddy, vegetables and pepper.
@@ -596,8 +570,6 @@ Agriculture  plays  an  important  role  in  the  economy  of  the  district. Mo
 | 2130    |        5660    |               2657.28 | 2020-21                |
 | 1841.56 |        4442.28 |               2412.24 | 2021-22                |
 | 1719.51 |        6530.81 |               3798.06 | 2022-23                |
-
-<!-- image -->
 
 ## 4.3 Production of Major Crops (in tonnes)
 
@@ -638,8 +610,6 @@ Agriculture  plays  an  important  role  in  the  economy  of  the  district. Mo
 | Turmeric (Cured)         |          65 |        61 |        84 |        82 |     87.7  |
 | Cocoa                    |          60 |        54 |        56 |        53 |     77.8  |
 | Rubber                   |       32330 |     32330 |     32300 |     32320 |  32320    |
-
-<!-- image -->
 
 ## 4.5 Details of Agriculture &amp; Allied institutions ( 2 022 )
 
@@ -802,8 +772,6 @@ Agriculture  plays  an  important  role  in  the  economy  of  the  district. Mo
 |      10 | Ottasekharamangalam    | Near Panchayath Office              |
 |      11 | Vellarada              | Near Panchayath Office,             |
 
-<!-- image -->
-
 |    |               | Panachamood                                             |
 |----|---------------|---------------------------------------------------------|
 | 12 | Athiyanoor    | Krishi Bhavan                                           |
@@ -830,8 +798,6 @@ Agriculture  plays  an  important  role  in  the  economy  of  the  district. Mo
 | 33 | Peringammala  | Near Panchayath Office                                  |
 | 34 | Pullampara    | Kalunginmukham                                          |
 
-<!-- image -->
-
 |   35 | Vamanapuram     | Near SBI                                      |
 |------|-----------------|-----------------------------------------------|
 |   36 | Karakulam       | 6th Stone Karakulam, Kachani Junction         |
@@ -856,8 +822,6 @@ Agriculture  plays  an  important  role  in  the  economy  of  the  district. Mo
 |   55 | Azhoor          | Perumkuzhi Market                             |
 |   56 | Kizhuvilam      | Mudapuram, Near Panchayath Office             |
 |   57 | Chirayinkeezhu  | Palakunnu, Near Krishi Bhavan                 |
-
-<!-- image -->
 
 |   58 | Mudakal          | Krishi Bhavan                                          |
 |------|------------------|--------------------------------------------------------|
@@ -903,8 +867,6 @@ The potential of floriculture has significantly energized the agricultural  sect
 | Muncipality    |            8.75 |
 | Corporation    |            1.5  |
 | Total          |          216.82 |
-
-<!-- image -->
 
 ## 6. FOREST STATISTICS
 
@@ -998,8 +960,6 @@ The  soil  type  in  Thiruvananthapuram  is  dark  brown  loamy  laterite  soil 
 | 2021   | 151.8       | 836.6       | 451.3            | 192.7       | 287.5       | 49.2             | 148.2       | 330.7       | 123.2            | 129.3       | 260.6       | 101.5            |
 | 2022   | 165.6       | 314.9       | 90.2             | 190.3       | 174.1       | -8.5             | 148.5       | 257.4       | 73.3             | 128.9       | 326.8       | 153.6            |
 | 2023   | 167.5       | 1.6         | -99              | 88.2        | 69.5        | -21.1            | 139.3       | 183.5       | 31.7             | 187.8       | 12.3        | -93.5            |
-
-<!-- image -->
 
 | Year   | September   | September   | September        | October     | October     | October          | November    | November    | November         | December    | December    | December         |
 |--------|-------------|-------------|------------------|-------------|-------------|------------------|-------------|-------------|------------------|-------------|-------------|------------------|
@@ -1124,8 +1084,6 @@ Animal husbandry plays an important role in strengthening the economy of  the  s
 | 2021-22   |    247496 |   2435.67 | 29312.8 |
 | 2022-23   |    240931 |   2848.78 | 37562   |
 
-<!-- image -->
-
 ## 10. DIARY
 
 Dairy  Development  in  India  has  played  a  key  role  in  uplifting  Indian Economy especially  the  rural  economy  of  the  country.  Dairying  has  been  a significant  part  of  rural  Indian  household  since  ages,  generating  a  steady source  of  income  and  providing  nourishment  to  the  family.  Dairying  is considered as one of the most important secondary occupation for the Kerala farmers.  It  supports  with  providing  employment  opportunities  and  income generation particularly for women dairy farmers.
@@ -1183,8 +1141,6 @@ Dairy  Development  in  India  has  played  a  key  role  in  uplifting  Indian 
 |  25.32 | 2021-22                                |
 |  25.79 | 2022-23                                |
 
-<!-- image -->
-
 ## 11. FISHERIES
 
 Kerala is known as God's own country with a coastline of 590 km, with uncountable water bodies, play a massive part in livelihood of the people ,also in ecological diversity and economically. More than 10 lakh fisher men of the state,  sustain  their  living  through  aquatic  biodiversity  and  fish  wealth  of Kerala. The district of Thiruvananthapuram was selected because it has the highest  number  of  fishermen  population  in  the  State  and  it  geographically falls in the southernmost part of Kerala
@@ -1202,8 +1158,6 @@ Kerala is known as God's own country with a coastline of 590 km, with uncountabl
 |                      | Children             |                  463 |    58405 |
 |                      | Total                |                 1469 |   245002 |
 | Marine &Inland Total | Marine &Inland Total |               177022 |  1065368 |
-
-<!-- image -->
 
 ## 11.2 Details of Fisheries
 
@@ -1281,8 +1235,6 @@ Kerala is known as God's own country with a coastline of 590 km, with uncountabl
 | 18        | Edible Oyster     |                    0 |     1750 |
 | 19        | Miscellaneous     |                  712 |   154952 |
 | Tota l    | Tota l            |                 3215 |   251066 |
-
-<!-- image -->
 
 ## 12. INDUSTRIES
 
@@ -1442,8 +1394,6 @@ The National Employment Welfare Department was formed in Kerala on 1st April 195
 | No of persons employed in Private Sector |   2022 |                34988 |   693146 |
 | No of persons employed in Private Sector |   2023 |                35706 |   695293 |
 | No of persons employed in Private Sector |   2024 |                35989 |   697480 |
-
-<!-- image -->
 
 ## 13.4 Activities for the financial year 2023-24
 
@@ -1708,8 +1658,6 @@ Thiruvananthapuram is connected to all places by means of roadways, railways  an
 | Particulars         | TVM             | Kerala          | TVM             | Kerala          |
 | Vehicles Registered | 2030852         | 16352224        | 2078067         | 17408542        |
 
-<!-- image -->
-
 ## 14.6 Road Accidents
 
 In recent years, there has been a general trend of increasing road accidents,  primarily  due  to  the  growth  in  vehicle  ownership  and  traffic congestion. Over-speeding, drunk driving, and lack of awareness about road
@@ -1731,11 +1679,7 @@ safety rules are common contributing factors. Inadequate road infrastructure, in
 | Persons Involved | Minor         |                       398 |                       438 |                        560 |                        620 |    14669 |    16612 |
 | Persons Involved | Total         |                      2081 |                      2463 |                       3792 |                       4021 |    53624 |    58400 |
 
-<!-- image -->
-
 ## EDUCATION
-
-<!-- image -->
 
 ## 15. EDUCATION
 
@@ -1890,8 +1834,6 @@ Trivandrum is a place to many exotic beaches, religious sites, water spots and m
 | December  | 373285              | 2232885             | 19655              | 78077              |
 | Total     | 3589932             | 21871641            | 148462             | 649057             |
 
-<!-- image -->
-
 16.4 Tourists Arrival from 2022-2023
 
 | Year   | Domestic Tourists   | Domestic Tourists   | Foreign Tourists   | Foreign Tourists   |
@@ -1901,8 +1843,6 @@ Trivandrum is a place to many exotic beaches, religious sites, water spots and m
 | 2021   | 1235570             | 7537617             | 8262               | 60487              |
 | 2022   | 3058858             | 18867414            | 81916              | 342216             |
 | 2023   | 3589932             | 21871641            | 148462             | 649057             |
-
-<!-- image -->
 
 16.5 Details of Foreign tourists Arrival 2023
 
@@ -2437,8 +2377,6 @@ Gross  state  Domestic  Product  (GSDP)  is  mainly  divided  into  three broad 
 | Mid Year Population (2000) | 33.60              | 348.39    | 33.66              | 350.15    | 33.79              | 351.91    | 33.91              | 353.69    | 34.42              |
 | Per Capita Income (in Rs ) | 1.40               | 1.28      | 1.29               | 1.17      | 1.23               | 1.50      | 1.29               | 1.59      | 1.65               |
 
-<!-- image -->
-
 ## 22.3 Net Domestic Product at Market Price by Industry of origin (At Current Price) Base 2011-12 (Rs in Lakhs)
 
 |                            | 2019-20            | 2019-20   | 2020-21            | 2020-21   | 2021-22            | 2021-22   | 2022-23            | 2022-23   | 2023-24            |
@@ -2450,8 +2388,6 @@ Gross  state  Domestic  Product  (GSDP)  is  mainly  divided  into  three broad 
 | Net Domestic Product       | 68.43              | 650.76    | 66.75              | 632.75    | 66.17              | 825.01    | 74.17              | 933.56    | 99.13              |
 | Mid Year Population (2000) | 33.60              | 348.39    | 33 .66             | 350.15    | 33.79              | 351.91    | 33.91              | 353.69    | 34.43              |
 | Per Capita Income (in Rs ) | 2.04               | 1.87      | 1.98               | 1.81      | 1.96               | 2.34      | 2.19               | 2.64      | 2.88               |
-
-<!-- image -->
 
 99
 
@@ -2467,8 +2403,6 @@ Gross  state  Domestic  Product  (GSDP)  is  mainly  divided  into  three broad 
 | Mid-Year Population (2000) | 33.60              | 348.39    | 33.66              | 350.15    | 33.79              | 351.91    | 33.92              | 353.69    | 34.43              |
 | Per Capita Income (in Rs)  | 1.54               | 1.41      | 1.42               | 1.29      | 1.37               | 1.64      | 1.45               | 1.74      | 1.79               |
 
-<!-- image -->
-
 ## 22.5 Gross Domestic Product at Market Price by Industry of origin (At Current Price) Base 2011-12 (Rs in Lakhs)
 
 |                            | 2019-20            | 2019-20   | 2020-21            | 2020-21   | 2021-22            | 2021-22   | 2022-23            | 2022-23   | 2023-24            |
@@ -2480,8 +2414,6 @@ Gross  state  Domestic  Product  (GSDP)  is  mainly  divided  into  three broad 
 | Net Domestic Product       | 77.12              | 732.91    | 75.26              | 714.29    | 77.00              | 934.54    | 85.59              | 1046.19   | 112.48             |
 | Mid-Year Population (2000) | 33.60              | 348.39    | 33.66              | 350.15    | 33.79              | 351.91    | 33.91              | 353.69    | 34.43              |
 | Per Capita Income (in Rs)  | 2.30               | 2.10      | 2.24               | 2.04      | 2.27               | 2.66      | 2.52               | 2.96      | 3.27               |
-
-<!-- image -->
 
 ## 23. PUBLIC DISTRIBUTION SYSTEM
 
@@ -2497,8 +2429,6 @@ It is well known that Kerala had one of the best run and most effective PDS  net
 | APL               | NPS               |               174554 |  2266443 |
 | APL               | NPI               |                  789 |    28656 |
 | Total Beneficiary | Total Beneficiary |              1025270 |  6208618 |
-
-<!-- image -->
 
 ## 24. POLICE
 
@@ -2640,8 +2570,6 @@ Kerala, a state renowned for its high literacy rate and progressive social refor
 | Theft         | 598                         | 565                         | 3943                      | 4686                      |
 | Riots         | 3                           | 0                           | 1560                      | 1116                      |
 | Dowry deaths  | 3                           | 3                           | 11                        | 8                         |
-
-<!-- image -->
 
 ## 25 . INTEGRATED CHILD DEVELOPMENT SERVICES
 
@@ -2850,8 +2778,6 @@ Scheduled  Castes  (SC)  and  Scheduled  Tribes  (ST)  communities  form  an int
 
 The basic need of human being providing safe and adequate housing facilities  to  the  people  is  a  cause  of  great  concern  for  every  welfare  state. Construction  sector  has  become  one  of  the  key  drivers  of  the  economy  of Kerala,  in  terms  of  both  generation  of  income  and  creation  of  employment opportunities
 
-<!-- image -->
-
 ## 27.1 Details of Buildings constructed and completed in rural sector (2023-24)
 
 |                | Number of building newly Constructed and completed   | Number of building newly Constructed and completed   | Number of building newly Constructed and completed   | Ownership   | Ownership   | Ownership   | Ownership                 | Ownership   | Ownership   | Type of Roof   | Type of Roof   | Type of Roof   |
@@ -2975,15 +2901,9 @@ Economics and Statistics  department  regularly  collect  wholesale  and retail 
 
 ## Price Details of Rice
 
-<!-- image -->
 
-<!-- image -->
 
-<!-- image -->
 
-<!-- image -->
-
-<!-- image -->
 
 ## 29. KUDUMBASREE as on 31-03-2024
 

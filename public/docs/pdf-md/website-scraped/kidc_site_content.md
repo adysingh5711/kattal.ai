@@ -86,8 +86,6 @@ Strategic Location
 
 about-thumb
 
-<!-- image -->
-
 #### Invest in Kattakada
 
 ### Why Kattakada?
@@ -489,8 +487,6 @@ Contact Info
 
 [KIDC](index.html) . *All Rights Reserved | Build with by* [*Alchemy IBS*](https://www.alchemyibs.com/)
 
-
-
 # Document 2
 
 URL: http://kidc.co.in
@@ -576,8 +572,6 @@ Strategic Location
 [Scroll Down](#tp-about-scroll)
 
 about-thumb
-
-<!-- image -->
 
 #### Invest in Kattakada
 
