@@ -21,6 +21,7 @@
     "test:namespace": "tsx -r dotenv/config ./src/scripts/test-namespace-functionality.ts",
     "test:simple": "tsx -r dotenv/config ./src/scripts/test-simple.ts",
     "test:table-serialization": "tsx -r dotenv/config ./src/scripts/test-table-serialization.ts",
+    "reprocess:docs": "tsx -r dotenv/config ./src/scripts/reprocess-malayalam-docs.ts",
     "generate:sitemap": "node ./scripts/generate-sitemap.js",
     "postbuild": "npm run generate:sitemap"
   },

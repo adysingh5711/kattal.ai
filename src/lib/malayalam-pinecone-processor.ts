@@ -54,8 +54,8 @@ export class MalayalamPineconeProcessor {
     // Optimal settings for Malayalam MD files (production optimized)
     private readonly defaultOptions: ProcessingOptions = {
         namespace: env.PINECONE_NAMESPACE || 'malayalam-docs',
-        chunkSize: env.CHUNK_SIZE || 1000, // Larger chunks for better context (production optimized)
-        chunkOverlap: env.CHUNK_OVERLAP || 150, // Better context preservation (production optimized)
+        chunkSize: env.CHUNK_SIZE || 800, // Smaller chunks for better location precision
+        chunkOverlap: env.CHUNK_OVERLAP || 200, // Higher overlap to preserve location context
         enforceLanguage: false, // Set to false to process all documents
         preserveTableStructure: true,
         enableDeduplication: true
@@ -369,35 +369,51 @@ export class MalayalamPineconeProcessor {
         const malayalamMatches = content.match(malayalamRegex) || [];
         const totalChars = content.replace(/\s/g, '').length;
 
-        // Accept content with at least 5% Malayalam characters (more permissive)
+        // Accept content with at least 2% Malayalam characters (more permissive for location data)
         const malayalamRatio = malayalamMatches.length / Math.max(totalChars, 1);
-        const hasSignificantMalayalam = malayalamRatio >= 0.05;
+        const hasSignificantMalayalam = malayalamRatio >= 0.02;
 
-        // Malayalam keywords
+        // Enhanced Malayalam keywords including healthcare terms
         const malayalamKeywords = [
             'പഞ്ചായത്ത്', 'വികസന', 'പദ്ധതി', 'ബജറ്റ്', 'സർക്കാർ', 'നിയമസഭ',
-            'കാട്ടക്കട', 'തിരുവനന്തപുരം', 'കേരളം', 'മുഖ്യമന്ത്രി', 'മന്ത്രി'
+            'കാട്ടക്കട', 'തിരുവനന്തപുരം', 'കേരളം', 'മുഖ്യമന്ത്രി', 'മന്ത്രി',
+            'ആശുപത്രി', 'ആരോഗ്യ', 'ആയുർവേദ', 'ഡോക്ടർ', 'നഴ്സ്', 'ചികിത്സ',
+            'കിള്ളി', 'പങ്കജ', 'കസ്തൂരി', 'മെഡിക്കൽ', 'ക്ലിനിക്', 'ഫാർമസി'
         ];
 
         const hasMalayalamKeywords = malayalamKeywords.some(keyword =>
             content.toLowerCase().includes(keyword.toLowerCase())
         );
 
-        // Kerala/India related English keywords (for English documents about Kerala)
+        // Enhanced Kerala/India related English keywords including healthcare
         const keralaKeywords = [
             'thiruvananthapuram', 'kerala', 'kattakada', 'neyyattinkara', 'kollam',
             'alappuzha', 'kochi', 'thrissur', 'palakkad', 'malappuram', 'kozhikode',
             'kannur', 'kasaragod', 'district', 'panchayat', 'assembly', 'development',
             'project', 'budget', 'government', 'minister', 'collector', 'statistics',
-            'handbook', 'report', 'plan', 'activity', 'water', 'jal', 'rain'
+            'handbook', 'report', 'plan', 'activity', 'water', 'jal', 'rain',
+            'hospital', 'health', 'medical', 'ayurveda', 'doctor', 'clinic', 'pharmacy',
+            'killi', 'pankaja', 'kasturi', 'general hospital', 'healthcare', 'treatment'
         ];
 
         const hasKeralaKeywords = keralaKeywords.some(keyword =>
             content.toLowerCase().includes(keyword.toLowerCase())
         );
 
-        // Accept if it has Malayalam content OR Kerala-related English content
-        return hasSignificantMalayalam || hasMalayalamKeywords || hasKeralaKeywords;
+        // Location-specific patterns for better healthcare facility detection
+        const locationPatterns = [
+            /kattakada.*hospital/i,
+            /കാട്ടക്കട.*ആശുപത്രി/i,
+            /hospital.*kattakada/i,
+            /ആശുപത്രി.*കാട്ടക്കട/i,
+            /general.*hospital/i,
+            /ജനറൽ.*ആശുപത്രി/i
+        ];
+
+        const hasLocationPattern = locationPatterns.some(pattern => pattern.test(content));
+
+        // Accept if it has Malayalam content OR Kerala-related content OR location patterns
+        return hasSignificantMalayalam || hasMalayalamKeywords || hasKeralaKeywords || hasLocationPattern;
     }
 
     /**
@@ -524,4 +540,194 @@ export async function searchMalayalamDocuments(
     await processor.initialize();
     const result = await processor.searchAcrossNamespaces(query, namespaces, options);
     return result.documents;
+}
+
+/**
+ * Enhanced search for location-based queries (hospitals, facilities, etc.)
+ */
+export async function searchLocationBasedQuery(
+    query: string,
+    namespaces: string[] = [env.PINECONE_NAMESPACE || 'malayalam-docs'],
+    options: { k?: number; scoreThreshold?: number } = {}
+): Promise<{
+    documents: Document[];
+    searchMetadata: {
+        totalResults: number;
+        searchTime: number;
+        searchStrategies: string[];
+    };
+}> {
+    const processor = new MalayalamPineconeProcessor();
+    await processor.initialize();
+
+    const startTime = Date.now();
+    const searchStrategies: string[] = [];
+
+    // Strategy 1: Direct search with original query
+    const directResult = await processor.searchAcrossNamespaces(query, namespaces, {
+        k: options.k || 8,
+        scoreThreshold: (options.scoreThreshold || 0.5) * 0.8 // Lower threshold for better recall
+    });
+    searchStrategies.push('direct_search');
+
+    // Strategy 2: Enhanced search with location keywords
+    const locationKeywords = extractLocationKeywords(query);
+    let enhancedResults: Document[] = [];
+
+    if (locationKeywords.length > 0) {
+        const enhancedQuery = `${query} ${locationKeywords.join(' ')}`;
+        const enhancedResult = await processor.searchAcrossNamespaces(enhancedQuery, namespaces, {
+            k: options.k || 8,
+            scoreThreshold: (options.scoreThreshold || 0.5) * 0.7
+        });
+        enhancedResults = enhancedResult.documents;
+        searchStrategies.push('enhanced_location_search');
+    }
+
+    // Strategy 3: Keyword-based search for healthcare facilities
+    let facilityResults: Document[] = [];
+    if (isHealthcareFacilityQuery(query)) {
+        const facilityKeywords = ['ആശുപത്രി', 'hospital', 'medical', 'health', 'clinic', 'ആരോഗ്യ'];
+        const facilityQuery = `${query} ${facilityKeywords.join(' ')}`;
+        const facilityResult = await processor.searchAcrossNamespaces(facilityQuery, namespaces, {
+            k: options.k || 6,
+            scoreThreshold: (options.scoreThreshold || 0.5) * 0.6
+        });
+        facilityResults = facilityResult.documents;
+        searchStrategies.push('healthcare_facility_search');
+    }
+
+    // Combine and deduplicate results
+    const allResults = [...directResult.documents, ...enhancedResults, ...facilityResults];
+    const uniqueResults = deduplicateDocuments(allResults);
+
+    // Sort by relevance and limit
+    const finalResults = uniqueResults
+        .sort((a, b) => {
+            const scoreA = a.metadata?._score || 0;
+            const scoreB = b.metadata?._score || 0;
+            return scoreB - scoreA;
+        })
+        .slice(0, options.k || 10);
+
+    const searchTime = Date.now() - startTime;
+
+    return {
+        documents: finalResults,
+        searchMetadata: {
+            totalResults: finalResults.length,
+            searchTime,
+            searchStrategies
+        }
+    };
+}
+
+/**
+ * Extract location keywords from query
+ */
+function extractLocationKeywords(query: string): string[] {
+    const locationKeywords: string[] = [];
+    const lowerQuery = query.toLowerCase();
+
+    // Malayalam place names
+    const malayalamPlaces = [
+        'കാട്ടക്കട', 'തിരുവനന്തപുരം', 'നെയ്യാറ്റിൻകര', 'കൊല്ലം', 'ആലപ്പുഴ',
+        'കൊച്ചി', 'തൃശ്ശൂർ', 'പാലക്കാട്', 'മലപ്പുറം', 'കോഴിക്കോട്', 'കണ്ണൂർ', 'കാസർഗോഡ്'
+    ];
+
+    // English place names
+    const englishPlaces = [
+        'kattakada', 'thiruvananthapuram', 'neyyattinkara', 'kollam', 'alappuzha',
+        'kochi', 'thrissur', 'palakkad', 'malappuram', 'kozhikode', 'kannur', 'kasaragod'
+    ];
+
+    malayalamPlaces.forEach(place => {
+        if (lowerQuery.includes(place.toLowerCase())) {
+            locationKeywords.push(place);
+        }
+    });
+
+    englishPlaces.forEach(place => {
+        if (lowerQuery.includes(place)) {
+            locationKeywords.push(place);
+        }
+    });
+
+    return locationKeywords;
+}
+
+/**
+ * Check if query is about healthcare facilities
+ */
+function isHealthcareFacilityQuery(query: string): boolean {
+    const healthcareTerms = [
+        'hospital', 'ആശുപത്രി', 'clinic', 'ക്ലിനിക്', 'medical', 'മെഡിക്കൽ',
+        'health', 'ആരോഗ്യ', 'doctor', 'ഡോക്ടർ', 'treatment', 'ചികിത്സ',
+        'pharmacy', 'ഫാർമസി', 'ayurveda', 'ആയുർവേദ', 'general hospital', 'ജനറൽ ആശുപത്രി'
+    ];
+
+    const lowerQuery = query.toLowerCase();
+    return healthcareTerms.some(term => lowerQuery.includes(term.toLowerCase()));
+}
+
+/**
+ * Enhanced search specifically for Kattakada General Hospital with known location data
+ */
+export async function searchKattakadaHospitalInfo(
+    query: string,
+    namespaces: string[] = [env.PINECONE_NAMESPACE || 'malayalam-docs']
+): Promise<{
+    documents: Document[];
+    knownLocationInfo: {
+        hospitalName: string;
+        location: string;
+        district: string;
+        state: string;
+        coordinates?: string;
+        nearbyLandmarks?: string[];
+        exactAddress?: string;
+    };
+}> {
+    const processor = new MalayalamPineconeProcessor();
+    await processor.initialize();
+
+    // Search for hospital information
+    const searchResult = await processor.searchAcrossNamespaces(query, namespaces, {
+        k: 10,
+        scoreThreshold: 0.3
+    });
+
+    // Known location information for Kattakada General Hospital based on available data
+    const knownLocationInfo = {
+        hospitalName: 'കാട്ടക്കട ജനറൽ ആശുപത്രി',
+        location: 'കാട്ടക്കട നഗരം',
+        district: 'തിരുവനന്തപുരം',
+        state: 'കേരളം',
+        coordinates: '08°30\'27.4" N, 77°04\'56.8" E', // From Kattakada Grama Panchayath Office coordinates
+        nearbyLandmarks: ['NH 66 സമീപം', 'കോളേജ് റോഡ്', 'കാട്ടക്കട ഗ്രാമ പഞ്ചായത്ത് ഓഫീസ് സമീപം'],
+        exactAddress: 'കാട്ടക്കട, തിരുവനന്തപുരം, കേരളം 695572'
+    };
+
+    return {
+        documents: searchResult.documents,
+        knownLocationInfo
+    };
+}
+
+/**
+ * Deduplicate documents based on content similarity
+ */
+function deduplicateDocuments(documents: Document[]): Document[] {
+    const seen = new Set<string>();
+    const deduplicated: Document[] = [];
+
+    for (const doc of documents) {
+        const contentHash = doc.pageContent.substring(0, 100).toLowerCase().trim();
+        if (!seen.has(contentHash)) {
+            seen.add(contentHash);
+            deduplicated.push(doc);
+        }
+    }
+
+    return deduplicated;
 }

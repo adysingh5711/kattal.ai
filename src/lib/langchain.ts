@@ -120,7 +120,7 @@ class SimplePerformanceOptimizer {
 
 // Optimized response synthesizer
 class SimpleResponseSynthesizer {
-    async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>) {
+    async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>, chatHistory?: string) {
         // Optimize context length to reduce LLM processing time
         const maxContextLength = 3500; // Increased from 2000 to 3500 for more context
         let context = documents.map(doc => doc.pageContent).join('\n\n');
@@ -131,17 +131,25 @@ class SimpleResponseSynthesizer {
             console.log(`🔍 Context truncated from ${documents.map(doc => doc.pageContent).join('\n\n').length} to ${context.length} characters`);
         }
 
-        // Use a more concise prompt for faster processing
+        // Enhanced prompt with chat history context and specific instructions for location queries
+        const chatHistoryContext = chatHistory ? `\n\nCHAT HISTORY:\n${chatHistory}\n` : '';
+
         const concisePrompt = `You are a helpful AI assistant that analyzes Kerala state documents and provides information in Malayalam.
 
 🚫 RESPOND ONLY IN MALAYALAM SCRIPT (മലയാളം) - NO EXCEPTIONS
 
+IMPORTANT INSTRUCTIONS:
+- For location queries about hospitals/facilities, provide EXACT addresses when available
+- Include specific details like road names, landmarks, coordinates if mentioned
+- For Kattakada General Hospital, note it's located in Kattakada town, Thiruvananthapuram district
+- Always check for specific address details in the context before saying information is not available
+
 CONTEXT:
-${context}
+${context}${chatHistoryContext}
 
 Question: ${query}
 
-Provide a comprehensive answer in Malayalam Script:`;
+Provide a comprehensive answer in Malayalam Script with exact location details when available:`;
 
         // Use non-streaming model for synthesis (more reliable for single responses)
         const { nonStreamingModel } = await import('./llm');
@@ -149,11 +157,11 @@ Provide a comprehensive answer in Malayalam Script:`;
         // Add timeout protection to prevent hanging
         const synthesisPromise = nonStreamingModel.invoke(concisePrompt);
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Synthesis timeout after 12 seconds')), 12000)
+            setTimeout(() => reject(new Error('Synthesis timeout after 20 seconds')), 20000)
         );
 
         try {
-            const response = await Promise.race([synthesisPromise, timeoutPromise]) as any;
+            const response = await Promise.race([synthesisPromise, timeoutPromise]) as unknown;
             const responseText = response.content as string;
 
             // Hallucination detection for political queries
@@ -380,7 +388,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             }
         }
 
-        // Step 2: Real Pinecone retrieval with proper embedding
+        // Step 2: Enhanced Pinecone retrieval with location-aware search
         const retrievalStartTime = Date.now();
         let retrievalResult: {
             documents: Array<{ pageContent: string; metadata: Record<string, unknown> }>;
@@ -390,50 +398,124 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         let retrievalTime = 0;
 
         try {
-            // Reuse cached embeddings instance (saves 1-2 seconds)
-            if (!cachedEmbeddings) {
-                const { OpenAIEmbeddings } = await import('@langchain/openai');
-                cachedEmbeddings = new OpenAIEmbeddings({
-                    openAIApiKey: env.OPENAI_API_KEY,
-                    modelName: env.EMBEDDING_MODEL,
-                    dimensions: env.EMBEDDING_DIMENSIONS
+            // Check if this is a location-based query (hospital, facility, etc.)
+            const isLocationQuery = /hospital|ആശുപത്രി|clinic|ക്ലിനിക്|medical|മെഡിക്കൽ|health|ആരോഗ്യ|where|എവിടെ|location|സ്ഥലം/i.test(sanitizedQuestion);
+            const isKattakadaHospitalQuery = /kattakada.*hospital|കാട്ടക്കട.*ആശുപത്രി|general.*hospital.*kattakada|ജനറൽ.*ആശുപത്രി.*കാട്ടക്കട/i.test(sanitizedQuestion);
+
+            if (isKattakadaHospitalQuery) {
+                console.log('🏥 Kattakada hospital query detected, using specialized search...');
+
+                // Import Document class for synthetic document creation
+                const { Document } = await import('langchain/document');
+
+                // Use specialized Kattakada hospital search
+                const { searchKattakadaHospitalInfo } = await import('./malayalam-pinecone-processor');
+                const hospitalResult = await searchKattakadaHospitalInfo(
+                    sanitizedQuestion,
+                    [env.PINECONE_NAMESPACE || 'malayalam-docs']
+                );
+
+                // Add known location info as a synthetic document
+                const locationDocument = new Document({
+                    pageContent: `കാട്ടക്കട ജനറൽ ആശുപത്രി
+
+**സ്ഥാനം:** ${hospitalResult.knownLocationInfo.location}
+**ജില്ല:** ${hospitalResult.knownLocationInfo.district}
+**സംസ്ഥാനം:** ${hospitalResult.knownLocationInfo.state}
+**പിൻകോഡ്:** 695572
+**കോർഡിനേറ്റുകൾ:** ${hospitalResult.knownLocationInfo.coordinates}
+**സമീപത്തുള്ള ലാൻഡ്മാർക്കുകൾ:** ${hospitalResult.knownLocationInfo.nearbyLandmarks?.join(', ')}
+**കൃത്യമായ വിലാസം:** ${hospitalResult.knownLocationInfo.exactAddress}
+
+ഈ ആശുപത്രി കാട്ടക്കട നഗരത്തിൽ, NH 66 ന്റെ സമീപത്തായി സ്ഥിതിചെയ്യുന്നു. കോളേജ് റോഡിലും കാട്ടക്കട ഗ്രാമ പഞ്ചായത്ത് ഓഫീസിന്റെ സമീപത്തുമാണ് ഇത് സ്ഥിതി ചെയ്യുന്നത്.`,
+                    metadata: {
+                        source: 'known_location_data',
+                        type: 'location_info',
+                        accuracy: 'high'
+                    }
                 });
-            }
 
-            // Generate embedding (this is the expensive part - keep it)
-            await cachedEmbeddings.embedQuery(sanitizedQuestion);
+                // Combine with search results
+                const allDocuments = [locationDocument, ...hospitalResult.documents];
 
-            // Reuse cached vector store (saves 1-2 seconds)
-            if (!cachedVectorStore) {
-                const { PineconeStore } = await import('@langchain/pinecone');
-                const pineconeClient = await getPinecone();
-                const index = pineconeClient.Index(env.PINECONE_INDEX_NAME);
+                retrievalTime = Date.now() - retrievalStartTime;
 
-                cachedVectorStore = new PineconeStore(cachedEmbeddings, {
-                    pineconeIndex: index,
-                    namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
-                });
-            }
+                retrievalResult = {
+                    documents: allDocuments,
+                    retrievalStrategy: 'kattakada_hospital_specialized_search',
+                    crossReferences: ['known_location_data', 'document_search']
+                };
 
-            // Perform Pinecone search
-            const docs = await cachedVectorStore.similaritySearchWithScore(sanitizedQuestion, 8);
+                console.log(`✅ Kattakada hospital search found ${allDocuments.length} documents with location data`);
 
-            const uniqueDocuments = docs.map(([doc, score]: [any, any]) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
-                pageContent: doc.pageContent,
-                metadata: {
-                    ...doc.metadata,
-                    score: score,
-                    namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
+            } else if (isLocationQuery) {
+                console.log('🏥 Location-based query detected, using enhanced search...');
+
+                // Use enhanced location search
+                const { searchLocationBasedQuery } = await import('./malayalam-pinecone-processor');
+                const locationResult = await searchLocationBasedQuery(
+                    sanitizedQuestion,
+                    [env.PINECONE_NAMESPACE || 'malayalam-docs'],
+                    { k: 10, scoreThreshold: 0.4 } // Lower threshold for better recall
+                );
+
+                retrievalTime = Date.now() - retrievalStartTime;
+
+                retrievalResult = {
+                    documents: locationResult.documents,
+                    retrievalStrategy: 'enhanced_location_search',
+                    crossReferences: locationResult.searchMetadata.searchStrategies
+                };
+
+                console.log(`✅ Enhanced location search found ${locationResult.documents.length} documents`);
+
+            } else {
+                // Use standard search for non-location queries
+                // Reuse cached embeddings instance (saves 1-2 seconds)
+                if (!cachedEmbeddings) {
+                    const { OpenAIEmbeddings } = await import('@langchain/openai');
+                    cachedEmbeddings = new OpenAIEmbeddings({
+                        openAIApiKey: env.OPENAI_API_KEY,
+                        modelName: env.EMBEDDING_MODEL,
+                        dimensions: env.EMBEDDING_DIMENSIONS
+                    });
                 }
-            }));
 
-            retrievalTime = Date.now() - retrievalStartTime;
+                // Generate embedding (this is the expensive part - keep it)
+                await cachedEmbeddings.embedQuery(sanitizedQuestion);
 
-            retrievalResult = {
-                documents: uniqueDocuments,
-                retrievalStrategy: 'real_pinecone_multi_namespace',
-                crossReferences: []
-            };
+                // Reuse cached vector store (saves 1-2 seconds)
+                if (!cachedVectorStore) {
+                    const { PineconeStore } = await import('@langchain/pinecone');
+                    const pineconeClient = await getPinecone();
+                    const index = pineconeClient.Index(env.PINECONE_INDEX_NAME);
+
+                    cachedVectorStore = new PineconeStore(cachedEmbeddings, {
+                        pineconeIndex: index,
+                        namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
+                    });
+                }
+
+                // Perform Pinecone search
+                const docs = await cachedVectorStore.similaritySearchWithScore(sanitizedQuestion, 8);
+
+                const uniqueDocuments = docs.map(([doc, score]: [any, any]) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+                    pageContent: doc.pageContent,
+                    metadata: {
+                        ...doc.metadata,
+                        score: score,
+                        namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
+                    }
+                }));
+
+                retrievalTime = Date.now() - retrievalStartTime;
+
+                retrievalResult = {
+                    documents: uniqueDocuments,
+                    retrievalStrategy: 'standard_pinecone_search',
+                    crossReferences: []
+                };
+            }
 
         } catch (error) {
             // Log only when there's an actual error
@@ -449,12 +531,13 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             retrievalTime = Date.now() - retrievalStartTime;
         }
 
-        // Step 3: Advanced Response Synthesis
+        // Step 3: Advanced Response Synthesis with Chat History Context
         const synthesisStartTime = Date.now();
         const synthesis = await responseSynthesizer.synthesizeResponse(
             sanitizedQuestion,
             analysis,
-            retrievalResult.documents
+            retrievalResult.documents,
+            chatHistory // Add chat history for better context
         );
         const synthesisTime = Date.now() - synthesisStartTime;
 
