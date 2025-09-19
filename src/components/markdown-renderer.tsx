@@ -109,7 +109,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                     p: ({ children, ...props }) => {
                         return (
                             <p
-                                className="prose-paragraph leading-relaxed"
+                                className="prose-paragraph leading-relaxed my-0"
                                 {...props}
                             >
                                 {children}
@@ -124,7 +124,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                         return <ol className="list-decimal list-inside">{children}</ol>
                     },
                     li: ({ children, ...props }) => {
-                        return <li {...props}>{children}</li>
+                        return <li className="my-0" {...props}>{children}</li>
                     },
                     // Enhanced code styles with copy button
                     code: ({ children, className, ...props }) => {

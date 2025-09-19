@@ -122,7 +122,7 @@ class SimplePerformanceOptimizer {
 class SimpleResponseSynthesizer {
     async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>, chatHistory?: string) {
         // Optimize context length to reduce LLM processing time
-        const maxContextLength = 3500; // Increased from 2000 to 3500 for more context
+        const maxContextLength = 4000; // Increased from 2000 to 4000 for more context
         let context = documents.map(doc => doc.pageContent).join('\n\n');
 
         // Truncate context if too long
@@ -161,8 +161,8 @@ Provide a comprehensive answer in Malayalam Script with exact location details w
         );
 
         try {
-            const response = await Promise.race([synthesisPromise, timeoutPromise]) as unknown;
-            const responseText = response.content as string;
+            const response = await Promise.race([synthesisPromise, timeoutPromise]);
+            const responseText = (response as { content: string }).content;
 
             // Hallucination detection for political queries
             if (query.toLowerCase().includes('mla') || query.toLowerCase().includes('എം.എൽ.എ')) {
