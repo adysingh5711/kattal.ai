@@ -5,8 +5,8 @@
 // import { HumanMessage, AIMessage } from "@langchain/core/messages";
 // import { streamingModel, nonStreamingModel } from "./llm";
 // import { QA_TEMPLATE } from "./prompt-templates";
-// Simplified LangChain integration for Malayalam system
-// Note: Complex components removed as part of streamlining
+// Enhanced LangChain integration for Malayalam system with chat history context
+// Features: Reference resolution, follow-up detection, context-aware caching
 
 import { getPinecone } from "./pinecone-client";
 import {
@@ -17,6 +17,18 @@ import {
 } from "./ai-tools";
 import { getCachedQuery, setCachedQuery, logCachePerformance } from "./query-cache";
 import { env } from "./env";
+
+// Chat history utility functions
+function extractRecentContext(chatHistory: string, maxLines: number = 4): string {
+    if (!chatHistory) return '';
+    const lines = chatHistory.split('\n').filter(line => line.trim());
+    return lines.slice(-maxLines).join('\n');
+}
+
+function hasConversationalReferences(query: string): boolean {
+    const referenceWords = ['അത്', 'ഇത്', 'അവിടെ', 'ഇവിടെ', 'അവർ', 'അവൻ', 'അവൾ', 'it', 'that', 'there', 'they', 'he', 'she', 'more', 'കൂടുതൽ', 'വീണ്ടും', 'again'];
+    return referenceWords.some(ref => query.toLowerCase().includes(ref.toLowerCase()));
+}
 
 // Simplified interfaces for streamlined system
 interface ValidationResult {
@@ -50,8 +62,46 @@ interface QueryAnalysis {
 
 // Simplified query analyzer
 class SimpleQueryAnalyzer {
-    async classifyQuery(query: string, _chatHistory?: string): Promise<QueryAnalysis> {
-        const lowerQuery = query.toLowerCase();
+    private extractEntitiesFromHistory(chatHistory: string): string[] {
+        const entities = [];
+        const historyLower = chatHistory.toLowerCase();
+
+        // Extract previously mentioned entities
+        if (historyLower.includes('കാട്ടക്കട') || historyLower.includes('kattakada')) entities.push('Kattakada');
+        if (historyLower.includes('കപ്പ') || historyLower.includes('tapioca')) entities.push('Tapioca');
+        if (historyLower.includes('കൃഷി') || historyLower.includes('cultivation')) entities.push('Agriculture');
+        if (historyLower.includes('തിരുവനന്തപുരം') || historyLower.includes('thiruvananthapuram')) entities.push('Thiruvananthapuram');
+        if (historyLower.includes('ആശുപത്രി') || historyLower.includes('hospital')) entities.push('Hospital');
+        if (historyLower.includes('എം.എൽ.എ') || historyLower.includes('mla')) entities.push('MLA');
+
+        return entities;
+    }
+
+    private resolveReferences(query: string, chatHistory?: string): string {
+        if (!chatHistory) return query;
+
+        const referenceWords = ['അത്', 'ഇത്', 'അവിടെ', 'ഇവിടെ', 'അവർ', 'അവൻ', 'അവൾ', 'it', 'that', 'there', 'they', 'he', 'she'];
+        const queryLower = query.toLowerCase();
+
+        // Check if query contains references
+        const hasReferences = referenceWords.some(ref => queryLower.includes(ref));
+
+        if (hasReferences) {
+            // Extract last mentioned entities from chat history for context
+            const historyEntities = this.extractEntitiesFromHistory(chatHistory);
+
+            // Create enriched query with context
+            const contextualQuery = `${query} [Previous context: ${historyEntities.join(', ')}]`;
+            return contextualQuery;
+        }
+
+        return query;
+    }
+
+    async classifyQuery(query: string, chatHistory?: string): Promise<QueryAnalysis> {
+        // Resolve references using chat history
+        const resolvedQuery = this.resolveReferences(query, chatHistory);
+        const lowerQuery = resolvedQuery.toLowerCase();
 
         // Enhanced classification for better document retrieval
         let queryType = 'FACTUAL';
@@ -61,16 +111,32 @@ class SimpleQueryAnalyzer {
         const malayalamQuestionWords = ['എന്ത്', 'എങ്ങനെ', 'എവിടെ', 'എപ്പോൾ', 'ആര്', 'എന്തുകൊണ്ട്', 'ചെയ്യാമോ', 'ഉണ്ടോ'];
         const analyticalWords = ['how', 'why', 'explain', 'എങ്ങനെ', 'എന്തുകൊണ്ട്', 'വിശദീകരിക്കുക'];
         const complexWords = ['compare', 'analyze', 'relationship', 'തുലനം', 'വിശകലനം', 'ബന്ധം'];
+        const followUpWords = ['more', 'കൂടുതൽ', 'വീണ്ടും', 'again', 'also', 'കൂടെ', 'additionally', 'further'];
 
         // Political/administrative query detection
         const politicalWords = ['mla', 'എം.എൽ.എ', 'എം.എല്.എ', 'minister', 'മന്ত്രി', 'മുഖ്യമന്ത്രി', 'ആര്', 'aaranu', 'who is', 'representative', 'പ്രതിനിധി'];
 
-        // Extract entities (place names, topics)
+        // Extract entities from both current query and chat history
         const entities = [];
         if (lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('kattakada')) entities.push('Kattakada');
         if (lowerQuery.includes('കപ്പ') || lowerQuery.includes('tapioca')) entities.push('Tapioca');
         if (lowerQuery.includes('കൃഷി') || lowerQuery.includes('cultivation')) entities.push('Agriculture');
         if (lowerQuery.includes('തിരുവനന്തപുരം') || lowerQuery.includes('thiruvananthapuram')) entities.push('Thiruvananthapuram');
+
+        // Add entities from chat history for context continuity
+        if (chatHistory) {
+            const historyEntities = this.extractEntitiesFromHistory(chatHistory);
+            entities.push(...historyEntities.filter(e => !entities.includes(e)));
+        }
+
+        // Detect follow-up queries
+        const isFollowUp = followUpWords.some(word => lowerQuery.includes(word)) ||
+            (chatHistory && chatHistory.length > 100); // Has substantial history
+
+        if (isFollowUp) {
+            queryType = 'FOLLOW_UP';
+            complexity = Math.max(complexity, 3); // Follow-ups need more context
+        }
 
         // Political/administrative queries need precise retrieval
         if (politicalWords.some(word => lowerQuery.includes(word))) {
@@ -96,21 +162,66 @@ class SimpleQueryAnalyzer {
             queryType,
             complexity,
             keyEntities: entities,
-            requiresCrossReference: complexity > 2,
+            requiresCrossReference: complexity > 2 || isFollowUp,
             dataTypesNeeded: ['text'],
-            reasoningSteps: [],
+            reasoningSteps: isFollowUp ? ['Reference resolution from chat history'] : [],
             suggestedK: Math.max(6, Math.min(12, complexity * 3)) // Minimum 6, maximum 12 documents
         };
     }
 }
 
-// Simplified performance optimizer
+// Enhanced performance optimizer with chat history awareness
 class SimplePerformanceOptimizer {
-    async optimizeQuery(query: string, analysis: QueryAnalysis, _chatHistory?: string) {
+    private chatHistoryCache = new Map<string, { timestamp: number; entities: string[] }>();
+
+    async optimizeQuery(query: string, analysis: QueryAnalysis, chatHistory?: string) {
+        // Cache chat history entities for faster subsequent queries
+        if (chatHistory) {
+            const historyHash = this.hashString(chatHistory);
+            const cached = this.chatHistoryCache.get(historyHash);
+
+            if (!cached || Date.now() - cached.timestamp > 300000) { // 5 minute cache
+                const entities = this.extractEntitiesFromHistory(chatHistory);
+                this.chatHistoryCache.set(historyHash, {
+                    timestamp: Date.now(),
+                    entities
+                });
+            }
+        }
+
+        // Optimize based on query type and history
+        const shouldCache = analysis.queryType === 'FACTUAL' && !analysis.requiresCrossReference;
+        const estimatedTime = analysis.complexity * 1000;
+
         return {
-            shouldCache: false,
-            estimatedTime: analysis.complexity * 1000
+            shouldCache,
+            estimatedTime,
+            useHistoryContext: !!chatHistory && analysis.queryType === 'FOLLOW_UP'
         };
+    }
+
+    private hashString(str: string): string {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash.toString();
+    }
+
+    private extractEntitiesFromHistory(chatHistory: string): string[] {
+        const entities = [];
+        const historyLower = chatHistory.toLowerCase();
+
+        if (historyLower.includes('കാട്ടക്കട') || historyLower.includes('kattakada')) entities.push('Kattakada');
+        if (historyLower.includes('കപ്പ') || historyLower.includes('tapioca')) entities.push('Tapioca');
+        if (historyLower.includes('കൃഷി') || historyLower.includes('cultivation')) entities.push('Agriculture');
+        if (historyLower.includes('തിരുവനന്തപുരം') || historyLower.includes('thiruvananthapuram')) entities.push('Thiruvananthapuram');
+        if (historyLower.includes('ആശുപത്രി') || historyLower.includes('hospital')) entities.push('Hospital');
+        if (historyLower.includes('എം.എൽ.എ') || historyLower.includes('mla')) entities.push('MLA');
+
+        return entities;
     }
 
     trackPerformance(metrics: Record<string, unknown>) {
@@ -131,8 +242,22 @@ class SimpleResponseSynthesizer {
             console.log(`🔍 Context truncated from ${documents.map(doc => doc.pageContent).join('\n\n').length} to ${context.length} characters`);
         }
 
-        // Enhanced prompt with chat history context and specific instructions for location queries
-        const chatHistoryContext = chatHistory ? `\n\nCHAT HISTORY:\n${chatHistory}\n` : '';
+        // Smart chat history processing - balance context vs performance
+        let chatHistoryContext = '';
+        if (chatHistory && analysis.queryType === 'FOLLOW_UP') {
+            // For follow-up queries, include more chat history
+            const maxHistoryLength = 1000;
+            const truncatedHistory = chatHistory.length > maxHistoryLength
+                ? '...' + chatHistory.slice(-maxHistoryLength)
+                : chatHistory;
+            chatHistoryContext = `\n\nCHAT HISTORY (for context):\n${truncatedHistory}\n`;
+        } else if (chatHistory) {
+            // For other queries, include only recent context
+            const recentHistory = chatHistory.split('\n').slice(-4).join('\n'); // Last 4 lines
+            if (recentHistory.length > 0) {
+                chatHistoryContext = `\n\nRECENT CONTEXT:\n${recentHistory}\n`;
+            }
+        }
 
         const concisePrompt = `You are a helpful AI assistant that analyzes Kerala state documents and provides information in Malayalam.
 
@@ -143,6 +268,8 @@ IMPORTANT INSTRUCTIONS:
 - Include specific details like road names, landmarks, coordinates if mentioned
 - For Kattakada General Hospital, note it's located in Kattakada town, Thiruvananthapuram district
 - Always check for specific address details in the context before saying information is not available
+- If this is a follow-up question, refer to the chat history for context and avoid repeating information
+- For reference words like "അത്", "ഇത്", "അവിടെ", use the chat history to understand what they refer to
 
 CONTEXT:
 ${context}${chatHistoryContext}
@@ -250,15 +377,16 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
     try {
         const sanitizedQuestion = question.trim().replaceAll("\n", " ");
 
-        // Check cache first for faster responses
+        // Smart caching with chat history consideration
         const cacheKey = sanitizedQuestion;
         const cachedResult = getCachedQuery(cacheKey, env.PINECONE_NAMESPACE || 'malayalam-docs', chatHistory);
 
-        if (cachedResult) {
+        // Only use cache for non-follow-up queries to ensure context accuracy
+        if (cachedResult && (!chatHistory || chatHistory.length < 100)) {
             return { ...cachedResult, cached: true };
         }
 
-        // Step 1: Performance optimization and caching check
+        // Step 1: Enhanced query analysis with chat history context
         const queryAnalyzer = new SimpleQueryAnalyzer();
         const analysis = await queryAnalyzer.classifyQuery(sanitizedQuestion, chatHistory);
 
@@ -267,6 +395,11 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             analysis,
             chatHistory
         );
+
+        // Log context-aware analysis for debugging
+        if (analysis.queryType === 'FOLLOW_UP' && chatHistory) {
+            console.log(`🔄 Follow-up query detected with ${analysis.keyEntities.length} entities from history`);
+        }
 
         // Check for cached response
         if (!optimizationResult.shouldCache) {
@@ -277,7 +410,8 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         // Query analysis completed - no need to log normal operation
 
         // Step 1.5: Fast response for very simple queries (greetings, basic questions) - MALAYALAM ONLY
-        if (analysis.complexity === 1 && !analysis.requiresCrossReference) {
+        // Skip for follow-up queries to maintain conversation context
+        if (analysis.complexity === 1 && !analysis.requiresCrossReference && analysis.queryType !== 'FOLLOW_UP') {
             const simpleGreetings = ['hi', 'hello', 'hey', 'namaste', 'namaskar', 'hai', 'helo', 'vanakkam', 'namaskaram', 'namaskara'];
             const normalizedQuery = sanitizedQuestion.toLowerCase().trim();
 
@@ -661,13 +795,17 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             response.environmentalSummary = environmentalData.summary;
         }
 
-        // Cache the result for future queries (add required cache properties)
+        // Smart caching - only cache simple queries without complex chat history
         const cacheableResponse = {
             ...response,
             cached: false,
             cacheTimestamp: Date.now()
         };
-        setCachedQuery(cacheKey, env.PINECONE_NAMESPACE || 'malayalam-docs', cacheableResponse, chatHistory);
+
+        // Only cache if it's not a follow-up query and chat history is minimal
+        if (analysis.queryType !== 'FOLLOW_UP' && (!chatHistory || chatHistory.length < 200)) {
+            setCachedQuery(cacheKey, env.PINECONE_NAMESPACE || 'malayalam-docs', cacheableResponse, chatHistory);
+        }
 
         return cacheableResponse;
     } catch (e) {
