@@ -122,7 +122,7 @@ class SimplePerformanceOptimizer {
 class SimpleResponseSynthesizer {
     async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>) {
         // Optimize context length to reduce LLM processing time
-        const maxContextLength = 2000; // Further reduced for faster processing
+        const maxContextLength = 3500; // Increased from 2000 to 3500 for more context
         let context = documents.map(doc => doc.pageContent).join('\n\n');
 
         // Truncate context if too long

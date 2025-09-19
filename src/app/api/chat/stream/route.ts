@@ -67,6 +67,25 @@ export async function POST(req: NextRequest) {
         }
 
         const question = messages[messages.length - 1].content;
+
+        // Accept mixed English-Malayalam queries but respond only in Malayalam
+        const malayalamRegex = /[\u0D00-\u0D7F]/;
+        const hasEnglishOnly = /^[A-Za-z0-9\s.,!?'"()-]+$/.test(question.trim());
+
+        // Allow English queries but warn that response will be in Malayalam
+        if (hasEnglishOnly) {
+            console.log(`⚠️  English query detected, will respond in Malayalam: "${question}"`);
+        } else if (!malayalamRegex.test(question)) {
+            return new Response(JSON.stringify({
+                error: "ദയവായി മലയാളത്തിൽ അല്ലെങ്കിൽ ഇംഗ്ലീഷിൽ ചോദിക്കുക (Please ask in Malayalam or English)"
+            }), {
+                status: 400,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        console.log(`🔍 Malayalam query: "${question.slice(0, 100)}..."`);
+
         const chatHistory = messages.slice(0, -1).map(m =>
             `${m.role === "user" ? "Human" : "Assistant"}: ${m.content}`
         ).join("\n");
@@ -161,14 +180,38 @@ export async function POST(req: NextRequest) {
                     };
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(clearMessageEvent)}\n\n`));
 
-                    // Create optimized system prompt (removed redundant instructions)
-                    const systemPrompt = `Answer based on the provided context. Be concise and accurate.
+                    // Create Malayalam-focused system prompt without source information
+                    const systemPrompt = `നിങ്ങൾ ഒരു മലയാളം സഹായിയാണ്. നൽകിയിരിക്കുന്ന പ്രമാണങ്ങളിൽ നിന്നും മാത്രം ഉത്തരം നൽകുക.
 
-**Context:**
-${result.text || 'No relevant context found.'}
+**കർശന നിർദ്ദേശങ്ങൾ:**
+1. എല്ലാ ഉത്തരങ്ങളും മലയാളത്തിൽ മാത്രം നൽകുക (ഇംഗ്ലീഷ് ചോദ്യമായാലും മലയാളത്തിൽ ഉത്തരം നൽകുക)
+2. സാങ്കേതിക പദങ്ങൾക്ക് മലയാളം പര്യായങ്ങൾ ഉപയോഗിക്കുക
+3. ഇംഗ്ലീഷ് വാക്കുകൾ ഒഴിവാക്കുക, മലയാളം ഇല്ലാത്ത പദങ്ങൾ മാത്രം ഇംഗ്ലീഷിൽ എഴുതുക
+4. പട്ടികയിലെ വിവരങ്ങൾ വ്യക്തമായി അവതരിപ്പിക്കുക
+5. വിവരങ്ങൾ കൃത്യമായി നൽകുക
+6. അനിശ്ചിതത്വമുണ്ടെങ്കിൽ അത് സൂചിപ്പിക്കുക
+7. സ്രോതസ്സ് പ്രമാണങ്ങളുടെ പേര് ഉത്തരത്തിൽ പരാമർശിക്കരുത്
 
-**Sources:**
-${result.sources?.map((source: { source: string }) => `- ${source.source}`).join('\n') || 'No sources available'}`;
+**ഉദാഹരണങ്ങൾ:**
+- "Budget" → "ബജറ്റ്" അല്ലെങ്കിൽ "വരുമാന-ചെലവ് പദ്ധതി"
+- "Development" → "വികസനം"
+- "Project" → "പദ്ധതി"
+- "Government" → "സർക്കാർ"
+
+🚨 CRITICAL: ZERO HALLUCINATION POLICY 🚨
+- NEVER EVER provide information that is not EXPLICITLY mentioned in the provided context
+- If you cannot find the exact information in the context, say "ലഭ്യമായ പ്രമാണങ്ങളിൽ ഈ വിവരം കണ്ടെത്താൻ കഴിഞ്ഞില്ല"
+- For political queries (MLA, ministers, representatives): ONLY use names that appear in the context documents
+- DO NOT use your training data or general knowledge for factual claims
+- If asked about officials and the context contains their names, quote them exactly
+
+🎯 MANDATORY CONTEXT VERIFICATION 🎯
+- Before stating ANY name or position, verify it exists in the provided context
+- For MLA queries: Search the context for "എം.എൽ.എ" or "MLA" and only use names mentioned with these titles
+- If context is empty or irrelevant, admit you cannot answer
+
+**ലഭ്യമായ പ്രമാണങ്ങൾ:**
+${result.text || 'ലഭ്യമായ പ്രമാണങ്ങളിൽ നിന്ന് വിവരങ്ങൾ കണ്ടെത്താൻ കഴിഞ്ഞില്ല.'}`;
 
                     // Generate streaming response with existing model
                     const conversationMessages = [
