@@ -117,7 +117,7 @@ class SimpleQueryAnalyzer {
         const politicalWords = ['mla', 'എം.എൽ.എ', 'എം.എല്.എ', 'minister', 'മന്ত്രി', 'മുഖ്യമന്ത്രി', 'ആര്', 'aaranu', 'who is', 'representative', 'പ്രതിനിധി'];
 
         // Extract entities from both current query and chat history
-        const entities = [];
+        const entities: string[] = [];
         if (lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('kattakada')) entities.push('Kattakada');
         if (lowerQuery.includes('കപ്പ') || lowerQuery.includes('tapioca')) entities.push('Tapioca');
         if (lowerQuery.includes('കൃഷി') || lowerQuery.includes('cultivation')) entities.push('Agriculture');
@@ -130,8 +130,8 @@ class SimpleQueryAnalyzer {
         }
 
         // Detect follow-up queries
-        const isFollowUp = followUpWords.some(word => lowerQuery.includes(word)) ||
-            (chatHistory && chatHistory.length > 100); // Has substantial history
+        const isFollowUp = Boolean(followUpWords.some(word => lowerQuery.includes(word)) ||
+            (chatHistory && chatHistory.length > 100)); // Has substantial history
 
         if (isFollowUp) {
             queryType = 'FOLLOW_UP';
