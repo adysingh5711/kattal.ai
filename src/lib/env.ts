@@ -19,7 +19,7 @@ ENVIRONMENT VARIABLES SECURITY GUIDE:
 
 ✅ SAFE FOR CLIENT (Can be exposed):
 - NEXT_PUBLIC_SUPABASE_URL: Public Supabase project URL
-- NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: Public anonymous key
+- NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: Public anonymous key
 - Any variable prefixed with NEXT_PUBLIC_
 
 ⚠️  IMPORTANT: DATABASE_URL ≠ NEXT_PUBLIC_SUPABASE_URL
@@ -45,7 +45,7 @@ const envSchema = z.object({
     // Supabase Configuration
     DATABASE_URL: z.string().trim().min(1, 'DATABASE_URL is required'),
     NEXT_PUBLIC_SUPABASE_URL: z.string().trim().min(1, 'NEXT_PUBLIC_SUPABASE_URL is required'),
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().trim().min(1, 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required'),
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: z.string().trim().min(1, 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY is required'),
 
     // Site Configuration
     NEXT_PUBLIC_SITE_URL: z.string().url('NEXT_PUBLIC_SITE_URL must be a valid URL').optional(),
