@@ -213,7 +213,7 @@ export default function HomeContent() {
         <div className="min-h-screen flex flex-col">
             <main className="flex-grow container mx-auto px-4 py-8 flex flex-col justify-center">
                 <motion.div
-                    className="grid lg:grid-cols-2 gap-8 items-center mb-12"
+                    className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-12"
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
@@ -263,7 +263,7 @@ export default function HomeContent() {
                             variants={cardVariants}
                             className="w-full"
                         >
-                            <Card className="w-full max-w-lg p-6 shadow-xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl">
+                            <Card className="w-full max-w-lg mx-auto p-6 shadow-xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl">
                                 <CardHeader className="text-center space-y-2">
                                     <CardTitle className="text-2xl font-bold text-gray-800 dark:text-white">
                                         Welcome Back!
