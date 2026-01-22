@@ -442,6 +442,8 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                         </Button> */}
                             <div className="relative flex-1">
                                 <textarea
+                                    id="chat-input"
+                                    name="chat-input"
                                     ref={textareaRef}
                                     value={inputValue}
                                     onChange={e => {

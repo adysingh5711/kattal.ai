@@ -16,8 +16,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
+
 export function UserDropdown() {
     const router = useRouter();
+    const [userName, setUserName] = useState<string>("User");
+    const supabase = createClient();
+
+    useEffect(() => {
+        const getUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.user_metadata?.full_name) {
+                setUserName(user.user_metadata.full_name.split(' ')[0]);
+            } else if (user?.user_metadata?.display_name) {
+                setUserName(user.user_metadata.display_name.split(' ')[0]);
+            } else if (user?.email) {
+                // Fallback to name from email if no metadata
+                setUserName(user.email.split('@')[0]);
+            }
+        };
+        getUser();
+    }, [supabase]);
 
     const handleLogout = async () => {
         try {
@@ -56,10 +76,10 @@ export function UserDropdown() {
                     <span className="sr-only">User menu</span>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent align="end" className="w-auto min-w-[120px] max-w-[225px]">
                 <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">User Menu</p>
+                        <p className="text-sm font-medium leading-none">Hello {userName}!</p>
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

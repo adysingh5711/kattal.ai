@@ -379,6 +379,7 @@ export default function HomeContent() {
                                                                 onChange={handleInputChange}
                                                                 className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
                                                                 required
+                                                                autoComplete="name"
                                                             />
                                                         </div>
 
@@ -395,6 +396,7 @@ export default function HomeContent() {
                                                                 onChange={handleInputChange}
                                                                 className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
                                                                 required
+                                                                autoComplete="email"
                                                             />
                                                         </div>
 
@@ -411,6 +413,7 @@ export default function HomeContent() {
                                                                 onChange={handleInputChange}
                                                                 className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
                                                                 required
+                                                                autoComplete="new-password"
                                                             />
                                                         </div>
 
@@ -427,6 +430,7 @@ export default function HomeContent() {
                                                                 onChange={handleInputChange}
                                                                 className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
                                                                 required
+                                                                autoComplete="new-password"
                                                             />
                                                         </div>
 
@@ -469,6 +473,7 @@ export default function HomeContent() {
                                                                 onChange={handleInputChange}
                                                                 className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
                                                                 required
+                                                                autoComplete="email"
                                                             />
                                                         </div>
 
@@ -485,6 +490,7 @@ export default function HomeContent() {
                                                                 onChange={handleInputChange}
                                                                 className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
                                                                 required
+                                                                autoComplete="current-password"
                                                             />
                                                         </div>
 
