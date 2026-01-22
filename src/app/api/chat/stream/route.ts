@@ -35,22 +35,6 @@ interface StreamEvent {
 function checkSpecialQueries(query: string): string | null {
     const lowerQuery = query.toLowerCase();
 
-    // Identity queries - who are you
-    if (lowerQuery.includes('who are you') || lowerQuery.includes('who are u') ||
-        lowerQuery.includes('നീ ആരാ') || lowerQuery.includes('നിങ്ങൾ ആരാ') ||
-        lowerQuery.includes('ആരാണ് നീ') || lowerQuery.includes('ആരാണ് നിങ്ങൾ') ||
-        lowerQuery.includes('what is your name') ||
-        lowerQuery.includes('introduce yourself') ||
-        lowerQuery.includes('self intro') ||
-        lowerQuery.includes('your intro') ||
-        // Exact matches or courteous variants
-        lowerQuery.trim() === 'intro' ||
-        lowerQuery.trim() === 'introduction' ||
-        lowerQuery.trim() === 'intro please' ||
-        lowerQuery.trim() === 'introduction please') {
-        return "ഞാൻ PACE വികസിപ്പിച്ച കാട്ടാക്കടയിൽ നിന്നുള്ള വിവരങ്ങളും രേഖകളും ശേഖരിച്ചു നൽകുന്നതിനായി സമർപ്പിതമായ ഒരു എ.ഐ. സഹായിയാണ്. നിങ്ങൾക്ക് ആവശ്യമായ വിവരങ്ങൾ ഏതൊക്കെയാണെന്ന് ദയവായി അറിയിക്കുക";
-    }
-
     // Kattakkada MLA queries - multiple variations
     if ((lowerQuery.includes('kattakkada') || lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('കാട്ടാക്കട')) &&
         (lowerQuery.includes('mla') || lowerQuery.includes('എം.എൽ.എ') || lowerQuery.includes('എം.എല്.എ') ||
@@ -197,7 +181,7 @@ export async function POST(req: NextRequest) {
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(clearMessageEvent)}\n\n`));
 
                     // Create Malayalam-focused system prompt without source information
-                    const systemPrompt = `നിങ്ങൾ ഒരു മലയാളം സഹായിയാണ്. നൽകിയിരിക്കുന്ന പ്രമാണങ്ങളിൽ നിന്നും മാത്രം ഉത്തരം നൽകുക.
+                    const systemPrompt = `നിങ്ങൾ PACE വികസിപ്പിച്ച കാട്ടാക്കടയിൽ നിന്നുള്ള വിവരങ്ങളും രേഖകളും ശേഖരിച്ചു നൽകുന്നതിനായി സമർപ്പിതമായ ഒരു എ.ഐ. സഹായിയാണ്. നൽകിയിരിക്കുന്ന പ്രമാണങ്ങളിൽ നിന്നും മാത്രം ഉത്തരം നൽകുക.
 
 **കർശന നിർദ്ദേശങ്ങൾ:**
 1. എല്ലാ ഉത്തരങ്ങളും മലയാളത്തിൽ മാത്രം നൽകുക (ഇംഗ്ലീഷ് ചോദ്യമായാലും മലയാളത്തിൽ ഉത്തരം നൽകുക)
@@ -217,6 +201,7 @@ export async function POST(req: NextRequest) {
 🚨 CRITICAL: ZERO HALLUCINATION POLICY 🚨
 - NEVER EVER provide information that is not EXPLICITLY mentioned in the provided context
 - If you cannot find the exact information in the context, say "ലഭ്യമായ പ്രമാണങ്ങളിൽ ഈ വിവരം കണ്ടെത്താൻ കഴിഞ്ഞില്ല"
+- However, if asked "who are you" or about your identity, always reply: "ഞാൻ PACE വികസിപ്പിച്ച കാട്ടാക്കടയിൽ നിന്നുള്ള വിവരങ്ങളും രേഖകളും ശേഖരിച്ചു നൽകുന്നതിനായി സമർപ്പിതമായ ഒരു എ.ഐ. സഹായിയാണ്. നിങ്ങൾക്ക് ആവശ്യമായ വിവരങ്ങൾ ഏതൊക്കെയാണെന്ന് ദയവായി അറിയിക്കുക"
 - For political queries (MLA, ministers, representatives): ONLY use names that appear in the context documents
 - DO NOT use your training data or general knowledge for factual claims
 - If asked about officials and the context contains their names, quote them exactly
