@@ -32,8 +32,24 @@ interface StreamEvent {
  * Check if query is about specific political facts and return direct answer
  * This bypasses LLM hallucination for known political information
  */
-function checkPoliticalQuery(query: string): string | null {
+function checkSpecialQueries(query: string): string | null {
     const lowerQuery = query.toLowerCase();
+
+    // Identity queries - who are you
+    if (lowerQuery.includes('who are you') || lowerQuery.includes('who are u') ||
+        lowerQuery.includes('നീ ആരാ') || lowerQuery.includes('നിങ്ങൾ ആരാ') ||
+        lowerQuery.includes('ആരാണ് നീ') || lowerQuery.includes('ആരാണ് നിങ്ങൾ') ||
+        lowerQuery.includes('what is your name') ||
+        lowerQuery.includes('introduce yourself') ||
+        lowerQuery.includes('self intro') ||
+        lowerQuery.includes('your intro') ||
+        // Exact matches or courteous variants
+        lowerQuery.trim() === 'intro' ||
+        lowerQuery.trim() === 'introduction' ||
+        lowerQuery.trim() === 'intro please' ||
+        lowerQuery.trim() === 'introduction please') {
+        return "ഞാൻ PACE വികസിപ്പിച്ച കാട്ടാക്കടയിൽ നിന്നുള്ള വിവരങ്ങളും രേഖകളും ശേഖരിച്ചു നൽകുന്നതിനായി സമർപ്പിതമായ ഒരു എ.ഐ. സഹായിയാണ്. നിങ്ങൾക്ക് ആവശ്യമായ വിവരങ്ങൾ ഏതൊക്കെയാണെന്ന് ദയവായി അറിയിക്കുക";
+    }
 
     // Kattakkada MLA queries - multiple variations
     if ((lowerQuery.includes('kattakkada') || lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('കാട്ടാക്കട')) &&
@@ -90,10 +106,10 @@ export async function POST(req: NextRequest) {
             `${m.role === "user" ? "Human" : "Assistant"}: ${m.content}`
         ).join("\n");
 
-        // Check for direct political responses to avoid LLM hallucination
-        const politicalResponse = checkPoliticalQuery(question);
-        if (politicalResponse) {
-            console.log(`🎯 Direct political response provided for: ${question}`);
+        // Check for direct special responses (identity, political) to avoid LLM hallucination
+        const specialResponse = checkSpecialQueries(question);
+        if (specialResponse) {
+            console.log(`🎯 Direct special response provided for: ${question}`);
 
             const stream = new ReadableStream({
                 start(controller) {
@@ -102,7 +118,7 @@ export async function POST(req: NextRequest) {
                     // Send the direct response
                     const contentEvent: StreamEvent = {
                         type: 'content',
-                        content: politicalResponse
+                        content: specialResponse
                     };
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(contentEvent)}\n\n`));
 
