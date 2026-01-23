@@ -220,7 +220,7 @@ export default function HomeContent() {
                 >
                     {/* Left Side - Image and Branding */}
                     <motion.div
-                        className="flex flex-col items-center justify-center text-center space-y-8 relative group"
+                        className="flex flex-col items-center justify-center text-center relative"
                         variants={itemVariants}
                     >
                         <motion.div
@@ -238,17 +238,17 @@ export default function HomeContent() {
                         </motion.div>
 
                         <motion.div
-                            className="space-y-4 z-10 relative"
+                            className="space-y-4 z-10 relative mt-8"
                             variants={itemVariants}
                         >
-                            <h1 className="text-3xl lg:text-4xl font-bold text-foreground transition-all duration-300 group-hover:text-primary/90">
+                            <h1 className="text-2xl lg:text-3xl font-bold text-foreground transition-all duration-300 hover:text-primary/90 group">
                                 <span className="block">Know Our Kattakkada,</span>
                                 <span className={`${pacifico.className} bg-gradient-to-r from-primary via-accent to-chart-2 bg-clip-text text-transparent transition-all duration-300 group-hover:from-primary/80 group-hover:via-accent/80 group-hover:to-chart-2/80`}>
                                     Instantly
                                 </span>
                             </h1>
 
-                            <p className={`${playfair.className} text-base text-muted-foreground italic max-w-md mx-auto leading-relaxed transition-all duration-300 group-hover:text-foreground/80`}>
+                            <p className={`${playfair.className} text-sm text-muted-foreground italic max-w-md mx-auto leading-relaxed transition-all duration-300 hover:text-foreground/80`}>
                                 Understand development, services, and statistics through natural conversation.
                             </p>
                         </motion.div>
@@ -256,7 +256,7 @@ export default function HomeContent() {
                         {/* Important Links Section */}
                         <motion.div
                             variants={itemVariants}
-                            className="w-full max-w-md mx-auto pt-2"
+                            className="w-full max-w-md mx-auto mt-4"
                         >
                             <div className="grid grid-cols-3 gap-2">
                                 <a
@@ -276,12 +276,12 @@ export default function HomeContent() {
                                     <h3 className="font-semibold text-xs group-hover:text-primary transition-colors leading-tight">അറിയാം കാട്ടാക്കട</h3>
                                 </a>
                                 <a
-                                    href="https://kidc.co.in"
+                                    href="http://kidc.ind.in "
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="bg-card/50 hover:bg-muted/50 transition-colors p-2 rounded-lg border shadow-sm flex flex-col items-center text-center group h-full justify-center"
                                 >
-                                    <h3 className="font-semibold text-xs group-hover:text-primary transition-colors leading-tight">KIDC</h3>
+                                    <h3 className="font-semibold text-xs group-hover:text-primary transition-colors leading-tight">Kaattaal Industrial Development Council (KIDC)</h3>
                                 </a>
                             </div>
                         </motion.div>
