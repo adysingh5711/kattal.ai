@@ -22,7 +22,12 @@ export default function HomeContent() {
         password: '',
         confirmPassword: ''
     });
-    const [loading, setLoading] = useState(false);
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+    const [isSignInLoading, setIsSignInLoading] = useState(false);
+    const [isSignUpLoading, setIsSignUpLoading] = useState(false);
+
+    const isAnyLoading = isGoogleLoading || isSignInLoading || isSignUpLoading;
+
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [authError, setAuthError] = useState<string | null>(null);
@@ -73,21 +78,21 @@ export default function HomeContent() {
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
+        setIsSignUpLoading(true);
         setError(null);
         setSuccess(null);
 
         // Validate passwords match
         if (formData.password !== formData.confirmPassword) {
             setError("Passwords do not match");
-            setLoading(false);
+            setIsSignUpLoading(false);
             return;
         }
 
         // Validate password strength
         if (formData.password.length < 6) {
             setError("Password must be at least 6 characters long");
-            setLoading(false);
+            setIsSignUpLoading(false);
             return;
         }
 
@@ -120,13 +125,13 @@ export default function HomeContent() {
             console.error('Sign up error:', err);
             setError("Network error. Please try again.");
         } finally {
-            setLoading(false);
+            setIsSignUpLoading(false);
         }
     };
 
     const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
+        setIsSignInLoading(true);
         setError(null);
         setSuccess(null);
 
@@ -154,12 +159,12 @@ export default function HomeContent() {
             console.error('Sign in error:', err);
             setError("Network error. Please try again.");
         } finally {
-            setLoading(false);
+            setIsSignInLoading(false);
         }
     };
 
     const handleGoogleSignIn = async () => {
-        setLoading(true);
+        setIsGoogleLoading(true);
         setError(null);
         try {
             // This will redirect to Google OAuth
@@ -167,7 +172,7 @@ export default function HomeContent() {
         } catch (err) {
             console.error('Google sign in error:', err);
             setError("Failed to initiate Google sign in");
-            setLoading(false);
+            setIsGoogleLoading(false);
         }
     };
 
@@ -334,11 +339,11 @@ export default function HomeContent() {
                                     {/* Google Sign In Button */}
                                     <Button
                                         onClick={handleGoogleSignIn}
-                                        disabled={loading}
+                                        disabled={isAnyLoading}
                                         variant="outline"
                                         className="w-full h-12 text-base"
                                     >
-                                        {loading ? (
+                                        {isGoogleLoading ? (
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         ) : (
                                             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -469,10 +474,10 @@ export default function HomeContent() {
 
                                                         <Button
                                                             type="submit"
-                                                            disabled={loading}
+                                                            disabled={isAnyLoading}
                                                             className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 text-base shadow-lg hover:shadow-xl transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
-                                                            {loading ? (
+                                                            {isSignUpLoading ? (
                                                                 <>
                                                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                                                     Creating Account...
@@ -529,10 +534,10 @@ export default function HomeContent() {
 
                                                         <Button
                                                             type="submit"
-                                                            disabled={loading}
+                                                            disabled={isAnyLoading}
                                                             className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 text-base shadow-lg hover:shadow-xl transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
-                                                            {loading ? (
+                                                            {isSignInLoading ? (
                                                                 <>
                                                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                                                     Signing In...
