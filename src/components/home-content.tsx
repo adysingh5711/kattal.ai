@@ -211,9 +211,9 @@ export default function HomeContent() {
 
     return (
         <div className="min-h-screen flex flex-col">
-            <main className="flex-grow container mx-auto px-4 py-8 flex flex-col justify-center">
+            <main className="flex-grow container mx-auto px-4 py-4 flex flex-col justify-center">
                 <motion.div
-                    className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-12"
+                    className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-2"
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
@@ -232,7 +232,7 @@ export default function HomeContent() {
                                 alt="Banyan Tree - District Knowledge"
                                 width={300}
                                 height={225}
-                                className="w-full h-auto object-contain max-h-[250px]"
+                                className="w-full h-auto object-contain max-h-[350px]"
                                 priority
                             />
                         </motion.div>
@@ -251,6 +251,39 @@ export default function HomeContent() {
                             <p className={`${playfair.className} text-base text-muted-foreground italic max-w-md mx-auto leading-relaxed transition-all duration-300 group-hover:text-foreground/80`}>
                                 Understand development, services, and statistics through natural conversation.
                             </p>
+                        </motion.div>
+
+                        {/* Important Links Section */}
+                        <motion.div
+                            variants={itemVariants}
+                            className="w-full max-w-md mx-auto pt-2"
+                        >
+                            <div className="grid grid-cols-3 gap-2">
+                                <a
+                                    href="https://jalasamrdhi.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-card/50 hover:bg-muted/50 transition-colors p-2 rounded-lg border shadow-sm flex flex-col items-center text-center group h-full justify-center"
+                                >
+                                    <h3 className="font-semibold text-xs group-hover:text-primary transition-colors leading-tight">ജലസമൃദ്ധി</h3>
+                                </a>
+                                <a
+                                    href="https://kattakadalac.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-card/50 hover:bg-muted/50 transition-colors p-2 rounded-lg border shadow-sm flex flex-col items-center text-center group h-full justify-center"
+                                >
+                                    <h3 className="font-semibold text-xs group-hover:text-primary transition-colors leading-tight">അറിയാം കാട്ടാക്കട</h3>
+                                </a>
+                                <a
+                                    href="https://kidc.co.in"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-card/50 hover:bg-muted/50 transition-colors p-2 rounded-lg border shadow-sm flex flex-col items-center text-center group h-full justify-center"
+                                >
+                                    <h3 className="font-semibold text-xs group-hover:text-primary transition-colors leading-tight">KIDC</h3>
+                                </a>
+                            </div>
                         </motion.div>
                     </motion.div>
 
@@ -519,43 +552,7 @@ export default function HomeContent() {
                     </motion.div>
                 </motion.div>
 
-                {/* Important Links Section */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5, duration: 0.5 }}
-                    className="w-full max-w-6xl mx-auto mb-8"
-                >
-                    <div className="grid md:grid-cols-3 gap-4">
-                        <a
-                            href="https://jalasamrdhi.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-card hover:bg-muted/50 transition-colors p-4 rounded-xl border shadow-sm flex flex-col items-center text-center group"
-                        >
-                            <h3 className="font-semibold text-base group-hover:text-primary transition-colors">ജലസമൃദ്ധി</h3>
-                            <span className="text-xs text-muted-foreground mt-1 group-hover:underline">jalasamrdhi.com</span>
-                        </a>
-                        <a
-                            href="https://kattakadalac.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-card hover:bg-muted/50 transition-colors p-4 rounded-xl border shadow-sm flex flex-col items-center text-center group"
-                        >
-                            <h3 className="font-semibold text-base group-hover:text-primary transition-colors">അറിയാം കാട്ടാക്കട</h3>
-                            <span className="text-xs text-muted-foreground mt-1 group-hover:underline">kattakadalac.com</span>
-                        </a>
-                        <a
-                            href="https://kidc.co.in"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-card hover:bg-muted/50 transition-colors p-4 rounded-xl border shadow-sm flex flex-col items-center text-center group"
-                        >
-                            <h3 className="font-semibold text-base group-hover:text-primary transition-colors">Kaattaal Industrial Development Council (KIDC)</h3>
-                            <span className="text-xs text-muted-foreground mt-1 group-hover:underline">kidc.co.in</span>
-                        </a>
-                    </div>
-                </motion.div>
+
             </main>
 
             {/* Footer */}
