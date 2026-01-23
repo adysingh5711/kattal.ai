@@ -383,8 +383,9 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                 alt="Background Icon"
                                 width={500}
                                 height={400}
-                                className="opacity-20 dark:opacity-20 object-contain"
+                                className="opacity-20 dark:opacity-20 object-contain select-none"
                                 priority
+                                draggable={false}
                             />
                         </div>
                         <div className="space-y-4">
