@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kaattaal AI - Know Your District, Instantly | AI-Powered District Information Chat",
-  description: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System. Powered by LangChain, Pinecone, and OpenAI.",
+  title: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System",
+  description: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System.",
   keywords: [
     "AI chat",
     "PDF analysis",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: env.NEXT_PUBLIC_SITE_URL || 'https://kaattaal.ai.in',
-    title: 'Kaattaal AI - Know Your District, Instantly',
+    title: 'Kaattaal AI - Know All about Kattakada LAC Instantly',
     description: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System.",
     siteName: 'Kaattaal AI',
     images: [
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Kaattaal AI - Know Your District, Instantly',
+    title: 'Kaattaal AI - Know All about Kattakada LAC Instantly',
     description: 'Transform how you access district information with Kaattaal AI. Chat with your PDF documents using advanced AI.',
     images: ['/kattal.png'],
     creator: '@kattalai',

@@ -117,7 +117,7 @@ export const seoConfig = {
   pwa: {
     name: 'Kaattaal AI',
     shortName: 'Kaattaal AI',
-    description: 'Know Your District, Instantly',
+    description: 'Know All about Kattakada LAC Instantly',
     themeColor: '#000000',
     backgroundColor: '#ffffff',
     display: 'standalone',
@@ -183,7 +183,7 @@ export function generatePageMetadata(
 
 function getPageTitle(page: 'home' | 'chat' | 'upload'): string {
   const titles = {
-    home: 'Know Your District, Instantly | AI-Powered District Information Chat',
+    home: 'Know All about Kattakada LAC Instantly | AI-Powered District Information Chat',
     chat: 'AI Chat Interface | Chat with Your Documents',
     upload: 'Document Upload | Process PDFs with AI'
   };

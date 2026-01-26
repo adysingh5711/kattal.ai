@@ -1,4 +1,4 @@
-# Kaattaal AI - Know Your District, Instantly
+# Kaattaal AI - Know All about Kattakada LAC Instantly
 
 [![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
