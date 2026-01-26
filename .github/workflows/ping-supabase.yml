@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Ping Supabase health_check table
         run: |
-          curl -X GET "$DATABASE_URL/rest/v1/health_check?select=id&limit=1" \
+          curl -X GET "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/health_check?select=id&limit=1" \
             -H "apikey: $NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY" \
             -H "Authorization: Bearer $NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY"
         env:
