@@ -1,4 +1,4 @@
-# Kattal AI - Know Your District, Instantly
+# Kaattaal AI - Know Your District, Instantly
 
 [![Next.js](https://img.shields.io/badge/Next.js-14+-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -10,7 +10,7 @@
 
 > **Transform how you access district information with AI-powered intelligence**
 
-Kattal AI is a cutting-edge web application that revolutionizes the way users interact with district information. Using advanced AI technologies including Retrieval Augmented Generation (RAG), vector search, and natural language processing, users can chat with their PDF documents to instantly understand development data, government services, and statistical information.
+Kaattaal AI is a cutting-edge web application that revolutionizes the way users interact with district information. Using advanced AI technologies including Retrieval Augmented Generation (RAG), vector search, and natural language processing, users can chat with their PDF documents to instantly understand development data, government services, and statistical information.
 
 ## Key Features
 
@@ -340,6 +340,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  <p>Made with ❤️ by the Kattal AI Team</p>
+  <p>Made with ❤️ by the Kaattaal AI Team</p>
   <p>Empowering districts with AI-driven insights</p>
 </div>

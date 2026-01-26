@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kattal AI - Know Your District, Instantly | AI-Powered District Information Chat",
-  description: "Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics. Powered by LangChain, Pinecone, and OpenAI.",
+  title: "Kaattaal AI - Know Your District, Instantly | AI-Powered District Information Chat",
+  description: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System. Powered by LangChain, Pinecone, and OpenAI.",
   keywords: [
     "AI chat",
     "PDF analysis",
@@ -40,38 +40,38 @@ export const metadata: Metadata = {
     "semantic search",
     "AI knowledge retrieval"
   ],
-  authors: [{ name: "Kattal AI Team" }],
-  creator: "Kattal AI",
-  publisher: "Kattal AI",
+  authors: [{ name: "Kaattaal AI Team" }],
+  creator: "Kaattaal AI",
+  publisher: "Kaattaal AI",
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(env.NEXT_PUBLIC_SITE_URL || 'https://kattal-ai.vercel.app'),
+  metadataBase: new URL(env.NEXT_PUBLIC_SITE_URL || 'https://kaattaal.ai.in'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: env.NEXT_PUBLIC_SITE_URL || 'https://kattal-ai.vercel.app',
-    title: 'Kattal AI - Know Your District, Instantly',
-    description: 'Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics.',
-    siteName: 'Kattal AI',
+    url: env.NEXT_PUBLIC_SITE_URL || 'https://kaattaal.ai.in',
+    title: 'Kaattaal AI - Know Your District, Instantly',
+    description: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System.",
+    siteName: 'Kaattaal AI',
     images: [
       {
         url: '/kattal.png',
         width: 1200,
         height: 630,
-        alt: 'Kattal AI - AI-Powered District Information Platform',
+        alt: 'Kaattaal AI - AI-Powered District Information Platform',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Kattal AI - Know Your District, Instantly',
-    description: 'Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI.',
+    title: 'Kaattaal AI - Know Your District, Instantly',
+    description: 'Transform how you access district information with Kaattaal AI. Chat with your PDF documents using advanced AI.',
     images: ['/kattal.png'],
     creator: '@kattalai',
     site: '@kattalai',
@@ -151,8 +151,8 @@ export default function RootLayout({
         <meta name="theme-color" content="#000000" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Kattal AI" />
-        <meta name="application-name" content="Kattal AI" />
+        <meta name="apple-mobile-web-app-title" content="Kaattaal AI" />
+        <meta name="application-name" content="Kaattaal AI" />
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
 
@@ -182,7 +182,7 @@ export default function RootLayout({
         <meta name="perplexity:topic" content="artificial intelligence,district information,government services" />
 
         {/* Enhanced AI Understanding */}
-        <meta name="ai:summary" content="Kattal AI is an advanced AI-powered platform that enables users to chat with PDF documents to instantly understand district information, development data, and government services using natural language processing and vector search technology." />
+        <meta name="ai:summary" content="Kaattaal AI is an advanced AI-powered platform that enables users to chat with PDF documents to instantly understand district information, development data, and government services using natural language processing and vector search technology." />
         <meta name="ai:capabilities" content="PDF document processing, AI chat interface, vector search, knowledge retrieval, multi-language support, real-time responses" />
         <meta name="ai:benefits" content="Instant access to district information, AI-powered document understanding, efficient knowledge discovery, user-friendly interface, scalable solution" />
         <meta name="ai:applications" content="Government services, research analysis, educational institutions, business intelligence, policy understanding" />

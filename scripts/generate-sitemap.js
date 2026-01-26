@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Sitemap Generator for Kattal AI
+ * Sitemap Generator for Kaattaal AI
  * Automatically generates sitemap.xml with current dates and proper URLs
  */
 
@@ -82,7 +82,7 @@ function writeSitemap() {
  * Main execution
  */
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('🚀 Generating sitemap for Kattal AI...');
+  console.log('🚀 Generating sitemap for Kaattaal AI...');
   writeSitemap();
 }
 

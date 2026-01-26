@@ -31,7 +31,7 @@ export function getBaseUrl(origin?: string | null): string {
   }
 
   // Fallback to the known production URL
-  return 'https://kattal-ai.vercel.app';
+  return 'https://kaattaal.ai.in';
 }
 
 export function delay(ms: number) {

@@ -12,7 +12,7 @@ export async function GET(request: Request) {
         (referer ? new URL(referer).origin : null) ||
         requestUrl.origin ||
         env.NEXT_PUBLIC_SITE_URL ||
-        'https://kattal-ai.vercel.app';
+        'https://kaattaal.ai.in';
 
     // Ensure origin is a valid URL (starts with http:// or https://)
     if (!origin.startsWith('http://') && !origin.startsWith('https://')) {

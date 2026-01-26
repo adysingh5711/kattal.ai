@@ -74,7 +74,7 @@ export default function ChatHistorySidebar({ onSelectChat, selectedChat, chatHis
                         <div className="flex items-center justify-between p-2">
                             <div className="flex items-center gap-2">
                                 <Users className="w-5 h-5" />
-                                <h2 className="font-semibold">Kattal AI</h2>
+                                <h2 className="font-semibold">Kaattaal AI</h2>
                             </div>
                             <SidebarTrigger />
                             <Button variant="ghost" size="icon" className="rounded-full" onClick={handleNewChat}>

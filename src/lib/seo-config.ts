@@ -1,5 +1,5 @@
 /**
- * SEO Configuration for Kattal AI
+ * SEO Configuration for Kaattaal AI
  * Centralized configuration for consistent metadata across the application
  */
 
@@ -7,9 +7,9 @@ import { env } from './env';
 
 export const seoConfig = {
   // Basic Information
-  siteName: 'Kattal AI',
-  siteDescription: 'Transform how you access district information with Kattal AI. Chat with your PDF documents using advanced AI to instantly understand development, services, and statistics.',
-  siteUrl: env.NEXT_PUBLIC_SITE_URL || 'https://kattal-ai.vercel.app',
+  siteName: 'Kaattaal AI',
+  siteDescription: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System.",
+  siteUrl: env.NEXT_PUBLIC_SITE_URL || 'https://kaattaal.ai.in',
   siteLanguage: 'en',
   siteLocale: 'en_US',
 
@@ -22,7 +22,7 @@ export const seoConfig = {
   contactPhone: '+91-XXXXXXXXXX',
 
   // Business Information
-  businessName: 'Kattal AI',
+  businessName: 'Kaattaal AI',
   businessType: 'Technology Company',
   industry: 'Artificial Intelligence',
   foundedYear: '2024',
@@ -72,13 +72,13 @@ export const seoConfig = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    siteName: 'Kattal AI',
+    siteName: 'Kaattaal AI',
     images: [
       {
         url: '/kattal.png',
         width: 1200,
         height: 630,
-        alt: 'Kattal AI - AI-Powered District Information Platform',
+        alt: 'Kaattaal AI - AI-Powered District Information Platform',
       }
     ]
   },
@@ -115,8 +115,8 @@ export const seoConfig = {
 
   // PWA Configuration
   pwa: {
-    name: 'Kattal AI',
-    shortName: 'Kattal AI',
+    name: 'Kaattaal AI',
+    shortName: 'Kaattaal AI',
     description: 'Know Your District, Instantly',
     themeColor: '#000000',
     backgroundColor: '#ffffff',
@@ -130,9 +130,9 @@ export const seoConfig = {
   structuredData: {
     organization: {
       '@type': 'Organization',
-      name: 'Kattal AI',
-      url: 'https://kattal-ai.vercel.app',
-      logo: 'https://kattal-ai.vercel.app/kattal.png',
+      name: 'Kaattaal AI',
+      url: 'https://kaattaal.ai.in',
+      logo: 'https://kaattaal.ai.in/kattal.png',
       sameAs: [
         'https://twitter.com/kattalai',
         'https://linkedin.com/company/kattal-ai',
@@ -141,7 +141,7 @@ export const seoConfig = {
     },
     webApplication: {
       '@type': 'WebApplication',
-      name: 'Kattal AI',
+      name: 'Kaattaal AI',
       description: 'AI-powered district information platform',
       applicationCategory: 'ProductivityApplication',
       operatingSystem: 'Web Browser',
@@ -218,7 +218,7 @@ export function generateStructuredData(
   const baseData = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    name: `Kattal AI - ${getPageTitle(page)}`,
+    name: `Kaattaal AI - ${getPageTitle(page)}`,
     description: getPageDescription(page, seoConfig),
     url: `${seoConfig.siteUrl}${getPagePath(page)}`,
     mainEntity: seoConfig.structuredData.webApplication,
