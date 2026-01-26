@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System",
-  description: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System.",
+  description: "Kaattaal AI is India's First AI Powered LAC Information System developed by PACE Tech as per the ideology of Adv. I.B.Satheesh MLA for Kattakada Legislative Assembly Constituency.",
   keywords: [
     "AI chat",
     "PDF analysis",
@@ -57,22 +57,22 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: env.NEXT_PUBLIC_SITE_URL || 'https://kaattaal.ai.in',
     title: 'Kaattaal AI - Know All about Kattakada LAC Instantly',
-    description: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System.",
+    description: "Kaattaal AI is India's First AI Powered LAC Information System developed by PACE Tech as per the ideology of Adv. I.B.Satheesh MLA for Kattakada Legislative Assembly Constituency.",
     siteName: 'Kaattaal AI',
     images: [
       {
-        url: '/kattal.png',
+        url: '/logo.png',
         width: 1200,
         height: 630,
-        alt: 'Kaattaal AI - AI-Powered District Information Platform',
+        alt: 'Kaattaal AI - Know All about Kattakada LAC Instantly',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Kaattaal AI - Know All about Kattakada LAC Instantly',
-    description: 'Transform how you access district information with Kaattaal AI. Chat with your PDF documents using advanced AI.',
-    images: ['/kattal.png'],
+    description: "Kaattaal AI is India's First AI Powered LAC Information System developed by PACE Tech as per the ideology of Adv.I.B.Satheesh MLA for Kattakada Legislative Assembly Constituency.",
+    images: ['/logo.png'],
     creator: '@kattalai',
     site: '@kattalai',
   },
@@ -98,24 +98,18 @@ export const metadata: Metadata = {
       rel: 'icon',
       type: 'image/png',
       sizes: '32x32',
-      url: '/kattal.png',
+      url: '/favicon-32x32.png',
     },
     {
       rel: 'icon',
       type: 'image/png',
       sizes: '16x16',
-      url: '/kattal.png',
+      url: '/favicon-16x16.png',
     },
     {
       rel: 'apple-touch-icon',
-      type: 'image/png',
       sizes: '180x180',
-      url: '/kattal.png',
-    },
-    {
-      rel: 'mask-icon',
-      url: '/kattal.png',
-      color: '#000000',
+      url: '/apple-touch-icon.png',
     },
   ],
   category: 'technology',
@@ -149,7 +143,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <meta name="theme-color" content="#000000" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Kaattaal AI" />
         <meta name="application-name" content="Kaattaal AI" />

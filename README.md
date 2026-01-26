@@ -248,7 +248,7 @@ PINECONE_ENVIRONMENT=your_pinecone_environment
 PINECONE_INDEX_NAME=your_pinecone_index
 
 # Optional: Custom Domain
-NEXT_PUBLIC_SITE_URL=https://kattal-ai.vercel.app
+NEXT_PUBLIC_SITE_URL=https://kaattaal.ai.in/
 ```
 
 ## Performance Optimization

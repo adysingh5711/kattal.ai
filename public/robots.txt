@@ -2,7 +2,7 @@ User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://kattal-ai.vercel.app/sitemap.xml
+Sitemap: https://kaattaal.ai.in//sitemap.xml
 
 # Crawl-delay for respectful crawling
 Crawl-delay: 1

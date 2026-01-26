@@ -6,7 +6,7 @@ export default function StructuredData() {
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "Kaattaal AI",
-    "description": "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System.",
+    "description": "Kaattaal AI is India's First AI Powered LAC Information System developed by PACE Tech as per the ideology of Adv. I.B.Satheesh MLA for Kattakada Legislative Assembly Constituency.",
     "url": env.NEXT_PUBLIC_SITE_URL || "https://kaattaal.ai.in",
     "applicationCategory": "ProductivityApplication",
     "operatingSystem": "Web Browser",

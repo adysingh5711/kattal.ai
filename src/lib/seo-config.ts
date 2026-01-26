@@ -8,7 +8,7 @@ import { env } from './env';
 export const seoConfig = {
   // Basic Information
   siteName: 'Kaattaal AI',
-  siteDescription: "Kaattaal AI - Know All about Kattakada LAC Instantly | India's First AI Powered LAC Information System.",
+  siteDescription: "Kaattaal AI is India's First AI Powered LAC Information System developed by PACE Tech as per the ideology of Adv. I.B.Satheesh MLA for Kattakada Legislative Assembly Constituency.",
   siteUrl: env.NEXT_PUBLIC_SITE_URL || 'https://kaattaal.ai.in',
   siteLanguage: 'en',
   siteLocale: 'en_US',
@@ -75,10 +75,10 @@ export const seoConfig = {
     siteName: 'Kaattaal AI',
     images: [
       {
-        url: '/kattal.png',
+        url: '/logo.png',
         width: 1200,
         height: 630,
-        alt: 'Kaattaal AI - AI-Powered District Information Platform',
+        alt: 'Kaattaal AI - Know All about Kattakada LAC Instantly',
       }
     ]
   },
@@ -132,7 +132,7 @@ export const seoConfig = {
       '@type': 'Organization',
       name: 'Kaattaal AI',
       url: 'https://kaattaal.ai.in',
-      logo: 'https://kaattaal.ai.in/kattal.png',
+      logo: 'https://kaattaal.ai.in/logo.png',
       sameAs: [
         'https://twitter.com/kattalai',
         'https://linkedin.com/company/kattal-ai',
