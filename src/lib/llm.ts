@@ -7,8 +7,8 @@ export const streamingModel = new ChatOpenAI({
     verbose: false, // Disable verbose for faster processing
     temperature: 0.05, // Very low temperature for precise, consistent responses
     openAIApiKey: env.OPENAI_API_KEY,
-    maxTokens: 600, // Increased for more detailed responses
-    timeout: 15000, // Increased timeout for deeper analysis
+    maxTokens: 2000, // Significantly increased for comprehensive responses
+    timeout: 45000, // Extended timeout for longer responses (45 seconds)
     maxRetries: 2,  // Add retry limit to prevent hanging
 });
 
@@ -18,6 +18,6 @@ export const nonStreamingModel = new ChatOpenAI({
     verbose: false, // Disable verbose for faster processing
     temperature: 0.05, // Very low temperature for precise, consistent responses
     openAIApiKey: env.OPENAI_API_KEY,
-    maxTokens: 600, // Increased for more detailed responses
-    timeout: 15000, // Increased timeout for deeper analysis
+    maxTokens: 2000, // Significantly increased for comprehensive responses
+    timeout: 45000, // Extended timeout for longer responses (45 seconds)
 });

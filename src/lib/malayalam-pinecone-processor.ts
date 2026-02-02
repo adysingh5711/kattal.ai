@@ -241,27 +241,45 @@ export class MalayalamPineconeProcessor {
         };
     }> {
         const startTime = Date.now();
-        const { k = 6, scoreThreshold = 0.5, includeMetadata = true } = options;
+        const { k = 10, scoreThreshold = 0.3 } = options; // Lower default threshold for better recall
 
         console.log(`🔍 Searching across ${namespaces.length} namespaces: ${namespaces.join(', ')}`);
 
-        if (!this.vectorStore) {
+        if (!this.pinecone) {
             await this.initialize();
         }
 
-        // Search each namespace in parallel
+        const index = this.pinecone.index(env.PINECONE_INDEX_NAME);
+
+        // Search each namespace in parallel - create separate vector store per namespace
         const namespaceSearches = namespaces.map(async (namespace) => {
             try {
-                const results = await this.vectorStore!.similaritySearch(
-                    query,
-                    Math.ceil(k / namespaces.length) + 2, // Distribute k across namespaces
+                // Create a vector store for this specific namespace
+                const namespaceVectorStore = await PineconeStore.fromExistingIndex(
+                    this.embeddings,
                     {
-                        namespace,
-                        includeMetadata,
-                        scoreThreshold: scoreThreshold * 0.7 // Lower threshold for better recall
+                        pineconeIndex: index,
+                        namespace: namespace
                     }
                 );
-                return { namespace, results };
+
+                // Use similaritySearchWithScore to get scores for filtering
+                const resultsWithScores = await namespaceVectorStore.similaritySearchWithScore(
+                    query,
+                    Math.ceil(k / namespaces.length) + 4 // Get more results per namespace
+                );
+
+                // Filter by score threshold and convert to Documents
+                const filteredResults = resultsWithScores
+                    .filter(([, score]) => score >= scoreThreshold)
+                    .map(([doc, score]) => {
+                        doc.metadata._score = score;
+                        doc.metadata._namespace = namespace;
+                        return doc;
+                    });
+
+                console.log(`📚 Namespace '${namespace}': ${resultsWithScores.length} raw results, ${filteredResults.length} after filtering (threshold: ${scoreThreshold})`);
+                return { namespace, results: filteredResults };
             } catch (error) {
                 console.error(`❌ Error searching namespace ${namespace}:`, error);
                 return { namespace, results: [] };
@@ -567,10 +585,10 @@ export async function searchLocationBasedQuery(
     const startTime = Date.now();
     const searchStrategies: string[] = [];
 
-    // Strategy 1: Direct search with original query
+    // Strategy 1: Direct search with original query - use very low threshold
     const directResult = await processor.searchAcrossNamespaces(query, namespaces, {
-        k: options.k || 8,
-        scoreThreshold: (options.scoreThreshold || 0.5) * 0.8 // Lower threshold for better recall
+        k: options.k || 12,
+        scoreThreshold: options.scoreThreshold || 0.2 // Very low threshold for better recall
     });
     searchStrategies.push('direct_search');
 
@@ -581,8 +599,8 @@ export async function searchLocationBasedQuery(
     if (locationKeywords.length > 0) {
         const enhancedQuery = `${query} ${locationKeywords.join(' ')}`;
         const enhancedResult = await processor.searchAcrossNamespaces(enhancedQuery, namespaces, {
-            k: options.k || 8,
-            scoreThreshold: (options.scoreThreshold || 0.5) * 0.7
+            k: options.k || 10,
+            scoreThreshold: options.scoreThreshold || 0.15 // Even lower for keyword-enhanced search
         });
         enhancedResults = enhancedResult.documents;
         searchStrategies.push('enhanced_location_search');
@@ -594,8 +612,8 @@ export async function searchLocationBasedQuery(
         const facilityKeywords = ['ആശുപത്രി', 'hospital', 'medical', 'health', 'clinic', 'ആരോഗ്യ'];
         const facilityQuery = `${query} ${facilityKeywords.join(' ')}`;
         const facilityResult = await processor.searchAcrossNamespaces(facilityQuery, namespaces, {
-            k: options.k || 6,
-            scoreThreshold: (options.scoreThreshold || 0.5) * 0.6
+            k: options.k || 8,
+            scoreThreshold: options.scoreThreshold || 0.1 // Lowest threshold for facility search
         });
         facilityResults = facilityResult.documents;
         searchStrategies.push('healthcare_facility_search');

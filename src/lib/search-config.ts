@@ -4,15 +4,16 @@
 
 export const SEARCH_CONFIG = {
     RESULT_LIMITS: {
-        DEFAULT_K: 6,
+        DEFAULT_K: 10,
         MAX_K: 50,
         MIN_K: 1
     },
     PERFORMANCE: {
         CACHE_TTL: 5 * 60 * 1000, // 5 minutes
         MAX_CONCURRENT_SEARCHES: 10,
-        SEARCH_TIMEOUT: 30000, // 30 seconds
+        SEARCH_TIMEOUT: 60000, // 60 seconds
     },
+
     SCORING: {
         DEFAULT_THRESHOLD: 0.7,
         MIN_THRESHOLD: 0.1,

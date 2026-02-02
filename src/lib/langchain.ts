@@ -244,8 +244,19 @@ class SimplePerformanceOptimizer {
 // Optimized response synthesizer
 class SimpleResponseSynthesizer {
     async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>, chatHistory?: string) {
-        // Optimize context length to reduce LLM processing time
-        const maxContextLength = 4000; // Increased from 2000 to 4000 for more context
+        // Detect if user wants detailed/comprehensive information
+        const detailedKeywords = ['all', 'detailed', 'complete', 'comprehensive', 'full', 'everything',
+            'എല്ലാ', 'വിശദമായ', 'മുഴുവൻ', 'പൂർണ്ണമായ', 'സമ്പൂർണ്ണ', 'list all', 'tell me everything'];
+        const queryLower = query.toLowerCase();
+        const isDetailedQuery = detailedKeywords.some(keyword => queryLower.includes(keyword));
+
+        // Use extended context for detailed queries (16000 chars vs 8000)
+        const maxContextLength = isDetailedQuery ? 16000 : 8000;
+
+        if (isDetailedQuery) {
+            console.log(`📚 Detailed query detected - using extended context (${maxContextLength} chars)`);
+        }
+
         let context = documents.map(doc => doc.pageContent).join('\n\n');
 
         // Truncate context if too long
@@ -258,7 +269,7 @@ class SimpleResponseSynthesizer {
         let chatHistoryContext = '';
         if (chatHistory && analysis.queryType === 'FOLLOW_UP') {
             // For follow-up queries, include more chat history
-            const maxHistoryLength = 1000;
+            const maxHistoryLength = 2000;
             const truncatedHistory = chatHistory.length > maxHistoryLength
                 ? '...' + chatHistory.slice(-maxHistoryLength)
                 : chatHistory;
@@ -296,7 +307,7 @@ Provide a comprehensive answer in Malayalam Script with exact location details w
         // Add timeout protection to prevent hanging
         const synthesisPromise = nonStreamingModel.invoke(concisePrompt);
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Synthesis timeout after 20 seconds')), 20000)
+            setTimeout(() => reject(new Error('Synthesis timeout after 60 seconds')), 60000)
         );
 
         try {
@@ -352,7 +363,7 @@ Provide a comprehensive answer in Malayalam Script with exact location details w
 
             // Fallback response when LLM fails
             return {
-                synthesizedResponse: `ക്ഷമിക്കണം, ഈ ചോദ്യത്തിന് ഉത്തരം നൽകാൻ കഴിഞ്ഞില്ല. ദയവായി വീണ്ടും ശ്രമിക്കുക. (Sorry, I couldn't provide an answer to this question. Please try again.)`,
+                synthesizedResponse: `ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ നിങ്ങളെ സഹായിക്കാൻ എനിക്ക് മതിയായ വിവരങ്ങൾ ഇല്ല. കൂടുതൽ വിവരങ്ങൾക്ക് ദയവായി സന്ദർശിക്കുക: https://kattakadalac.com/ (Sorry, I don't have enough information to help you with this topic. For more information, please visit: https://kattakadalac.com/)`,
                 responseStyle: 'fallback',
                 confidence: 0.1,
                 completeness: 'partial' as const,
@@ -543,6 +554,16 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         };
         let retrievalTime = 0;
 
+        // Detect if user wants detailed/comprehensive information for increased retrieval
+        const detailedKeywords = ['all', 'detailed', 'complete', 'comprehensive', 'full', 'everything',
+            'എല്ലാ', 'വിശദമായ', 'മുഴുവൻ', 'പൂർണ്ണമായ', 'സമ്പൂർണ്ണ', 'list all', 'tell me everything'];
+        const isDetailedQuery = detailedKeywords.some(keyword => sanitizedQuestion.toLowerCase().includes(keyword));
+        const retrievalK = isDetailedQuery ? 20 : 12; // More documents for detailed queries
+
+        if (isDetailedQuery) {
+            console.log(`📚 Detailed query detected - retrieving ${retrievalK} documents`);
+        }
+
         try {
             // Check if this is a location-based query (hospital, facility, etc.)
             const isLocationQuery = /hospital|ആശുപത്രി|clinic|ക്ലിനിക്|medical|മെഡിക്കൽ|health|ആരോഗ്യ|where|എവിടെ|location|സ്ഥലം/i.test(sanitizedQuestion);
@@ -605,7 +626,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 const locationResult = await searchLocationBasedQuery(
                     sanitizedQuestion,
                     [env.PINECONE_NAMESPACE || 'malayalam-docs'],
-                    { k: 10, scoreThreshold: 0.4 } // Lower threshold for better recall
+                    { k: retrievalK, scoreThreshold: 0.2 } // Dynamic K based on query type
                 );
 
                 retrievalTime = Date.now() - retrievalStartTime;
@@ -645,8 +666,8 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                     });
                 }
 
-                // Perform Pinecone search
-                const docs = await cachedVectorStore.similaritySearchWithScore(sanitizedQuestion, 8);
+                // Perform Pinecone search with dynamic K
+                const docs = await cachedVectorStore.similaritySearchWithScore(sanitizedQuestion, retrievalK);
 
                 const uniqueDocuments = docs.map(([doc, score]: [any, any]) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
                     pageContent: doc.pageContent,
