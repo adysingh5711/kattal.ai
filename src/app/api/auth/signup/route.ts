@@ -13,10 +13,12 @@ export async function POST(request: Request) {
             );
         }
 
+        // Create Supabase client
         const supabase = await createClient();
 
-        // Get the correct redirect URL based on environment
-        const baseUrl = getBaseUrl();
+        // Get the correct redirect URL based on request origin
+        const origin = request.headers.get('origin');
+        const baseUrl = getBaseUrl(origin);
 
         const { data, error } = await supabase.auth.signUp({
             email,
