@@ -378,11 +378,15 @@ export class MalayalamPineconeProcessor {
             'പഞ്ചായത്ത്', 'വികസന', 'പദ്ധതി', 'ബജറ്റ്', 'സർക്കാർ', 'നിയമസഭ',
             'കാട്ടക്കട', 'തിരുവനന്തപുരം', 'കേരളം', 'മുഖ്യമന്ത്രി', 'മന്ത്രി',
             'ആശുപത്രി', 'ആരോഗ്യ', 'ആയുർവേദ', 'ഡോക്ടർ', 'നഴ്സ്', 'ചികിത്സ',
-            'കിള്ളി', 'പങ്കജ', 'കസ്തൂരി', 'മെഡിക്കൽ', 'ക്ലിനിക്', 'ഫാർമസി'
+            'കിള്ളി', 'പങ്കജ', 'കസ്തൂരി', 'മെഡിക്കൽ', 'ക്ലിനിക്', 'ഫാർമസി',
+            'കുടുംബാരോഗ്യ', 'താലൂക്ക്', 'കമ്മയൂണിറ്റി'
         ];
 
+        // Normalizing spaces for Malayalam content check
+        const normalizedContent = content.replace(/\s+/g, '');
+
         const hasMalayalamKeywords = malayalamKeywords.some(keyword =>
-            content.toLowerCase().includes(keyword.toLowerCase())
+            normalizedContent.includes(keyword) || content.toLowerCase().includes(keyword.toLowerCase())
         );
 
         // Enhanced Kerala/India related English keywords including healthcare
@@ -663,7 +667,8 @@ function isHealthcareFacilityQuery(query: string): boolean {
     const healthcareTerms = [
         'hospital', 'ആശുപത്രി', 'clinic', 'ക്ലിനിക്', 'medical', 'മെഡിക്കൽ',
         'health', 'ആരോഗ്യ', 'doctor', 'ഡോക്ടർ', 'treatment', 'ചികിത്സ',
-        'pharmacy', 'ഫാർമസി', 'ayurveda', 'ആയുർവേദ', 'general hospital', 'ജനറൽ ആശുപത്രി'
+        'pharmacy', 'ഫാർമസി', 'ayurveda', 'ആയുർവേദ', 'general hospital', 'ജനറൽ ആശുപത്രി',
+        'health centre', 'ആരോഗ്യ കേന്ദ്രം', 'fhc', 'chc', 'phc'
     ];
 
     const lowerQuery = query.toLowerCase();
@@ -693,19 +698,26 @@ export async function searchKattakadaHospitalInfo(
 
     // Search for hospital information
     const searchResult = await processor.searchAcrossNamespaces(query, namespaces, {
-        k: 10,
+        k: 12,
         scoreThreshold: 0.3
     });
 
-    // Known location information for Kattakada General Hospital based on available data
+    // Known location information for Kattakada Constituency based on 2024 Assembly Report
     const knownLocationInfo = {
-        hospitalName: 'കാട്ടക്കട ജനറൽ ആശുപത്രി',
-        location: 'കാട്ടക്കട നഗരം',
+        hospitalName: 'കാട്ടക്കട നിയോജക മണ്ഡലത്തിലെ ആശുപത്രികൾ (Kattakada Constituency Hospitals)',
+        location: 'കാട്ടക്കട നിയോജക മണ്ഡലം',
         district: 'തിരുവനന്തപുരം',
         state: 'കേരളം',
-        coordinates: '08°30\'27.4" N, 77°04\'56.8" E', // From Kattakada Grama Panchayath Office coordinates
-        nearbyLandmarks: ['NH 66 സമീപം', 'കോളേജ് റോഡ്', 'കാട്ടക്കട ഗ്രാമ പഞ്ചായത്ത് ഓഫീസ് സമീപം'],
-        exactAddress: 'കാട്ടക്കട, തിരുവനന്തപുരം, കേരളം 695572'
+        coordinates: '08°30\'27.4" N, 77°04\'56.8" E', // Kattakada town center
+        nearbyLandmarks: [
+            'മലയിൻകീഴ് താലൂക്ക് ആശുപത്രി',
+            'വിളപ്പിൽ കമ്മയൂണിറ്റി ഹെൽത്ത് സെന്റർ',
+            'വിളവൂർക്കൽ കമ്മയൂണിറ്റി ഹെൽത്ത് സെന്റർ',
+            'കാട്ടക്കട കുടുംബാരോഗ്യ കേന്ദ്രം',
+            'മാറനല്ലൂർ കുടുംബാരോഗ്യ കേന്ദ്രം',
+            'പള്ളിച്ചൽ കുടുംബാരോഗ്യ കേന്ദ്രം'
+        ],
+        exactAddress: 'കാട്ടക്കട നിയോജക മണ്ഡലം, തിരുവനന്തപുരം ജില്ല'
     };
 
     return {

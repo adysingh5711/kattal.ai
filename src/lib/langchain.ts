@@ -68,6 +68,11 @@ class SimpleQueryAnalyzer {
 
         // Extract previously mentioned entities
         if (historyLower.includes('കാട്ടക്കട') || historyLower.includes('kattakada')) entities.push('Kattakada');
+        if (historyLower.includes('മലയിൻകീഴ്') || historyLower.includes('malayinkeezhu')) entities.push('Malayinkeezhu');
+        if (historyLower.includes('മാറനല്ലൂർ') || historyLower.includes('maranalloor')) entities.push('Maranalloor');
+        if (historyLower.includes('പള്ളിച്ചൽ') || historyLower.includes('pallichal')) entities.push('Pallichal');
+        if (historyLower.includes('വിളപ്പിൽ') || historyLower.includes('vilappil')) entities.push('Vilappil');
+        if (historyLower.includes('വിളവൂർക്കൽ') || historyLower.includes('vilavoorkal')) entities.push('Vilavoorkal');
         if (historyLower.includes('കപ്പ') || historyLower.includes('tapioca')) entities.push('Tapioca');
         if (historyLower.includes('കൃഷി') || historyLower.includes('cultivation')) entities.push('Agriculture');
         if (historyLower.includes('തിരുവനന്തപുരം') || historyLower.includes('thiruvananthapuram')) entities.push('Thiruvananthapuram');
@@ -114,14 +119,21 @@ class SimpleQueryAnalyzer {
         const followUpWords = ['more', 'കൂടുതൽ', 'വീണ്ടും', 'again', 'also', 'കൂടെ', 'additionally', 'further'];
 
         // Political/administrative query detection
-        const politicalWords = ['mla', 'എം.എൽ.എ', 'എം.എല്.എ', 'minister', 'മന്ত്രി', 'മുഖ്യമന്ത്രി', 'ആര്', 'aaranu', 'who is', 'representative', 'പ്രതിനിധി'];
+        const politicalWords = ['mla', 'എം.എൽ.എ', 'എം.എല്.എ', 'minister', 'മന്ത്രി', 'മുഖ്യമന്ത്രി', 'ആര്', 'aaranu', 'who is', 'representative', 'പ്രതിനിധി'];
 
         // Extract entities from both current query and chat history
         const entities: string[] = [];
         if (lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('kattakada')) entities.push('Kattakada');
+        if (lowerQuery.includes('മലയിൻകീഴ്') || lowerQuery.includes('malayinkeezhu')) entities.push('Malayinkeezhu');
+        if (lowerQuery.includes('മാറനല്ലൂർ') || lowerQuery.includes('maranalloor')) entities.push('Maranalloor');
+        if (lowerQuery.includes('പള്ളിച്ചൽ') || lowerQuery.includes('pallichal')) entities.push('Pallichal');
+        if (lowerQuery.includes('വിളപ്പിൽ') || lowerQuery.includes('vilappil')) entities.push('Vilappil');
+        if (lowerQuery.includes('വിളവൂർക്കൽ') || lowerQuery.includes('vilavoorkal')) entities.push('Vilavoorkal');
         if (lowerQuery.includes('കപ്പ') || lowerQuery.includes('tapioca')) entities.push('Tapioca');
         if (lowerQuery.includes('കൃഷി') || lowerQuery.includes('cultivation')) entities.push('Agriculture');
         if (lowerQuery.includes('തിരുവനന്തപുരം') || lowerQuery.includes('thiruvananthapuram')) entities.push('Thiruvananthapuram');
+        if (lowerQuery.includes('ആശുപത്രി') || lowerQuery.includes('hospital')) entities.push('Hospital');
+        if (lowerQuery.includes('എം.എൽ.എ') || lowerQuery.includes('mla')) entities.push('MLA');
 
         // Add entities from chat history for context continuity
         if (chatHistory) {
@@ -551,20 +563,23 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
                 // Add known location info as a synthetic document
                 const locationDocument = new Document({
-                    pageContent: `കാട്ടക്കട ജനറൽ ആശുപത്രി
+                    pageContent: `കാട്ടക്കട നിയോജക മണ്ഡലത്തിലെ ആരോഗ്യ കേന്ദ്രങ്ങൾ (Hospitals in Kattakada Constituency)
 
-**സ്ഥാനം:** ${hospitalResult.knownLocationInfo.location}
-**ജില്ല:** ${hospitalResult.knownLocationInfo.district}
-**സംസ്ഥാനം:** ${hospitalResult.knownLocationInfo.state}
-**പിൻകോഡ്:** 695572
-**കോർഡിനേറ്റുകൾ:** ${hospitalResult.knownLocationInfo.coordinates}
-**സമീപത്തുള്ള ലാൻഡ്മാർക്കുകൾ:** ${hospitalResult.knownLocationInfo.nearbyLandmarks?.join(', ')}
-**കൃത്യമായ വിലാസം:** ${hospitalResult.knownLocationInfo.exactAddress}
+**ആകെ ആശുപത്രികൾ (അലോപ്പതി):** 6 (റിപ്പോർട്ട് പ്രകാരം 7 എന്ന് രേഖപ്പെടുത്തിയിട്ടുണ്ടെങ്കിലും പ്രധാന കേന്ദ്രങ്ങൾ 6 ആണ്)
+- **മലയിൻകീഴ്:** താലൂക്ക് ആശുപത്രി (Taluk Hospital)
+- **വിളപ്പിൽ:** കമ്മയൂണിറ്റി ഹെൽത്ത് സെന്റർ (CHC)
+- **വിളവൂർക്കൽ:** കമ്മയൂണിറ്റി ഹെൽത്ത് സെന്റർ (CHC)
+- **കാട്ടക്കട:** കുടുംബാരോഗ്യ കേന്ദ്രം (FHC)
+- **മാറനല്ലൂർ:** കുടുംബാരോഗ്യ കേന്ദ്രം (FHC)
+- **പള്ളിച്ചൽ:** കുടുംബാരോഗ്യ കേന്ദ്രം (FHC)
 
-ഈ ആശുപത്രി കാട്ടക്കട നഗരത്തിൽ, NH 66 ന്റെ സമീപത്തായി സ്ഥിതിചെയ്യുന്നു. കോളേജ് റോഡിലും കാട്ടക്കട ഗ്രാമ പഞ്ചായത്ത് ഓഫീസിന്റെ സമീപത്തുമാണ് ഇത് സ്ഥിതി ചെയ്യുന്നത്.`,
+**ജീവനക്കാർ:** 26 ഡോക്ടർമാരും 128 പാരാമെഡിക്കൽ ജീവനക്കാരും മണ്ഡലത്തിലെ ആശുപത്രികളിൽ സേവനമനുഷ്ഠിക്കുന്നു.
+**ആയുഷ് (AYUSH):** എല്ലാ പഞ്ചായത്തുകളിലും ആയുർവേദ, ഹോമിയോ ആശുപത്രികൾ/ഡിസ്പെൻസറികൾ ലഭ്യമാണ്.
+
+**സൗകര്യങ്ങൾ:** ആംബുലൻസ്, ക്ലിനിക്കൽ ലാബ്, ഫാർമസി സൗകര്യങ്ങൾ ലഭ്യമാണ്. മലയിൻകീഴ് താലൂക്ക് ആശുപത്രിയിൽ ഡയാലിസിസ് സേവനവും ലഭ്യമാണ്.`,
                     metadata: {
-                        source: 'known_location_data',
-                        type: 'location_info',
+                        source: 'Kattakada Assembly Report 2024',
+                        type: 'medical_statistics',
                         accuracy: 'high'
                     }
                 });
