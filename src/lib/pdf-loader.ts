@@ -187,42 +187,114 @@ export async function getChunkedDocsFromPDF() {
 
 /**
  * Enhanced version that loads documents incrementally without disturbing existing data
+ * Uses document tracker to check Pinecone for existing documents and skip duplicates
  */
 export async function getChunkedDocsIncrementally(
-    options: Record<string, unknown> = {}
+    options: { forceReprocess?: boolean } = {}
 ): Promise<{
     documents: Document[];
-    updateResult: any;
+    updateResult: {
+        totalDocuments: number;
+        newDocuments: number;
+        updatedDocuments: number;
+        skippedDocuments: number;
+        processedChunks: number;
+        errorDocuments: number;
+        processingTime: number;
+        fingerprints: Array<{ source: string; chunkCount: number }>;
+    };
     processingSummary: { [key: string]: { pages: number, chunks: number } };
 }> {
+    const startTime = Date.now();
+
     try {
-        console.log('🔄 Starting incremental document loading...');
+        console.log('🔄 Starting smart incremental document loading...');
 
-        // Load all documents (no differential logic in streamlined version)
-        const allDocs = await getChunkedDocsFromPDF();
-        const updateResult = {
-            totalDocuments: allDocs.length,
-            newDocuments: allDocs.length,
-            updatedDocuments: 0,
-            skippedDocuments: 0,
-            processedChunks: allDocs.length,
-            errorDocuments: 0,
-            processingTime: 0,
-            fingerprints: allDocs.map((d) => ({ source: d.metadata.source || '', chunkCount: 1 }))
-        };
+        // Import document tracker
+        const { filterDocumentsForProcessing, clearDocumentCache } = await import('./document-tracker');
 
-        // Return summary for compatibility
-        const processingSummary: { [key: string]: { pages: number, chunks: number } } = {};
+        // First, find all markdown files
+        const markdownPathPattern = env.MARKDOWN_PATH;
+        const dirPath = markdownPathPattern.replace('/*', '');
 
-        // Calculate summary from the update result
-        updateResult.fingerprints.forEach((fp: any) => {
-            const fileName = path.basename(fp.source);
-            if (!processingSummary[fileName]) {
-                processingSummary[fileName] = { pages: 0, chunks: 0 };
+        if (!fs.existsSync(dirPath)) {
+            throw new Error(`Markdown directory not found: ${dirPath}`);
+        }
+
+        // Get all file paths recursively
+        const allFilePaths = findFilesRecursively(dirPath, 'Markdown');
+        console.log(`📁 Found ${allFilePaths.length} markdown files in ${dirPath}`);
+
+        // Filter to only process new/modified files using document tracker
+        const namespace = env.PINECONE_NAMESPACE || '';
+        const filterResult = await filterDocumentsForProcessing(
+            allFilePaths,
+            namespace,
+            {
+                forceReprocess: options.forceReprocess || false,
+                includeModified: true // Process modified files 
             }
-            processingSummary[fileName].chunks += fp.chunkCount;
-            processingSummary[fileName].pages += 1; // Approximate
-        });
+        );
+
+        const processingSummary: { [key: string]: { pages: number, chunks: number } } = {};
+        const allDocs: Document[] = [];
+        let errorCount = 0;
+
+        // Only process files that need processing
+        if (filterResult.toProcess.length > 0) {
+            console.log(`\n📄 Processing ${filterResult.toProcess.length} documents...`);
+
+            for (const filePath of filterResult.toProcess) {
+                try {
+                    const fileName = path.basename(filePath);
+                    const relativePath = path.relative(dirPath, filePath);
+                    console.log(`📄 Processing: ${relativePath}`);
+
+                    const content = fs.readFileSync(filePath, 'utf8');
+                    const doc = new Document({
+                        pageContent: content,
+                        metadata: {
+                            source: filePath,
+                            fileType: 'markdown',
+                            chunkType: 'text'
+                        }
+                    });
+
+                    processingSummary[fileName] = {
+                        pages: 1,
+                        chunks: 1
+                    };
+
+                    allDocs.push(doc);
+                    console.log(`✅ Loaded: ${fileName}`);
+
+                } catch (fileError) {
+                    console.error(`❌ Error processing ${filePath}:`, fileError);
+                    errorCount++;
+                }
+            }
+
+            // Clear cache after processing so next run sees updated state
+            clearDocumentCache();
+        } else {
+            console.log('\n✨ All documents are up to date - nothing to process!');
+        }
+
+        const processingTime = Date.now() - startTime;
+
+        const updateResult = {
+            totalDocuments: allFilePaths.length,
+            newDocuments: filterResult.stats.new,
+            updatedDocuments: filterResult.stats.modified,
+            skippedDocuments: filterResult.stats.unchanged,
+            processedChunks: allDocs.length,
+            errorDocuments: errorCount,
+            processingTime,
+            fingerprints: allDocs.map(d => ({
+                source: d.metadata.source || '',
+                chunkCount: 1
+            }))
+        };
 
         return {
             documents: allDocs,

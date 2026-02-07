@@ -88,14 +88,17 @@ export const env = (() => {
     try {
         const parsedEnv = envSchema.parse(process.env);
 
-        // Apply hardcoded defaults for optional values
-        return {
+        // Apply hardcoded defaults for optional values and ensure types are correct
+        const result = {
             ...parsedEnv,
-            PINECONE_NAMESPACE: parsedEnv.PINECONE_NAMESPACE || 'malayalam-docs',
-            DEFAULT_SEARCH_K: parsedEnv.DEFAULT_SEARCH_K || 5,
-            CHUNK_SIZE: parsedEnv.CHUNK_SIZE || 1000,
-            CHUNK_OVERLAP: parsedEnv.CHUNK_OVERLAP || 150,
-        } as typeof parsedEnv & {
+            PINECONE_NAMESPACE: parsedEnv.PINECONE_NAMESPACE ?? '', // Empty string = default namespace (single namespace strategy)
+            DEFAULT_SEARCH_K: parsedEnv.DEFAULT_SEARCH_K ?? 5,
+            CHUNK_SIZE: parsedEnv.CHUNK_SIZE ?? 1000,
+            CHUNK_OVERLAP: parsedEnv.CHUNK_OVERLAP ?? 150,
+        };
+
+        // Return with explicit non-optional types for the defaults we applied
+        return result as Omit<typeof result, 'PINECONE_NAMESPACE' | 'DEFAULT_SEARCH_K' | 'CHUNK_SIZE' | 'CHUNK_OVERLAP'> & {
             PINECONE_NAMESPACE: string;
             DEFAULT_SEARCH_K: number;
             CHUNK_SIZE: number;

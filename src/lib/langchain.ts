@@ -406,7 +406,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         // Smart caching with chat history consideration
         const cacheKey = sanitizedQuestion;
-        const cachedResult = getCachedQuery(cacheKey, env.PINECONE_NAMESPACE || 'malayalam-docs', chatHistory);
+        const cachedResult = getCachedQuery(cacheKey, env.PINECONE_NAMESPACE || '', chatHistory);
 
         // Only use cache for non-follow-up queries to ensure context accuracy
         if (cachedResult && (!chatHistory || chatHistory.length < 100)) {
@@ -634,7 +634,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 const { searchKattakadaHospitalInfo } = await import('./malayalam-pinecone-processor');
                 const hospitalResult = await searchKattakadaHospitalInfo(
                     sanitizedQuestion,
-                    [env.PINECONE_NAMESPACE || 'malayalam-docs']
+                    [env.PINECONE_NAMESPACE || '']
                 );
 
                 // Add known location info as a synthetic document
@@ -680,7 +680,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 const { searchLocationBasedQuery } = await import('./malayalam-pinecone-processor');
                 const locationResult = await searchLocationBasedQuery(
                     sanitizedQuestion,
-                    [env.PINECONE_NAMESPACE || 'malayalam-docs'],
+                    [env.PINECONE_NAMESPACE || ''],
                     { k: retrievalK, scoreThreshold: 0.2 } // Dynamic K based on query type
                 );
 
@@ -717,7 +717,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
                     cachedVectorStore = new PineconeStore(cachedEmbeddings, {
                         pineconeIndex: index,
-                        namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
+                        namespace: env.PINECONE_NAMESPACE
                     });
                 }
 
@@ -729,7 +729,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                     metadata: {
                         ...doc.metadata,
                         score: score,
-                        namespace: env.PINECONE_NAMESPACE || 'malayalam-docs'
+                        namespace: env.PINECONE_NAMESPACE
                     }
                 }));
 
@@ -895,7 +895,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         // Only cache if it's not a follow-up query and chat history is minimal
         if (analysis.queryType !== 'FOLLOW_UP' && (!chatHistory || chatHistory.length < 200)) {
-            setCachedQuery(cacheKey, env.PINECONE_NAMESPACE || 'malayalam-docs', cacheableResponse, chatHistory);
+            setCachedQuery(cacheKey, env.PINECONE_NAMESPACE || '', cacheableResponse, chatHistory);
         }
 
         return cacheableResponse;

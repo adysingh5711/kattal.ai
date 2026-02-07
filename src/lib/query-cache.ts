@@ -181,7 +181,7 @@ export function logCachePerformance(): void {
 /**
  * Warm cache with common queries (optional optimization)
  */
-export function warmCache(commonQueries: string[], namespace: string = env.PINECONE_NAMESPACE || 'malayalam-docs'): void {
+export function warmCache(commonQueries: string[], namespace: string = env.PINECONE_NAMESPACE || ''): void {
     console.log(`🔥 Warming cache with ${commonQueries.length} common queries...`);
     // This would typically be called with pre-computed results
     // Implementation depends on your specific use case

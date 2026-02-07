@@ -53,7 +53,7 @@ export class MalayalamPineconeProcessor {
 
     // Optimal settings for Malayalam MD files (production optimized)
     private readonly defaultOptions: ProcessingOptions = {
-        namespace: env.PINECONE_NAMESPACE || 'malayalam-docs',
+        namespace: env.PINECONE_NAMESPACE || '', // Single namespace strategy (default = empty string)
         chunkSize: env.CHUNK_SIZE || 800, // Smaller chunks for better location precision
         chunkOverlap: env.CHUNK_OVERLAP || 200, // Higher overlap to preserve location context
         enforceLanguage: false, // Set to false to process all documents
@@ -555,7 +555,7 @@ export async function processMalayalamDocuments(
  */
 export async function searchMalayalamDocuments(
     query: string,
-    namespaces: string[] = [env.PINECONE_NAMESPACE || 'malayalam-docs'],
+    namespaces: string[] = [env.PINECONE_NAMESPACE || ''],
     options: { k?: number; scoreThreshold?: number } = {}
 ): Promise<Document[]> {
     const processor = new MalayalamPineconeProcessor();
@@ -569,7 +569,7 @@ export async function searchMalayalamDocuments(
  */
 export async function searchLocationBasedQuery(
     query: string,
-    namespaces: string[] = [env.PINECONE_NAMESPACE || 'malayalam-docs'],
+    namespaces: string[] = [env.PINECONE_NAMESPACE || ''],
     options: { k?: number; scoreThreshold?: number } = {}
 ): Promise<{
     documents: Document[];
@@ -698,7 +698,7 @@ function isHealthcareFacilityQuery(query: string): boolean {
  */
 export async function searchKattakadaHospitalInfo(
     query: string,
-    namespaces: string[] = [env.PINECONE_NAMESPACE || 'malayalam-docs']
+    namespaces: string[] = [env.PINECONE_NAMESPACE || '']
 ): Promise<{
     documents: Document[];
     knownLocationInfo: {

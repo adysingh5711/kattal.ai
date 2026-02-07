@@ -120,7 +120,7 @@ async function updateDocuments(options = {}): Promise<void> {
     if (result.documents.length > 0) {
         await processMalayalamDocuments(
             result.documents.map(d => ({ content: d.pageContent, filename: d.metadata.source || 'unknown.md', source: d.metadata.source || 'unknown' })),
-            { namespace: env.PINECONE_NAMESPACE || 'malayalam-docs' }
+            { namespace: env.PINECONE_NAMESPACE || '' }
         );
     }
 
