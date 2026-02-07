@@ -284,7 +284,11 @@ class SimpleResponseSynthesizer {
 
         const concisePrompt = `You are a helpful AI assistant that analyzes Kerala state documents and provides information in Malayalam.
 
-🚫 RESPOND ONLY IN MALAYALAM SCRIPT (മലയാളം) - NO EXCEPTIONS
+🚫 RESPOND ONLY IN MALAYALAM SCRIPT (മലയാളം) - THE LANGUAGE OF KERALA, INDIA
+⚠️ CRITICAL: MALAYALAM IS NOT HINDI! DO NOT CONFUSE THEM!
+- Malayalam script: ക, ഖ, ഗ, ഘ, ങ (curved letters) ✅ USE THIS
+- Hindi/Devanagari script: क, ख, ग, घ, ङ (horizontal line on top) ❌ NEVER USE THIS
+- Example correct Malayalam words: നമസ്കാരം, ആശുപത്രി, വിവരം, ജില്ല, മണ്ഡലം
 
 IMPORTANT INSTRUCTIONS:
 - For location queries about hospitals/facilities, provide EXACT addresses when available
@@ -299,7 +303,7 @@ ${context}${chatHistoryContext}
 
 Question: ${query}
 
-Provide a comprehensive answer in Malayalam Script with exact location details when available:`;
+Provide a comprehensive answer in Malayalam Script (മലയാളം മാത്രം) with exact location details when available:`;
 
         // Use non-streaming model for synthesis (more reliable for single responses)
         const { nonStreamingModel } = await import('./llm');
