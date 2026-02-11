@@ -592,7 +592,14 @@ export default function HomeContent() {
                         </div>
 
                         <div className="text-center md:text-right text-xs text-muted-foreground order-3">
-                            <p>An initiative by IB Satheesh, MLA | Developed by PACE</p>
+                            <p className="flex flex-wrap items-center justify-center md:justify-end gap-2">
+                                <span>An initiative by IB Satheesh, MLA | Developed by PACE</span>
+                                <span className="text-muted-foreground/30">|</span>
+                                <Image src="/PACE Logo.png" alt="PACE" width={40} height={16} className="h-4 w-auto object-contain dark:invert opacity-80" />
+                                <span className="text-muted-foreground/30">|</span>
+                                <span>Community Partner </span>
+                                <Image src="/Trinity logo.png" alt="Trinity" width={40} height={16} className="h-4 w-auto object-contain dark:invert opacity-80" />
+                            </p>
                         </div>
                     </div>
                 </div>
