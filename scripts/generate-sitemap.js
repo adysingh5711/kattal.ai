@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const config = {
-  baseUrl: process.env.NEXT_PUBLIC_SITE_URL || 'https://kaattaal.ai.in',
+  baseUrl: (process.env.NEXT_PUBLIC_SITE_URL || 'https://kaattaal.ai.in').replace(/\/$/, ''),
   outputPath: path.join(__dirname, '..', 'public', 'sitemap.xml'),
   pages: [
     {

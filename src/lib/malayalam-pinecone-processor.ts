@@ -1,8 +1,8 @@
 import { Pinecone } from "@pinecone-database/pinecone";
-import { Document } from "langchain/document";
+import { Document } from "@langchain/core/documents";
 import { PineconeStore } from "@langchain/pinecone";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { env } from "./env";
 import { getPinecone } from "./pinecone-client";
 import crypto from 'crypto';

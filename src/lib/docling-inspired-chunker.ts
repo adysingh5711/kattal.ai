@@ -1,4 +1,4 @@
-import { Document } from "langchain/document";
+import { Document } from "@langchain/core/documents";
 import { encoding_for_model } from "tiktoken";
 import { env } from "./env";
 import crypto from 'crypto';

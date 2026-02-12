@@ -95,8 +95,8 @@ const mode = process.argv[2] || 'incremental';
         console.log("🏷️  Dynamic namespacing by content type");
 
         console.log("\n🔧 Usage Commands:");
-        console.log("- npm run enhanced:prepare - Incremental updates (recommended)");
-        console.log("- npm run enhanced:prepare full - Complete rebuild");
+        console.log("- npm run prepare:data - Incremental updates (recommended)");
+        console.log("- npm run prepare:data:full - Complete rebuild");
 
     } catch (error) {
         console.error("❌ Enhanced document preparation failed:", error);

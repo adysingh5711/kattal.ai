@@ -1,5 +1,5 @@
 // Old chunking imports removed - now using Docling-inspired HybridChunker
-import { Document } from "langchain/document";
+import { Document } from "@langchain/core/documents";
 import { env } from "./env";
 import fs from 'fs';
 import path from 'path';
