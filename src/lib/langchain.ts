@@ -103,6 +103,51 @@ class SimpleQueryAnalyzer {
         return query;
     }
 
+    async expandQuery(query: string, chatHistory?: string): Promise<string> {
+        // Skip expansion for very short queries without history
+        if (query.split(' ').length < 3 && !chatHistory) return query;
+
+        try {
+            const { nonStreamingModel } = await import('./llm');
+
+            const systemPrompt = `You are an expert query optimizer for a RAG (Retrieval Augmented Generation) system specializing in Kerala Legislative Assembly data.
+            
+Your task is to REWRITE and EXPAND the user's query to improve valid document retrieval.
+1. Resolve any pronouns (it, he, she, they, etc.) using the Chat History.
+2. Add relevant context keywords (e.g., "Kattakada constituency", "MLA I.B. Sateesh", "Kerala", "Official Report") if implied.
+3. If the query is in Malayalam, keep it in Malayalam but add English keywords in parentheses if helpful for search.
+4. If the query is in English, keep it in English.
+5. DO NOT answer the question. ONLY output the optimized query string.
+
+Chat History:
+${chatHistory || 'None'}
+
+User Query: ${query}
+
+Optimized Search Query:`;
+
+            // Add timeout of 5 seconds to ensure quick response
+            const responsePromise = nonStreamingModel.invoke(systemPrompt);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Expansion timeout after 5000ms')), 5000)
+            );
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const response = await Promise.race([responsePromise, timeoutPromise]) as any;
+            const expanded = response.content.trim();
+
+            // Safety check: if expansion is too long or completely different, revert to original
+            if (expanded.length > query.length * 5 && query.length > 10) {
+                return query;
+            }
+
+            return expanded;
+        } catch (e) {
+            console.warn('⚠️ Query expansion skipped:', e instanceof Error ? e.message : String(e));
+            return query;
+        }
+    }
+
     async classifyQuery(query: string, chatHistory?: string): Promise<QueryAnalysis> {
         // Resolve references using chat history
         const resolvedQuery = this.resolveReferences(query, chatHistory);
@@ -123,7 +168,7 @@ class SimpleQueryAnalyzer {
 
         // Extract entities from both current query and chat history
         const entities: string[] = [];
-        if (lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('kattakada')) entities.push('Kattakada');
+        if (lowerQuery.includes('കാട്ടക്കട') || lowerQuery.includes('kattakada') || lowerQuery.includes('kaattaka')) entities.push('Kattakada');
         if (lowerQuery.includes('മലയിൻകീഴ്') || lowerQuery.includes('malayinkeezhu')) entities.push('Malayinkeezhu');
         if (lowerQuery.includes('മാറനല്ലൂർ') || lowerQuery.includes('maranalloor')) entities.push('Maranalloor');
         if (lowerQuery.includes('പള്ളിച്ചൽ') || lowerQuery.includes('pallichal')) entities.push('Pallichal');
@@ -150,8 +195,12 @@ class SimpleQueryAnalyzer {
             complexity = Math.max(complexity, 3); // Follow-ups need more context
         }
 
-        // Political/administrative queries need precise retrieval
-        if (politicalWords.some(word => lowerQuery.includes(word))) {
+        // Statistical/Quantitative queries need precise retrieval
+        const statisticalWords = ['amount', 'count', 'number', 'area', 'land', 'hectare', 'population', 'density', 'literacy', 'rate', 'percentage', 'statistics', 'data', 'വിസ്തൃതി', 'ഭൂവിസ്തൃതി', 'ജനസംഖ്യ', 'എണ്ണം', 'ആകെ', 'ഹെക്ടർ', 'how much', 'how many', 'total'];
+        if (statisticalWords.some(word => lowerQuery.includes(word))) {
+            queryType = 'STATISTICAL';
+            complexity = 4; // High complexity to ensure we find the exact numbers
+        } else if (politicalWords.some(word => lowerQuery.includes(word))) {
             queryType = 'POLITICAL_ADMINISTRATIVE';
             complexity = 4; // High complexity to get more documents for accurate facts
         } else if (lowerQuery.includes('compare') || lowerQuery.includes('difference') || lowerQuery.includes('തുലനം')) {
@@ -286,6 +335,7 @@ class SimpleResponseSynthesizer {
 
 🚫 RESPOND ONLY IN MALAYALAM SCRIPT (മലയാളം) - THE LANGUAGE OF KERALA, INDIA
 ⚠️ CRITICAL: MALAYALAM IS NOT HINDI! DO NOT CONFUSE THEM!
+❌ DO NOT ANSWER IN ENGLISH. EVEN IF THE QUESTION OR CONTEXT IS IN ENGLISH, TRANSLATE AND ANSWER IN MALAYALAM.
 - Malayalam script: ക, ഖ, ഗ, ഘ, ങ (curved letters) ✅ USE THIS
 - Hindi/Devanagari script: क, ख, ग, घ, ङ (horizontal line on top) ❌ NEVER USE THIS
 - Example correct Malayalam words: നമസ്കാരം, ആശുപത്രി, വിവരം, ജില്ല, മണ്ഡലം
@@ -297,13 +347,17 @@ IMPORTANT INSTRUCTIONS:
 - Always check for specific address details in the context before saying information is not available
 - If this is a follow-up question, refer to the chat history for context and avoid repeating information
 - For reference words like "അത്", "ഇത്", "അവിടെ", use the chat history to understand what they refer to
+- For statistical queries (area, population, etc.), look for exact numbers in the context.
+- For "Total area" (ഭൂവിസ്തൃതി), look for "Hectares" (ഹെക്ടർ) data and mention the specific numbers.
+- IMPORTANT: Prioritize constitutional summary statistics (like "11343 hectares" for total area) over individual property listings or ward-level details unless specifically asked for granular data.
+- If you find a total number like "11343" for Kattakada's area, emphasize that it is the total area.
 
 CONTEXT:
 ${context}${chatHistoryContext}
 
 Question: ${query}
 
-Provide a comprehensive answer in Malayalam Script (മലയാളം മാത്രം) with exact location details when available:`;
+Provide a comprehensive answer STRICTLY in Malayalam Script (മലയാളം മാത്രം) with exact location details when available:`;
 
         // Use non-streaming model for synthesis (more reliable for single responses)
         const { nonStreamingModel } = await import('./llm');
@@ -600,6 +654,35 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             }
         }
 
+        // Step 1.7: Expand query for better retrieval
+        let searchParam = sanitizedQuestion;
+
+        // Manual expansion for Statistical Queries to ensure Malayalam Keywords are included
+        if (analysis.queryType === 'STATISTICAL') {
+            console.log('📊 Statistical query detected, appending Malayalam statistical terms...');
+            if (/area|land|how much/i.test(sanitizedQuestion)) searchParam += " ആകെ ഭൂവിസ്തൃതി വിസ്തൃതി ഹെക്ടർ റിപ്പോർട്ട് (Total Area in Hectares Report)";
+            if (/population|people|how many/i.test(sanitizedQuestion)) searchParam += " ആകെ ജനസംഖ്യ റിപ്പോർട്ട് (Total Population Report)";
+            if (/literacy/i.test(sanitizedQuestion)) searchParam += " സാക്ഷരത (Literacy)";
+            if (/density/i.test(sanitizedQuestion)) searchParam += " ജനസാന്ദ്രത (Density)";
+            if (/house|home/i.test(sanitizedQuestion)) searchParam += " വീടുകൾ ഭവനങ്ങൾ (Houses)";
+        }
+
+        try {
+            // Only expand if it's not a simple query we already handled
+            // and if we have time/resources (complexity > 1)
+            // Skip automated expansion if we manually expanded statistics to avoid dilution
+            if ((analysis.complexity > 1 || analysis.queryType === 'FOLLOW_UP') && analysis.queryType !== 'STATISTICAL') {
+                console.log('🧠 Expanding query for better understanding...');
+                const expandedQuery = await queryAnalyzer.expandQuery(sanitizedQuestion, chatHistory);
+                if (expandedQuery !== sanitizedQuestion) {
+                    console.log(`✨ Query Expanded: "${sanitizedQuestion}" -> "${expandedQuery}"`);
+                    searchParam = expandedQuery;
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Query expansion failed, using original query:', error);
+        }
+
         // Step 2: Enhanced Pinecone retrieval with location-aware search
         const retrievalStartTime = Date.now();
         let retrievalResult: {
@@ -612,7 +695,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         // Detect if user wants detailed/comprehensive information for increased retrieval
         const detailedKeywords = ['all', 'detailed', 'complete', 'comprehensive', 'full', 'everything',
             'എല്ലാ', 'വിശദമായ', 'മുഴുവൻ', 'പൂർണ്ണമായ', 'സമ്പൂർണ്ണ', 'list all', 'tell me everything'];
-        const isDetailedQuery = detailedKeywords.some(keyword => sanitizedQuestion.toLowerCase().includes(keyword));
+        const isDetailedQuery = detailedKeywords.some(keyword => searchParam.toLowerCase().includes(keyword));
         const retrievalK = isDetailedQuery ? 20 : 12; // More documents for detailed queries
 
         if (isDetailedQuery) {
@@ -621,19 +704,19 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
         try {
             // Check if this is a location-based query (hospital, facility, etc.)
-            const isLocationQuery = /hospital|ആശുപത്രി|clinic|ക്ലിനിക്|medical|മെഡിക്കൽ|health|ആരോഗ്യ|where|എവിടെ|location|സ്ഥലം/i.test(sanitizedQuestion);
-            const isKattakadaHospitalQuery = /kattakada.*hospital|കാട്ടക്കട.*ആശുപത്രി|general.*hospital.*kattakada|ജനറൽ.*ആശുപത്രി.*കാട്ടക്കട/i.test(sanitizedQuestion);
+            const isLocationQuery = /hospital|ആശുപത്രി|clinic|ക്ലിനിക്|medical|മെഡിക്കൽ|health|ആരോഗ്യ|where|എവിടെ|location|സ്ഥലം/i.test(searchParam);
+            const isKattakadaHospitalQuery = /kattakada.*hospital|കാട്ടക്കട.*ആശുപത്രി|general.*hospital.*kattakada|ജനറൽ.*ആശുപത്രി.*കാട്ടക്കട/i.test(searchParam);
 
             if (isKattakadaHospitalQuery) {
                 console.log('🏥 Kattakada hospital query detected, using specialized search...');
 
                 // Import Document class for synthetic document creation
-                const { Document } = await import('langchain/document');
+                const { Document } = await import('@langchain/core/documents');
 
                 // Use specialized Kattakada hospital search
                 const { searchKattakadaHospitalInfo } = await import('./malayalam-pinecone-processor');
                 const hospitalResult = await searchKattakadaHospitalInfo(
-                    sanitizedQuestion,
+                    searchParam,
                     [env.PINECONE_NAMESPACE || '']
                 );
 
@@ -679,7 +762,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 // Use enhanced location search
                 const { searchLocationBasedQuery } = await import('./malayalam-pinecone-processor');
                 const locationResult = await searchLocationBasedQuery(
-                    sanitizedQuestion,
+                    searchParam,
                     [env.PINECONE_NAMESPACE || ''],
                     { k: retrievalK, scoreThreshold: 0.2 } // Dynamic K based on query type
                 );
@@ -694,6 +777,29 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
 
                 console.log(`✅ Enhanced location search found ${locationResult.documents.length} documents`);
 
+            } else if (analysis.queryType === 'STATISTICAL') {
+                console.log('📊 Statistical query detected, using expanded search for summary data...');
+
+                // For statistics, we need many documents to ensure we find summary chunks
+                const { searchMalayalamDocuments } = await import('./malayalam-pinecone-processor');
+                const statisticalDocs = await searchMalayalamDocuments(
+                    searchParam,
+                    [env.PINECONE_NAMESPACE || ''],
+                    {
+                        k: Math.max(16, retrievalK * 2), // High K to ensure we don't miss summary chunks
+                        scoreThreshold: 0.15 // Lower threshold for statistical discovery
+                    }
+                );
+
+                retrievalTime = Date.now() - retrievalStartTime;
+                retrievalResult = {
+                    documents: statisticalDocs,
+                    retrievalStrategy: 'statistical_enhanced_summary_search',
+                    crossReferences: ['summary_statistics']
+                };
+
+                console.log(`✅ Statistical enhanced search found ${statisticalDocs.length} documents`);
+
             } else {
                 // Use standard search for non-location queries
                 // Reuse cached embeddings instance (saves 1-2 seconds)
@@ -707,7 +813,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 }
 
                 // Generate embedding (this is the expensive part - keep it)
-                await cachedEmbeddings.embedQuery(sanitizedQuestion);
+                await cachedEmbeddings.embedQuery(searchParam);
 
                 // Reuse cached vector store (saves 1-2 seconds)
                 if (!cachedVectorStore) {
@@ -722,7 +828,7 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 }
 
                 // Perform Pinecone search with dynamic K
-                const docs = await cachedVectorStore.similaritySearchWithScore(sanitizedQuestion, retrievalK);
+                const docs = await cachedVectorStore.similaritySearchWithScore(searchParam, retrievalK);
 
                 const uniqueDocuments = docs.map(([doc, score]: [any, any]) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
                     pageContent: doc.pageContent,
