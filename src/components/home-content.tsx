@@ -25,8 +25,11 @@ export default function HomeContent() {
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const [isSignInLoading, setIsSignInLoading] = useState(false);
     const [isSignUpLoading, setIsSignUpLoading] = useState(false);
+    const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
 
-    const isAnyLoading = isGoogleLoading || isSignInLoading || isSignUpLoading;
+    const isAnyLoading = isGoogleLoading || isSignInLoading || isSignUpLoading || isForgotPasswordLoading;
 
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -160,6 +163,44 @@ export default function HomeContent() {
             setError("Network error. Please try again.");
         } finally {
             setIsSignInLoading(false);
+        }
+    };
+
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsForgotPasswordLoading(true);
+        setError(null);
+        setSuccess(null);
+
+        const emailToReset = forgotPasswordEmail || formData.email;
+
+        if (!emailToReset) {
+            setError("Please enter your email address");
+            setIsForgotPasswordLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/auth/forgot-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: emailToReset }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setSuccess(data.message || "If an account exists with this email, you will receive a password reset link.");
+            } else {
+                setError(data.error || "Failed to send reset email");
+            }
+        } catch (err) {
+            console.error('Forgot password error:', err);
+            setError("Network error. Please try again.");
+        } finally {
+            setIsForgotPasswordLoading(false);
         }
     };
 
@@ -497,56 +538,125 @@ export default function HomeContent() {
                                                     exit={{ opacity: 0, x: -20 }}
                                                     transition={{ duration: 0.3, ease: "easeInOut" }}
                                                 >
-                                                    <form onSubmit={handleSignIn} className="space-y-4">
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="signin-email" className="text-sm font-medium text-foreground">
-                                                                Email
-                                                            </Label>
-                                                            <Input
-                                                                id="signin-email"
-                                                                name="email"
-                                                                type="email"
-                                                                placeholder="Enter your email"
-                                                                value={formData.email}
-                                                                onChange={handleInputChange}
-                                                                className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
-                                                                required
-                                                                autoComplete="email"
-                                                            />
-                                                        </div>
+                                                    {showForgotPassword ? (
+                                                        <form onSubmit={handleForgotPassword} className="space-y-4">
+                                                            <div className="text-center space-y-1 mb-2">
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Enter your email address and we&apos;ll send you a link to reset your password.
+                                                                </p>
+                                                            </div>
 
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="signin-password" className="text-sm font-medium text-foreground">
-                                                                Password
-                                                            </Label>
-                                                            <Input
-                                                                id="signin-password"
-                                                                name="password"
-                                                                type="password"
-                                                                placeholder="Enter your password"
-                                                                value={formData.password}
-                                                                onChange={handleInputChange}
-                                                                className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
-                                                                required
-                                                                autoComplete="current-password"
-                                                            />
-                                                        </div>
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="forgot-email" className="text-sm font-medium text-foreground">
+                                                                    Email
+                                                                </Label>
+                                                                <Input
+                                                                    id="forgot-email"
+                                                                    type="email"
+                                                                    placeholder="Enter your email"
+                                                                    value={forgotPasswordEmail}
+                                                                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                                                                    className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
+                                                                    required
+                                                                    autoComplete="email"
+                                                                />
+                                                            </div>
 
-                                                        <Button
-                                                            type="submit"
-                                                            disabled={isAnyLoading}
-                                                            className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 text-base shadow-lg hover:shadow-xl transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        >
-                                                            {isSignInLoading ? (
-                                                                <>
-                                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                                    Signing In...
-                                                                </>
-                                                            ) : (
-                                                                "Sign In"
-                                                            )}
-                                                        </Button>
-                                                    </form>
+                                                            <Button
+                                                                type="submit"
+                                                                disabled={isAnyLoading}
+                                                                className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 text-base shadow-lg hover:shadow-xl transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                {isForgotPasswordLoading ? (
+                                                                    <>
+                                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                        Sending Reset Link...
+                                                                    </>
+                                                                ) : (
+                                                                    "Send Reset Link"
+                                                                )}
+                                                            </Button>
+
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                onClick={() => {
+                                                                    setShowForgotPassword(false);
+                                                                    setError(null);
+                                                                    setSuccess(null);
+                                                                    setForgotPasswordEmail('');
+                                                                }}
+                                                                className="w-full text-sm text-muted-foreground hover:text-foreground"
+                                                            >
+                                                                Back to Sign In
+                                                            </Button>
+                                                        </form>
+                                                    ) : (
+                                                        <form onSubmit={handleSignIn} className="space-y-4">
+                                                            <div className="space-y-2">
+                                                                <Label htmlFor="signin-email" className="text-sm font-medium text-foreground">
+                                                                    Email
+                                                                </Label>
+                                                                <Input
+                                                                    id="signin-email"
+                                                                    name="email"
+                                                                    type="email"
+                                                                    placeholder="Enter your email"
+                                                                    value={formData.email}
+                                                                    onChange={handleInputChange}
+                                                                    className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
+                                                                    required
+                                                                    autoComplete="email"
+                                                                />
+                                                            </div>
+
+                                                            <div className="space-y-2">
+                                                                <div className="flex items-center justify-between">
+                                                                    <Label htmlFor="signin-password" className="text-sm font-medium text-foreground">
+                                                                        Password
+                                                                    </Label>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setShowForgotPassword(true);
+                                                                            setForgotPasswordEmail(formData.email);
+                                                                            setError(null);
+                                                                            setSuccess(null);
+                                                                        }}
+                                                                        className="text-xs text-primary hover:text-primary/80 hover:underline transition-all duration-200 font-medium"
+                                                                    >
+                                                                        Forgot Password?
+                                                                    </button>
+                                                                </div>
+                                                                <Input
+                                                                    id="signin-password"
+                                                                    name="password"
+                                                                    type="password"
+                                                                    placeholder="Enter your password"
+                                                                    value={formData.password}
+                                                                    onChange={handleInputChange}
+                                                                    className="rounded-xl border-border focus:border-ring focus:ring-ring/20 transition-all duration-200"
+                                                                    required
+                                                                    autoComplete="current-password"
+                                                                />
+                                                            </div>
+
+                                                            <Button
+                                                                type="submit"
+                                                                disabled={isAnyLoading}
+                                                                className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 text-base shadow-lg hover:shadow-xl transition-all duration-200 focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                {isSignInLoading ? (
+                                                                    <>
+                                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                        Signing In...
+                                                                    </>
+                                                                ) : (
+                                                                    "Sign In"
+                                                                )}
+                                                            </Button>
+                                                        </form>
+                                                    )}
                                                 </motion.div>
                                             </TabsContent>
                                         </AnimatePresence>
