@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImper
 import { Button } from "./ui/button"
 // import { Avatar } from "./ui/avatar"
 import { ScrollArea } from "./ui/scroll-area"
-import { Send } from "lucide-react"
+import { Send, Square } from "lucide-react"
 // import { Paperclip, Mic, Image } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { MarkdownRenderer } from "./markdown-renderer"
@@ -30,9 +30,11 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
     function ChatInterface({ selectedChatId }, ref) {
         const [chatHistories, setChatHistories] = useState<Record<string, Message[]>>({})
         const [inputValue, setInputValue] = useState("")
+        const [isStreaming, setIsStreaming] = useState(false)
         const messagesEndRef = useRef<HTMLDivElement>(null)
         const textareaRef = useRef<HTMLTextAreaElement>(null)
         const chatContainerRef = useRef<HTMLDivElement>(null)
+        const abortControllerRef = useRef<AbortController | null>(null)
 
         useImperativeHandle(ref, () => ({
             focusInput: () => {
@@ -68,8 +70,39 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
             scrollToBottom()
         }, [messages, scrollToBottom])
 
+        const handleStopStreaming = useCallback(() => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort()
+                abortControllerRef.current = null
+            }
+            setIsStreaming(false)
+
+            // Clean up the last assistant message
+            if (selectedChatId) {
+                setChatHistories(prev => {
+                    const updated = { ...prev }
+                    const msgs = [...(updated[selectedChatId] || [])]
+                    const lastMessage = msgs[msgs.length - 1]
+                    if (lastMessage && lastMessage.sender === 'assistant') {
+                        // Strip wave effect marker
+                        let content = lastMessage.content.replace(/\|WAVE_EFFECT\|/g, '').trim()
+                        // If the content is only loading text (no real answer yet), remove the message
+                        const isLoadingOnly = content.includes('നോക്കിക്കൊണ്ടിരിക്കുക') || content === ''
+                        if (isLoadingOnly) {
+                            msgs.pop()
+                        } else {
+                            lastMessage.content = content
+                        }
+                    }
+                    updated[selectedChatId] = msgs
+                    return updated
+                })
+            }
+        }, [selectedChatId])
+
         const handleSendMessage = async () => {
             if (!selectedChatId || inputValue.trim() === "") return
+            if (isStreaming) return // Don't send while streaming
 
             // Trim trailing spaces and newlines
             const trimmedContent = inputValue.replace(/\s+$/, '')
@@ -118,6 +151,10 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
 
                 try {
                     // Try streaming API first
+                    const abortController = new AbortController()
+                    abortControllerRef.current = abortController
+                    setIsStreaming(true)
+
                     const response = await fetch('/api/chat/stream', {
                         method: 'POST',
                         headers: {
@@ -129,6 +166,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                 content: msg.content
                             }))
                         }),
+                        signal: abortController.signal,
                     })
 
                     if (!response.ok) {
@@ -246,6 +284,11 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                 }
                             }
                         } catch (readerError) {
+                            // If aborted by user, don't treat as error
+                            if (readerError instanceof DOMException && readerError.name === 'AbortError') {
+                                streamingSucceeded = true // Mark as succeeded since user intentionally stopped
+                                return // Exit cleanly
+                            }
                             const errorDetails = showErrorInChat(
                                 readerError instanceof Error ? readerError : new Error(String(readerError)),
                                 'stream_reading',
@@ -261,6 +304,10 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     }
 
                 } catch (streamingError) {
+                    // If aborted by user, don't fallback — just exit cleanly
+                    if (streamingError instanceof DOMException && streamingError.name === 'AbortError') {
+                        return
+                    }
                     const errorDetails = showErrorInChat(
                         streamingError instanceof Error ? streamingError : new Error(String(streamingError)),
                         'streaming_fallback',
@@ -362,7 +409,8 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                     return updated
                 })
             } finally {
-                // Streaming completed
+                setIsStreaming(false)
+                abortControllerRef.current = null
             }
         }
 
@@ -498,8 +546,27 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                 <Mic className="w-5 h-5" />
                             </Button> */}
                             </div>
-                            <Button onClick={handleSendMessage} size="icon" className="bg-blue-500 rounded-full" disabled={inputValue.trim() === ""}>
-                                <Send className="dark:text-white w-5 h-5" />
+                            <Button
+                                onClick={isStreaming ? handleStopStreaming : handleSendMessage}
+                                size="icon"
+                                className="rounded-full bg-blue-500 transition-all duration-300 ease-in-out"
+                                disabled={!isStreaming && inputValue.trim() === ""}
+                            >
+                                <div className="relative w-5 h-5 flex items-center justify-center">
+                                    <Send
+                                        className={`dark:text-white w-5 h-5 absolute transition-all duration-300 ease-in-out ${isStreaming
+                                            ? "opacity-0 scale-0 rotate-90"
+                                            : "opacity-100 scale-100 rotate-0"
+                                            }`}
+                                    />
+                                    <Square
+                                        className={`dark:text-white w-3.5 h-3.5 absolute transition-all duration-300 ease-in-out ${isStreaming
+                                            ? "opacity-100 scale-100 rotate-0"
+                                            : "opacity-0 scale-0 -rotate-90"
+                                            }`}
+                                        fill="currentColor"
+                                    />
+                                </div>
                             </Button>
                         </div>
                     </div>
