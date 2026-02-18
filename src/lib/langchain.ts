@@ -10,10 +10,10 @@
 
 import { getPinecone } from "./pinecone-client";
 import {
-    isEnvironmentalQuery,
-    executeEnvironmentalDataTool,
-    extractParametersFromQuery,
-    type EnvironmentalToolResult
+    // isEnvironmentalQuery,
+    // executeEnvironmentalDataTool,
+    // extractParametersFromQuery,
+    // type EnvironmentalToolResult
 } from "./ai-tools";
 import { getCachedQuery, setCachedQuery, logCachePerformance } from "./query-cache";
 import { env } from "./env";
@@ -290,235 +290,85 @@ class SimplePerformanceOptimizer {
     }
 }
 
-// Optimized response synthesizer
-class SimpleResponseSynthesizer {
+/**
+ * Smart context builder: keeps whole documents, sorted by relevance score,
+ * de-duplicates overlapping chunks, and fits within the budget without
+ * chopping mid-sentence.
+ */
+export function buildSmartContext(
+    documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>,
+    maxLength: number
+): { context: string; docsUsed: number; docsDropped: number } {
+    if (documents.length === 0) {
+        return { context: '', docsUsed: 0, docsDropped: 0 };
+    }
 
-    /**
-     * Smart context builder: keeps whole documents, sorted by relevance score,
-     * de-duplicates overlapping chunks, and fits within the budget without
-     * chopping mid-sentence.
-     */
-    private buildSmartContext(
-        documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>,
-        maxLength: number
-    ): { context: string; docsUsed: number; docsDropped: number } {
-        if (documents.length === 0) {
-            return { context: '', docsUsed: 0, docsDropped: 0 };
-        }
+    // 1. Sort by relevance score (highest first) — Pinecone score is in metadata
+    const sorted = [...documents].sort((a, b) => {
+        const scoreA = Number(a.metadata?.score ?? 0);
+        const scoreB = Number(b.metadata?.score ?? 0);
+        return scoreB - scoreA;
+    });
 
-        // 1. Sort by relevance score (highest first) — Pinecone score is in metadata
-        const sorted = [...documents].sort((a, b) => {
-            const scoreA = Number(a.metadata?.score ?? 0);
-            const scoreB = Number(b.metadata?.score ?? 0);
-            return scoreB - scoreA; // descending
+    // 2. De-duplicate overlapping chunks (>60% overlap = skip the lower-scored one)
+    const deduped: typeof sorted = [];
+    for (const doc of sorted) {
+        const content = doc.pageContent.trim();
+        if (!content) continue;
+
+        const isDuplicate = deduped.some(existing => {
+            const existingContent = existing.pageContent.trim();
+            const shorter = content.length < existingContent.length ? content : existingContent;
+            const longer = content.length >= existingContent.length ? content : existingContent;
+            if (shorter.length < 50) return false;
+            const checkLen = Math.floor(shorter.length * 0.6);
+            const checkStr = shorter.substring(0, checkLen);
+            return longer.includes(checkStr);
         });
 
-        // 2. De-duplicate overlapping chunks (>60% overlap = skip the lower-scored one)
-        const deduped: typeof sorted = [];
-        for (const doc of sorted) {
-            const content = doc.pageContent.trim();
-            if (!content) continue;
-
-            const isDuplicate = deduped.some(existing => {
-                const existingContent = existing.pageContent.trim();
-                // Check if one is a substantial substring of the other
-                const shorter = content.length < existingContent.length ? content : existingContent;
-                const longer = content.length >= existingContent.length ? content : existingContent;
-                if (shorter.length < 50) return false; // too short to judge
-                // Check overlap: take the first 60% of the shorter text
-                const checkLen = Math.floor(shorter.length * 0.6);
-                const checkStr = shorter.substring(0, checkLen);
-                return longer.includes(checkStr);
-            });
-
-            if (!isDuplicate) {
-                deduped.push(doc);
-            }
-        }
-
-        const dedupedCount = sorted.length - deduped.length;
-        if (dedupedCount > 0) {
-            console.log(`🧹 De-duplicated ${dedupedCount} overlapping chunks`);
-        }
-
-        // 3. Greedily pack whole documents until budget is exhausted
-        const separator = '\n\n---\n\n';
-        let totalLength = 0;
-        const selected: string[] = [];
-
-        for (const doc of deduped) {
-            const piece = doc.pageContent.trim();
-            const addedLength = piece.length + (selected.length > 0 ? separator.length : 0);
-
-            if (totalLength + addedLength > maxLength) {
-                // If we haven't selected anything yet, include at least the top doc (truncated)
-                if (selected.length === 0) {
-                    selected.push(piece.substring(0, maxLength));
-                    console.log(`⚠️ Top document alone exceeded budget, truncated to ${maxLength} chars`);
-                }
-                break;
-            }
-
-            selected.push(piece);
-            totalLength += addedLength;
-        }
-
-        const docsDropped = deduped.length - selected.length;
-        if (docsDropped > 0) {
-            console.log(`📄 Context budget: kept ${selected.length}/${deduped.length} documents (${totalLength} chars), dropped ${docsDropped} lowest-relevance docs`);
-        }
-
-        return {
-            context: selected.join(separator),
-            docsUsed: selected.length,
-            docsDropped
-        };
-    }
-
-    async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>, chatHistory?: string) {
-        // Detect if user wants detailed/comprehensive information
-        const detailedKeywords = ['all', 'detailed', 'complete', 'comprehensive', 'full', 'everything',
-            'എല്ലാ', 'വിശദമായ', 'മുഴുവൻ', 'പൂർണ്ണമായ', 'സമ്പൂർണ്ണ', 'list all', 'tell me everything'];
-        const queryLower = query.toLowerCase();
-        const isDetailedQuery = detailedKeywords.some(keyword => queryLower.includes(keyword));
-
-        // Increased context limits: 16K normal, 28K detailed (was 8K/16K)
-        const maxContextLength = isDetailedQuery ? 28000 : 16000;
-
-        if (isDetailedQuery) {
-            console.log(`📚 Detailed query detected - using extended context (${maxContextLength} chars)`);
-        }
-
-        // Smart context building: keeps whole docs, sorted by relevance, de-duped
-        const { context, docsUsed, docsDropped } = this.buildSmartContext(documents, maxContextLength);
-
-        if (docsDropped > 0 || docsUsed < documents.length) {
-            console.log(`🔍 Smart context: ${docsUsed} docs used, ${docsDropped} dropped, ${context.length} chars`);
-        }
-
-        // Smart chat history processing - balance context vs performance
-        let chatHistoryContext = '';
-        if (chatHistory && analysis.queryType === 'FOLLOW_UP') {
-            // For follow-up queries, include more chat history
-            const maxHistoryLength = 3000;
-            const truncatedHistory = chatHistory.length > maxHistoryLength
-                ? '...' + chatHistory.slice(-maxHistoryLength)
-                : chatHistory;
-            chatHistoryContext = `\n\nCHAT HISTORY (for context):\n${truncatedHistory}\n`;
-        } else if (chatHistory) {
-            // For other queries, include recent context (last 6 lines)
-            const recentHistory = chatHistory.split('\n').slice(-6).join('\n');
-            if (recentHistory.length > 0) {
-                chatHistoryContext = `\n\nRECENT CONTEXT:\n${recentHistory}\n`;
-            }
-        }
-
-        const concisePrompt = `You are a helpful AI assistant that analyzes Kerala state documents and provides information in Malayalam.
-
-🚫 RESPOND ONLY IN MALAYALAM SCRIPT (മലയാളം) - THE LANGUAGE OF KERALA, INDIA
-⚠️ CRITICAL: MALAYALAM IS NOT HINDI! DO NOT CONFUSE THEM!
-❌ DO NOT ANSWER IN ENGLISH. EVEN IF THE QUESTION OR CONTEXT IS IN ENGLISH, TRANSLATE AND ANSWER IN MALAYALAM.
-- Malayalam script: ക, ഖ, ഗ, ഘ, ങ (curved letters) ✅ USE THIS
-- Hindi/Devanagari script: क, ख, ग, घ, ङ (horizontal line on top) ❌ NEVER USE THIS
-- Example correct Malayalam words: നമസ്കാരം, ആശുപത്രി, വിവരം, ജില്ല, മണ്ഡലം
-
-IMPORTANT INSTRUCTIONS:
-- For location queries about hospitals/facilities, provide EXACT addresses when available
-- Include specific details like road names, landmarks, coordinates if mentioned
-- For Kattakada General Hospital, note it's located in Kattakada town, Thiruvananthapuram district
-- Always check for specific address details in the context before saying information is not available
-- If this is a follow-up question, refer to the chat history for context and avoid repeating information
-- For reference words like "അത്", "ഇത്", "അവിടെ", use the chat history to understand what they refer to
-- For statistical queries (area, population, etc.), look for exact numbers in the context.
-- For "Total area" (ഭൂവിസ്തൃതി), look for "Hectares" (ഹെക്ടർ) data and mention the specific numbers.
-- IMPORTANT: Prioritize constitutional summary statistics (like "11343 hectares" for total area) over individual property listings or ward-level details unless specifically asked for granular data.
-- If you find a total number like "11343" for Kattakada's area, emphasize that it is the total area.
-
-CONTEXT (${docsUsed} documents):
-${context}${chatHistoryContext}
-
-Question: ${query}
-
-Provide a comprehensive answer STRICTLY in Malayalam Script (മലയാളം മാത്രം) with exact location details when available:`;
-
-        // Use non-streaming model for synthesis (more reliable for single responses)
-        const { nonStreamingModel } = await import('./llm');
-
-        // Add timeout protection to prevent hanging
-        const synthesisPromise = nonStreamingModel.invoke(concisePrompt);
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Synthesis timeout after 60 seconds')), 60000)
-        );
-
-        try {
-            const response = await Promise.race([synthesisPromise, timeoutPromise]);
-            const responseText = (response as { content: string }).content;
-
-            // Hallucination detection for political queries
-            if (query.toLowerCase().includes('mla') || query.toLowerCase().includes('എം.എൽ.എ')) {
-                const contextText = context.toLowerCase();
-
-                // Check if response mentions names not in context
-                const suspiciousNames = ['അനിൽ ആന്റണി', 'anil antony', 'സജിതാ ജെ. ജോസഫ്', 'sajitha j. joseph'];
-                const hasSuspiciousName = suspiciousNames.some(name =>
-                    responseText.toLowerCase().includes(name.toLowerCase()) &&
-                    !contextText.includes(name.toLowerCase())
-                );
-
-                if (hasSuspiciousName) {
-                    console.warn('🚨 Hallucination detected in political query response');
-                    return {
-                        synthesizedResponse: `ലഭ്യമായ പ്രമാണങ്ങളിൽ കാട്ടാക്കട മണ്ഡലത്തിലെ എം.എൽ.എ.യെ കുറിച്ചുള്ള വിവരങ്ങൾ പരിമിതമാണ്. കൃത്യമായ വിവരങ്ങൾക്കായി ദയവായി സംസ്ഥാന തിരഞ്ഞെടുപ്പ് കമ്മീഷനിലേക്കോ നിയമസഭാ സെക്രട്ടറിയേറ്റിലേക്കോ റഫർ ചെയ്യുക.`,
-                        responseStyle: 'hallucination_prevented',
-                        confidence: 0.9,
-                        completeness: 'partial' as const,
-                        sourceAttribution: documents.map(doc => ({
-                            source: String(doc.metadata?.source || 'unknown'),
-                            relevance: 0.8,
-                            usedFor: 'context',
-                            contentType: 'text' as const,
-                            pageReference: String(doc.metadata?.page || '1')
-                        })),
-                        reasoningChain: ['Prevented hallucination in political query']
-                    };
-                }
-            }
-
-            return {
-                synthesizedResponse: responseText,
-                responseStyle: 'factual',
-                confidence: 0.8,
-                completeness: docsDropped > 0 ? 'partial' as const : 'complete' as const,
-                sourceAttribution: documents.map(doc => ({
-                    source: String(doc.metadata?.source || 'unknown'),
-                    relevance: 0.8,
-                    usedFor: 'context',
-                    contentType: 'text' as const,
-                    pageReference: String(doc.metadata?.page || '1')
-                })),
-                reasoningChain: [`Smart context: ${docsUsed}/${documents.length} docs, ${context.length} chars, ${docsDropped} dropped`]
-            };
-        } catch (error) {
-            console.error(`❌ LLM synthesis failed:`, error);
-
-            // Fallback response when LLM fails
-            return {
-                synthesizedResponse: `ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ നിങ്ങളെ സഹായിക്കാൻ എനിക്ക് മതിയായ വിവരങ്ങൾ ഇല്ല. കൂടുതൽ വിവരങ്ങൾക്ക് ദയവായി സന്ദർശിക്കുക: https://kattakadalac.com/ (Sorry, I don't have enough information to help you with this topic. For more information, please visit: https://kattakadalac.com/)`,
-                responseStyle: 'fallback',
-                confidence: 0.1,
-                completeness: 'partial' as const,
-                sourceAttribution: documents.map(doc => ({
-                    source: String(doc.metadata?.source || 'unknown'),
-                    relevance: 0.5,
-                    usedFor: 'context',
-                    contentType: 'text' as const,
-                    pageReference: String(doc.metadata?.page || '1')
-                })),
-                reasoningChain: ['Fallback response due to LLM failure']
-            };
+        if (!isDuplicate) {
+            deduped.push(doc);
         }
     }
+
+    const dedupedCount = sorted.length - deduped.length;
+    if (dedupedCount > 0) {
+        console.log(`🧹 De-duplicated ${dedupedCount} overlapping chunks`);
+    }
+
+    // 3. Greedily pack whole documents until budget is exhausted
+    const separator = '\n\n---\n\n';
+    let totalLength = 0;
+    const selected: string[] = [];
+
+    for (const doc of deduped) {
+        const piece = doc.pageContent.trim();
+        const addedLength = piece.length + (selected.length > 0 ? separator.length : 0);
+
+        if (totalLength + addedLength > maxLength) {
+            if (selected.length === 0) {
+                selected.push(piece.substring(0, maxLength));
+                console.log(`⚠️ Top document alone exceeded budget, truncated to ${maxLength} chars`);
+            }
+            break;
+        }
+
+        selected.push(piece);
+        totalLength += addedLength;
+    }
+
+    const docsDropped = deduped.length - selected.length;
+    if (docsDropped > 0) {
+        console.log(`📄 Context budget: kept ${selected.length}/${deduped.length} documents (${totalLength} chars), dropped ${docsDropped} lowest-relevance docs`);
+    }
+
+    return {
+        context: selected.join(separator),
+        docsUsed: selected.length,
+        docsDropped
+    };
 }
+
 
 type callChainArgs = {
     question: string;
@@ -526,8 +376,8 @@ type callChainArgs = {
 };
 
 // Initialize simplified components
-const responseSynthesizer = new SimpleResponseSynthesizer();
 const performanceOptimizer = new SimplePerformanceOptimizer();
+
 
 // Cache expensive objects to avoid recreation on every request
 let cachedEmbeddings: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -632,20 +482,29 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             }
 
             // --- IB Sateesh opinion queries ---
+            // IMPORTANT: Only match pure opinion/sentiment queries, NOT factual queries about work/achievements
             const mlaKeywords = ['ib sateesh', 'i.b. sateesh', 'i.b sateesh', 'ib satish', 'i b sateesh',
                 'ഐ.ബി. സതീഷ്', 'ഐബി സതീഷ്', 'സതീഷ്', 'sateesh', 'satish'];
             const mlaRoleKeywords = ['kattakada mla', 'കാട്ടക്കട എം.എൽ.എ', 'കാട്ടക്കട mla', 'mla of kattakada',
                 'കാട്ടാക്കട mla', 'കാട്ടാക്കട എം.എൽ.എ', 'കാട്ടക്കടയുടെ എം.എൽ.എ', 'നിലവിലെ എംഎൽഎ', 'current mla'];
-            const opinionKeywords = ['how is', 'how good', 'is he good', 'is she good', 'opinion', 'happy with',
-                'satisfied with', 'performance', 'doing', 'work', 'എങ്ങനെ', 'നല്ലതാണോ', 'സന്തോഷം', 'പ്രവർത്തനം',
-                'good leader', 'bad leader', 'effective', 'corrupt', 'honest', 'popular', 'like', 'dislike',
-                'അഭിപ്രായം', 'നേതാവ്', 'പ്രവൃത്തി', 'ജനപ്രിയം', 'സത്യസന്ധത'];
+            // Only truly subjective opinion/sentiment keywords — NOT factual words like 'work', 'doing', 'performance'
+            const opinionKeywords = ['opinion', 'happy with', 'satisfied with', 'നല്ലതാണോ', 'സന്തോഷം',
+                'good leader', 'bad leader', 'like him', 'dislike him',
+                'അഭിപ്രായം', 'ജനപ്രിയം', 'corrupt', 'honest', 'സത്യസന്ധത',
+                'is he good', 'is she good', 'how good is'];
+            // Factual/work queries should NEVER be intercepted — let them go through RAG
+            const factualExclusionKeywords = ['work done', 'works done', 'achievements', 'projects',
+                'what has', 'what did', 'what work', 'tell me about', 'details', 'list',
+                'ചെയ്ത പ്രവൃത്തികൾ', 'പ്രവർത്തനങ്ങൾ', 'നേട്ടങ്ങൾ', 'പദ്ധതികൾ', 'വികസനം',
+                'ചെയ്തത്', 'എന്തൊക്കെ', 'വിവരിക്കുക', 'പറയൂ', 'development',
+                'done by', 'contributed', 'accomplished', 'initiatives', 'schemes'];
             const hasMlaRef = mlaKeywords.some(kw => queryLower.includes(kw.toLowerCase())) ||
                 mlaRoleKeywords.some(kw => queryLower.includes(kw.toLowerCase()));
             const hasOpinion = opinionKeywords.some(kw => queryLower.includes(kw.toLowerCase()));
-            if (hasMlaRef && hasOpinion) {
+            const isFactualQuery = factualExclusionKeywords.some(kw => queryLower.includes(kw.toLowerCase()));
+            if (hasMlaRef && hasOpinion && !isFactualQuery) {
                 return {
-                    text: `ഐ.ബി. സതീഷ് കാട്ടക്കട നിയോജക മണ്ഡലത്തിന്റെ നിലവിലെ എം.എൽ.എ ആണ്. മണ്ഡലത്തിന്റെ വികസന പ്രവർത്തനങ്ങളിൽ അദ്ദേഹം സജീവമായി പങ്കെടുക്കുന്നു.\nഅദ്ദേഹത്തെക്കുറിച്ച് ജനങ്ങളുടെ അഭിപ്രായങ്ങൾ വ്യത്യസ്തമാണ്. പൊതുവെ അദ്ദേഹത്തെ നല്ല നേതാവായി കാണുന്നു.`,
+                    text: `ഐ.ബി. സതീഷ് കാട്ടക്കട നിയോജക മണ്ഡലത്തിന്റെ നിലവിലെ എം.എൽ.എ ആണ്. മണ്ഡലത്തിന്റെ വികസന പ്രവർത്തനങ്ങളിൽ അദ്ദേഹം സജീവമായി പങ്കെടുക്കുന്നു.\\nഅദ്ദേഹത്തെക്കുറിച്ച് ജനങ്ങളുടെ അഭിപ്രായങ്ങൾ വ്യത്യസ്തമാണ്. പൊതുവെ അദ്ദേഹത്തെ നല്ല നേതാവായി കാണുന്നു.`,
                     queryType: 'opinion_query'
                 };
             }
@@ -721,6 +580,36 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 };
             }
 
+            // --- FAQ: MLA IB Sateesh key projects & development works ---
+            // Only triggers on BROAD summary/listing queries, NOT sector-specific ones.
+            // e.g. "list all MLA projects" ✅, "summarize MLA work" ✅
+            // e.g. "MLA road projects" ❌ (too specific → let RAG handle it)
+            {
+                const mlaWorkKeywords = ['ib sateesh', 'i.b. sateesh', 'i.b sateesh', 'ib satish', 'i b sateesh',
+                    'ഐ.ബി. സതീഷ്', 'ഐബി സതീഷ്', 'സതീഷ്', 'sateesh', 'satish',
+                    'kattakada mla', 'കാട്ടക്കട എം.എൽ.എ', 'കാട്ടാക്കട mla', 'കാട്ടാക്കട എം.എൽ.എ',
+                    'നിലവിലെ എംഎൽഎ', 'current mla', 'mla of kattakada'];
+                // Broad summary/listing keywords — user wants the FULL overview
+                const summaryKeywords = [
+                    'summarize', 'summarise', 'summary', 'list all', 'all projects', 'all works',
+                    'all achievements', 'overview', 'everything', 'tell me everything',
+                    'what all', 'what are the', 'what has he done', 'what has been done',
+                    'key projects', 'major projects', 'main projects', 'important projects',
+                    'key works', 'major works', 'main works',
+                    'എല്ലാ', 'മുഴുവൻ', 'സംഗ്രഹം', 'പ്രധാന പ്രവർത്തനങ്ങൾ', 'പ്രധാന പദ്ധതികൾ',
+                    'എന്തൊക്കെ ചെയ്തു', 'എന്തെല്ലാം', 'വികസന പ്രവർത്തനങ്ങൾ',
+                    'ചെയ്ത പ്രവൃത്തികൾ', 'നേട്ടങ്ങൾ', 'പദ്ധതികൾ എന്തെല്ലാം'
+                ];
+                const hasMlaWorkRef = mlaWorkKeywords.some(kw => queryLower.includes(kw.toLowerCase()));
+                const hasSummaryIntent = summaryKeywords.some(kw => queryLower.includes(kw.toLowerCase()));
+                if (hasMlaWorkRef && hasSummaryIntent) {
+                    return {
+                        text: `എം.എൽ.എ. ഐ.ബി. സതീഷിന്റെ കാട്ടാക്കട മണ്ഡലത്തിലെ പ്രധാന വികസന പ്രവർത്തനങ്ങൾ:\n\n**പാതകളും പാലങ്ങളും:**\nദേശീയ പാത പരിഷ്കാരങ്ങൾ ഉൾപ്പെടെ 26 പ്രധാന റോഡ് പദ്ധതികൾ (₹135+ കോടി); കുടുവീട്ട് കടവ് പാലം (₹17 കോടി), പമാംകോഡ് പാലം (₹6.15 കോടി); 2021-ന് ശേഷമുള്ള 40+ റോഡ് പ്രവൃത്തികൾ, ഉദാ: കില്ലി–ഇ.എം.എസ് അക്കാദമി (₹17 കോടി).\n\n**വിദ്യാഭ്യാസം:**\nമലയിൻകീഴ് ആർട്സ് & സയൻസ് കോളേജ് (₹9.75 കോടി), ജി.എച്ച്.എസ്.എസ് എക്സലൻസ് സെന്റർ (₹8.55 കോടി), പ്ലാവ്‌ർ ഹയർ സെക്കൻഡറി സ്കൂൾ (₹3 കോടി), 24+ സ്‌കൂൾ നവീകരണങ്ങൾ, കെ.ടി.യു. വിലപ്പിൽസല (₹42 കോടി കെട്ടിട നിർമ്മാണം പുരോഗമിക്കുന്നു).\n\n**ആരോഗ്യവും സിവിക് ഇൻഫ്രാസ്ട്രക്ചറും:**\nമലയിൻകീഴ് താലുക്ക് ആശുപത്രി (₹23.3 കോടി), 5 പ്രാഥമിക ആരോഗ്യകേന്ദ്രങ്ങൾ കുടുംബാരോഗ്യകേന്ദ്രങ്ങളാക്കി നവീകരണം, പുതിയ സബ് ട്രഷറി, സബ് രജിസ്ട്രാർ, പൊലീസ് സ്റ്റേഷനുകൾ, ഫയർ സ്റ്റേഷൻ, കോടതിക്കമ്മപ്ലക്‌സ് (₹20.93 കോടി), കട്ടകട ടൗൺ ഹാൾ (₹9.5 കോടി), ചന്ദ്രമംഗലത്ത് ലിവിംഗ് ഹൗസിംഗ് (₹3.44 കോടി).\n\n**ജലസേചനം & കൃഷി:**\nവിലപ്പിൽ പാനീയജലം (₹16 കോടി), പള്ളിച്ചാൽ–വിലാവൂർ‌കൽ (₹10.24 കോടി), കുളം നവീകരണങ്ങൾ, ട്യൂബ് വല്ലുകൾ, അമച്ചാൽ ലിഫ്റ്റ് ഇറിഗേഷൻ (~₹23.84 കോടി).\n\n**സഞ്ചാരവും സംസ്കാരവും:**\nഅരുവിക്കര ശ്രീ ധർമ്മ ശാസ്താ ക്ഷേത്ര സംരക്ഷണം (₹17.46 കോടി), സസ്തംപാറ & തുങ്ഗമ്പാറ ഇക്കോടൂറിസം, ചട്ടമ്പി സ്വാമികൾ സ്മാരകം (₹5 കോടി), ലെനിൻ രാജേന്ദ്രൻ കലാ നാടകശാല (₹10 കോടി).\n\n**കായികവും മറ്റ് പ്രവർത്തനങ്ങളും:**\nസ്റ്റേഡിയം നവീകരണങ്ങൾ, വൈദ്യുതി വിതരണം (₹25 ലക്ഷം), സോളാർ പദ്ധതികൾ (₹3 കോടി), ഡിസേബിൾ-ഫ്രണ്ട്ലി ഗ്രാമം (₹2 കോടി), മത്സ്യബസാർ, ബഡ്‌സ് സ്കൂൾ, കമ്മ്യൂണിറ്റി ഹാളുകൾ (~₹1–1.5 കോടി ഓരോന്നും).\n\n2016-ന് ശേഷം എം.എൽ.എ. ഐ.ബി. സതീഷ് റോഡുകൾ & പാലങ്ങൾ, സ്കൂളുകൾ/കോളേജുകൾ, താലുക്ക് ആശുപത്രി & സിവിക് ഇൻഫ്രാസ്ട്രക്ചർ, ജലസേചന പദ്ധതികൾ, സാംസ്കാരിക/സഞ്ചാര പ്രവർത്തനങ്ങൾ, കായിക/ക്ഷേമപ്രവൃത്തികൾ എന്നിവയിൽ ശ്രദ്ധ കേന്ദ്രീകരിച്ചു.`,
+                        queryType: 'faq_mla_projects'
+                    };
+                }
+            }
+
             return null;
         };
 
@@ -755,76 +644,12 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             };
         }
 
-        // Step 1.6: Check if this is an environmental data query
-        let environmentalData: EnvironmentalToolResult | null = null;
-        console.log('🔍 About to check environmental query for:', sanitizedQuestion);
-        console.log('🔍 isEnvironmentalQuery function:', typeof isEnvironmentalQuery);
-        console.log('🔍 isEnvironmentalQuery function exists:', !!isEnvironmentalQuery);
-        let isEnvQuery = false;
-        try {
-            console.log('🔍 Calling isEnvironmentalQuery...');
-            isEnvQuery = isEnvironmentalQuery(sanitizedQuestion);
-            console.log('🔍 Environmental query check result:', isEnvQuery);
-        } catch (error) {
-            console.error('❌ Error in environmental query detection:', error);
-            isEnvQuery = false;
-        }
-
-        if (isEnvQuery) {
-            console.log('🌡️ Environmental query detected, fetching real-time data...');
-
-            try {
-                const extractedParams = extractParametersFromQuery(sanitizedQuestion);
-
-                // If we have sufficient parameters, execute the tool
-                if (extractedParams.city && extractedParams.naturalFactors) {
-                    environmentalData = await executeEnvironmentalDataTool({
-                        city: extractedParams.city,
-                        naturalFactors: extractedParams.naturalFactors,
-                        timeRange: extractedParams.timeRange || 'last_24h'
-                    });
-
-                    if (environmentalData.success && environmentalData.summary) {
-                        console.log('✅ Environmental data fetched successfully');
-
-                        // For environmental queries, we can provide a quick response
-                        // without going through the full RAG pipeline
-                        return {
-                            text: environmentalData.summary,
-                            sources: [],
-                            analysis: {
-                                queryType: 'environmental_data',
-                                complexity: 1,
-                                retrievalStrategy: 'api_tool',
-                                documentsUsed: 0,
-                                crossReferences: [],
-                                responseStyle: 'data_summary',
-                                qualityScore: 0.95,
-                                confidence: 0.9,
-                                completeness: 0.95,
-                                processingTime: Date.now() - overallStartTime
-                            },
-                            quality: {
-                                overallScore: 0.95,
-                                factualAccuracy: 0.98,
-                                completeness: 0.95,
-                                coherence: 0.9,
-                                issues: [],
-                                improvements: []
-                            },
-                            reasoning: ['Real-time environmental data fetched from IoT sensors'],
-                            environmentalData: environmentalData.data,
-                            cached: false
-                        };
-                    }
-                } else {
-                    console.log('⚠️ Environmental query detected but insufficient parameters extracted');
-                }
-            } catch (error) {
-                console.error('❌ Environmental data fetch failed:', error);
-                // Continue with normal RAG pipeline if environmental data fails
-            }
-        }
+        // Step 1.6: Environmental query pathway — DISABLED
+        // The environmental tool (ai-tools.ts) returns hardcoded zeroes because
+        // fetchWeatherData is a stub with no real API behind it. Keeping it active
+        // would short-circuit the RAG pipeline and return fake data.
+        // Re-enable this block once a real weather/environmental API is integrated.
+        // See: src/lib/ai-tools.ts
 
         // Step 1.7: Expand query for better retrieval
         let searchParam = sanitizedQuestion;
@@ -1034,64 +859,39 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             retrievalTime = Date.now() - retrievalStartTime;
         }
 
-        // Step 3: Advanced Response Synthesis with Chat History Context
-        const synthesisStartTime = Date.now();
-        const synthesis = await responseSynthesizer.synthesizeResponse(
-            sanitizedQuestion,
-            analysis,
-            retrievalResult.documents,
-            chatHistory // Add chat history for better context
-        );
-        const synthesisTime = Date.now() - synthesisStartTime;
+        // Step 3: Build smart context from retrieved documents (NO LLM CALL)
+        // The streaming model in route.ts handles the actual response generation.
+        // This eliminates the previous double-LLM-call bottleneck.
+        // Reuses isDetailedQuery from retrieval step above
+        const maxContextLength = isDetailedQuery ? 28000 : 16000;
 
-        // Step 4: Skip quality validation for speed - focus on document depth instead
-        const validation: ValidationResult = {
-            overallScore: 0.9, // Assume high quality with deep document analysis
-            factualAccuracy: 0.9,
-            completeness: 0.9,
-            coherence: 0.9,
-            sourceReliability: 0.85,
-            responseQuality: 0.9,
-            issues: [],
-            improvements: [],
-            confidence: 0.9,
-        };
+        const { context, docsUsed, docsDropped } = buildSmartContext(retrievalResult.documents, maxContextLength);
+        console.log(`📄 Context ready: ${docsUsed} docs, ${context.length} chars${docsDropped > 0 ? `, ${docsDropped} dropped` : ''}`);
 
-        // Alert on low quality responses only
-        if (validation.overallScore < 0.6) {
-            console.warn(`⚠️ Low quality response detected: ${(validation.overallScore * 100).toFixed(1)}% for "${sanitizedQuestion.substring(0, 50)}..."`);
-        }
-
-        // Step 5: Track performance metrics
+        // Step 4: Track performance metrics
         const totalTime = Date.now() - overallStartTime;
         performanceOptimizer.trackPerformance({
-            queryProcessingTime: totalTime - retrievalTime - synthesisTime,
+            queryProcessingTime: totalTime - retrievalTime,
             retrievalTime,
-            synthesisTime,
-            validationTime: 0, // Skipped for speed
+            synthesisTime: 0, // No synthesis LLM call — streaming model handles it
             totalTime,
-            cacheHitRate: 0, // Will be calculated by optimizer
+            cacheHitRate: 0,
             documentsRetrieved: retrievalResult.documents.length,
-            qualityScore: validation.overallScore
+            qualityScore: 0.9
         });
 
         // Production performance monitoring
         if (totalTime > 3000) {
-            console.warn(`⚠️ Slow query detected: ${totalTime}ms for "${sanitizedQuestion.substring(0, 50)}..."`);
+            console.warn(`⚠️ Slow retrieval: ${totalTime}ms for "${sanitizedQuestion.substring(0, 50)}..."`);
         }
 
-        // Log performance metrics only for slow queries or errors
-        if (totalTime > 10000) {
-            console.log(`📈 Slow query detected: ${totalTime}ms total (retrieval: ${retrievalTime}ms, synthesis: ${synthesisTime}ms, docs: ${retrievalResult.documents.length})`);
-        }
-
-        // Prepare enhanced response
-        const enhancedSources = synthesis.sourceAttribution.map(attr => ({
-            source: attr.source,
-            relevance: attr.relevance,
-            usedFor: attr.usedFor,
-            contentType: attr.contentType,
-            pageReference: attr.pageReference
+        // Build source attribution from documents
+        const enhancedSources = retrievalResult.documents.map(doc => ({
+            source: String(doc.metadata?.source || 'unknown'),
+            relevance: Number(doc.metadata?.score || 0.8),
+            usedFor: 'context',
+            contentType: 'text' as const,
+            pageReference: String(doc.metadata?.page || '1')
         }));
 
         const response: {
@@ -1130,41 +930,37 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
                 improvements: string[];
             };
             reasoning: string[];
-            environmentalData?: Record<string, unknown>;
-            environmentalSummary?: string;
+            // environmentalData?: Record<string, unknown>;
+            // environmentalSummary?: string;
         } = {
-            text: synthesis.synthesizedResponse,
+            text: context, // Raw document context — streaming model will interpret this
             sources: enhancedSources,
             analysis: {
                 queryType: analysis.queryType,
                 complexity: analysis.complexity,
                 retrievalStrategy: retrievalResult.retrievalStrategy,
-                documentsUsed: retrievalResult.documents.length,
+                documentsUsed: docsUsed,
                 crossReferences: retrievalResult.crossReferences,
-                responseStyle: synthesis.responseStyle,
-                qualityScore: validation.overallScore,
-                confidence: synthesis.confidence,
-                completeness: synthesis.completeness,
+                responseStyle: 'single_pass_streaming',
+                qualityScore: 0.9,
+                confidence: docsUsed > 0 ? 0.85 : 0.1,
+                completeness: docsDropped > 0 ? 'partial' : 'complete',
                 processingTime: totalTime
             },
             quality: {
-                overallScore: validation.overallScore,
-                factualAccuracy: validation.factualAccuracy,
-                completeness: validation.completeness,
-                coherence: validation.coherence,
-                issues: validation.issues,
-                improvements: validation.improvements
+                overallScore: 0.9,
+                factualAccuracy: 0.9,
+                completeness: 0.9,
+                coherence: 0.9,
+                issues: [],
+                improvements: []
             },
-            reasoning: synthesis.reasoningChain
+            reasoning: [`Single-pass: ${docsUsed}/${retrievalResult.documents.length} docs, ${context.length} chars, retrieval ${retrievalTime}ms`]
         };
 
-        // Add environmental data if available
-        if (environmentalData && environmentalData.success) {
-            response.environmentalData = environmentalData.data;
-            response.environmentalSummary = environmentalData.summary;
-        }
+        // Environmental data pathway — DISABLED (see Step 1.6 comment above)
 
-        // Smart caching - only cache simple queries without complex chat history
+        // Smart caching — cache the raw context for faster re-retrieval
         const cacheableResponse = {
             ...response,
             cached: false,

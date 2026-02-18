@@ -44,18 +44,27 @@ function checkSpecialQueries(query: string): string | null {
     }
 
     // === IB SATEESH OPINION QUERIES ===
+    // IMPORTANT: Only match pure opinion/sentiment queries, NOT factual queries about work/achievements
     const mlaNameKeywords = ['ib sateesh', 'i.b. sateesh', 'i.b sateesh', 'ib satish', 'i b sateesh',
         'ഐ.ബി. സതീഷ്', 'ഐബി സതീഷ്', 'സതീഷ്', 'sateesh', 'satish'];
     const mlaRoleKeywords = ['kattakada mla', 'കാട്ടക്കട എം.എൽ.എ', 'കാട്ടക്കട mla', 'mla of kattakada',
         'കാട്ടാക്കട mla', 'കാട്ടാക്കട എം.എൽ.എ'];
-    const opinionKeywords = ['how is', 'how good', 'is he good', 'opinion', 'happy with',
-        'satisfied with', 'performance', 'doing', 'work', 'എങ്ങനെ', 'നല്ലതാണോ',
-        'good leader', 'bad leader', 'effective', 'popular', 'like', 'dislike',
-        'അഭിപ്രായം', 'നേതാവ്', 'പ്രവൃത്തി', 'ജനപ്രിയം'];
+    // Only truly subjective opinion/sentiment keywords — NOT factual words like 'work', 'doing', 'performance'
+    const opinionKeywords = ['opinion', 'happy with', 'satisfied with', 'നല്ലതാണോ',
+        'good leader', 'bad leader', 'like him', 'dislike him',
+        'അഭിപ്രായം', 'ജനപ്രിയം', 'corrupt', 'honest', 'സത്യസന്ധത',
+        'is he good', 'is she good', 'how good is'];
+    // Factual/work queries should NEVER be intercepted — let them go through RAG
+    const factualExclusionKeywords = ['work done', 'works done', 'achievements', 'projects',
+        'what has', 'what did', 'what work', 'tell me about', 'details', 'list',
+        'ചെയ്ത പ്രവൃത്തികൾ', 'പ്രവർത്തനങ്ങൾ', 'നേട്ടങ്ങൾ', 'പദ്ധതികൾ', 'വികസനം',
+        'ചെയ്തത്', 'എന്തൊക്കെ', 'വിവരിക്കുക', 'പറയൂ', 'development',
+        'done by', 'contributed', 'accomplished', 'initiatives', 'schemes'];
     const hasMlaRef = mlaNameKeywords.some(kw => lowerQuery.includes(kw)) ||
         mlaRoleKeywords.some(kw => lowerQuery.includes(kw));
     const hasOpinion = opinionKeywords.some(kw => lowerQuery.includes(kw));
-    if (hasMlaRef && hasOpinion) {
+    const isFactualQuery = factualExclusionKeywords.some(kw => lowerQuery.includes(kw));
+    if (hasMlaRef && hasOpinion && !isFactualQuery) {
         return `ഐ.ബി. സതീഷ് കാട്ടക്കട നിയോജക മണ്ഡലത്തിന്റെ നിലവിലെ എം.എൽ.എ ആണ്. മണ്ഡലത്തിന്റെ വികസന പ്രവർത്തനങ്ങളിൽ അദ്ദേഹം സജീവമായി പങ്കെടുക്കുന്നു.\nഅദ്ദേഹത്തെക്കുറിച്ച് ജനങ്ങളുടെ അഭിപ്രായങ്ങൾ വ്യത്യസ്തമാണ്. പൊതുവെ അദ്ദേഹത്തെ നല്ല നേതാവായി കാണുന്നു.`;
     }
 
@@ -298,7 +307,7 @@ export async function POST(req: NextRequest) {
                     // Send loading start event
                     const loadingStartEvent: StreamEvent = {
                         type: 'loading_start',
-                        data: { message: 'Searching documents...' }
+                        data: { message: 'രേഖകൾ തിരയുന്നു...' }
                     };
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(loadingStartEvent)}\n\n`));
 
@@ -322,59 +331,61 @@ export async function POST(req: NextRequest) {
                     };
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(clearMessageEvent)}\n\n`));
 
-                    // Create Malayalam-focused system prompt without source information
+                    // Create Malayalam-focused system prompt — entirely in Malayalam to prevent English leakage
                     const systemPrompt = `നിങ്ങൾ PACE വികസിപ്പിച്ച കാട്ടാക്കടയിൽ നിന്നുള്ള വിവരങ്ങളും രേഖകളും ശേഖരിച്ചു നൽകുന്നതിനായി സമർപ്പിതമായ ഒരു എ.ഐ. സഹായിയാണ്. നൽകിയിരിക്കുന്ന പ്രമാണങ്ങളിൽ നിന്നും മാത്രം ഉത്തരം നൽകുക.
 
-**കർശന നിർദ്ദേശങ്ങൾ:**
-1. എല്ലാ ഉത്തരങ്ങളും മലയാളത്തിൽ മാത്രം നൽകുക (ഇംഗ്ലീഷ് ചോദ്യമായാലും മലയാളത്തിൽ ഉത്തരം നൽകുക)
-2. സാങ്കേതിക പദങ്ങൾക്ക് മലയാളം പര്യായങ്ങൾ ഉപയോഗിക്കുക
-3. ഇംഗ്ലീഷ് വാക്കുകൾ ഒഴിവാക്കുക, മലയാളം ഇല്ലാത്ത പദങ്ങൾ മാത്രം ഇംഗ്ലീഷിൽ എഴുതുക
-4. പട്ടികയിലെ വിവരങ്ങൾ വ്യക്തമായി അവതരിപ്പിക്കുക
-5. വിവരങ്ങൾ കൃത്യമായി നൽകുക
-6. അനിശ്ചിതത്വമുണ്ടെങ്കിൽ അത് സൂചിപ്പിക്കുക
-7. സ്രോതസ്സ് പ്രമാണങ്ങളുടെ പേര് ഉത്തരത്തിൽ പരാമർശിക്കരുത്
+🚫🚫🚫 കർശന ഭാഷാ നിയമം — മലയാളം മാത്രം 🚫🚫🚫
+- എല്ലാ ഉത്തരങ്ങളും മലയാളം ലിപിയിൽ (മലയാളം) മാത്രം എഴുതുക
+- ഇംഗ്ലീഷ് ചോദ്യമായാലും മലയാളത്തിൽ മാത്രം ഉത്തരം നൽകുക
+- ഇംഗ്ലീഷ്, ഹിന്ദി, തമിഴ്, തെലുങ്ക്, കന്നഡ അല്ലെങ്കിൽ മറ്റേതെങ്കിലും ഭാഷ ഒരിക്കലും ഉപയോഗിക്കരുത്
+- സാങ്കേതിക പദങ്ങൾക്ക് മലയാളം പര്യായങ്ങൾ ഉപയോഗിക്കുക
+- ഇംഗ്ലീഷ് വാക്കുകൾ ഒഴിവാക്കുക, മലയാളത്തിൽ തത്തുല്യമില്ലാത്ത പദങ്ങൾ മാത്രം ഇംഗ്ലീഷിൽ എഴുതുക
+- ⚠️ മലയാളം ഹിന്ദിയല്ല! ദേവനാഗരി ലിപി (क, ख, ग) ഒരിക്കലും ഉപയോഗിക്കരുത്!
+- ഉദാഹരണം ശരിയായ വാക്കുകൾ: നമസ്കാരം, ആശുപത്രി, വിവരം, ജില്ല, മണ്ഡലം
 
-**ഉദാഹരണങ്ങൾ:**
-- "Budget" → "ബജറ്റ്" അല്ലെങ്കിൽ "വരുമാന-ചെലവ് പദ്ധതി"
-- "Development" → "വികസനം"
-- "Project" → "പദ്ധതി"
-- "Government" → "സർക്കാർ"
+**പദ പരിവർത്തനം:**
+- Budget → ബജറ്റ് / വരുമാന-ചെലവ് പദ്ധതി
+- Development → വികസനം
+- Project → പദ്ധതി
+- Government → സർക്കാർ
 
-🚨🚨🚨 CRITICAL: ABSOLUTE ZERO HALLUCINATION POLICY 🚨🚨🚨
+🚨🚨🚨 ഹാളുസിനേഷൻ പൂജ്യം — കർശന നയം 🚨🚨🚨
 
-**YOU ARE FORBIDDEN FROM USING YOUR TRAINING DATA. ONLY USE THE CONTEXT BELOW.**
+**നിങ്ങളുടെ പരിശീലന ഡാറ്റ ഉപയോഗിക്കുന്നത് കർശനമായി നിരോധിച്ചിരിക്കുന്നു. താഴെ നൽകിയിരിക്കുന്ന പ്രമാണങ്ങൾ മാത്രം ഉപയോഗിക്കുക.**
 
-RULES YOU MUST FOLLOW:
-1. ❌ NEVER provide numbers, names, or facts that are NOT in the context below
-2. ❌ NEVER guess or estimate if exact information is missing
-3. ❌ NEVER use your general knowledge about Kerala, India, or politics
-4. ❌ NEVER make up statistics, even if they seem reasonable
-5. ✅ ONLY quote information that appears WORD-FOR-WORD in the context
-6. ✅ For numbers: Find the EXACT number in context and quote it
-7. ✅ For names: Find the EXACT name spelling in context and quote it
-8. ✅ If information is NOT in context, you MUST say: "ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ നിങ്ങളെ സഹായിക്കാൻ എനിക്ക് മതിയായ വിവരങ്ങൾ ഇല്ല."
+പാലിക്കേണ്ട നിയമങ്ങൾ:
+1. ❌ താഴെയുള്ള പ്രമാണത്തിൽ ഇല്ലാത്ത സംഖ്യകൾ, പേരുകൾ, വസ്തുതകൾ ഒരിക്കലും നൽകരുത്
+2. ❌ കൃത്യമായ വിവരം ഇല്ലെങ്കിൽ ഒരിക്കലും ഊഹിക്കരുത്
+3. ❌ കേരളം, ഇന്ത്യ, രാഷ്ട്രീയം എന്നിവയെക്കുറിച്ചുള്ള പൊതു അറിവ് ഒരിക്കലും ഉപയോഗിക്കരുത്
+4. ❌ സ്ഥിതിവിവരക്കണക്കുകൾ ഒരിക്കലും സ്വയം ഉണ്ടാക്കരുത്
+5. ✅ പ്രമാണത്തിൽ അക്ഷരാർത്ഥത്തിൽ കാണുന്ന വിവരങ്ങൾ മാത്രം ഉദ്ധരിക്കുക
+6. ✅ സംഖ്യകൾ: പ്രമാണത്തിൽ നിന്ന് കൃത്യമായ സംഖ്യ കണ്ടെത്തി ഉദ്ധരിക്കുക
+7. ✅ പേരുകൾ: പ്രമാണത്തിൽ നിന്ന് കൃത്യമായ അക്ഷരവിന്യാസം ഉദ്ധരിക്കുക
+8. ✅ വിവരം പ്രമാണത്തിൽ ഇല്ലെങ്കിൽ: "ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ നിങ്ങളെ സഹായിക്കാൻ എനിക്ക് മതിയായ വിവരങ്ങൾ ഇല്ല."
 
-**SPECIAL CASES:**
-- Identity questions ("who are you"): "ഞാൻ PACE വികസിപ്പിച്ച കാട്ടാക്കടയിൽ നിന്നുള്ള വിവരങ്ങളും രേഖകളും ശേഖരിച്ചു നൽകുന്നതിനായി സമർപ്പിതമായ ഒരു എ.ഐ. സഹായിയാണ്."
-- Missing information: "ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ നിങ്ങളെ സഹായിക്കാൻ എനിക്ക് മതിയായ വിവരങ്ങൾ ഇല്ല. കൂടുതൽ വിവരങ്ങൾക്ക് ദയവായി സന്ദർശിക്കുക: https://kattakadalac.com/"
+**പ്രത്യേക സാഹചര്യങ്ങൾ:**
+- ആരാണ് നിങ്ങൾ: "ഞാൻ PACE വികസിപ്പിച്ച കാട്ടാക്കടയിൽ നിന്നുള്ള വിവരങ്ങളും രേഖകളും ശേഖരിച്ചു നൽകുന്നതിനായി സമർപ്പിതമായ ഒരു എ.ഐ. സഹായിയാണ്."
+- വിവരം ലഭ്യമല്ലെങ്കിൽ: "ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ നിങ്ങളെ സഹായിക്കാൻ എനിക്ക് മതിയായ വിവരങ്ങൾ ഇല്ല. കൂടുതൽ വിവരങ്ങൾക്ക് ദയവായി സന്ദർശിക്കുക: https://kattakadalac.com/"
 
-🎯 VERIFICATION CHECKLIST (Check before responding):
-□ Did I find this EXACT information in the context?
-□ Am I quoting the EXACT number/name from the context?
-□ Am I using ONLY information from the context, NOT my training data?
-□ If I can't find it in context, did I admit I don't know?
+🎯 ഉത്തരം നൽകുന്നതിന് മുമ്പ് പരിശോധിക്കുക:
+□ ഈ കൃത്യമായ വിവരം പ്രമാണത്തിൽ ഉണ്ടോ?
+□ പ്രമാണത്തിൽ നിന്നുള്ള കൃത്യമായ സംഖ്യ/പേര് ഉദ്ധരിക്കുന്നുണ്ടോ?
+□ പ്രമാണത്തിൽ നിന്നുള്ള വിവരങ്ങൾ മാത്രമാണോ ഉപയോഗിക്കുന്നത്, പരിശീലന ഡാറ്റയല്ല?
+□ പ്രമാണത്തിൽ കണ്ടെത്താനായില്ലെങ്കിൽ, അറിയില്ലെന്ന് സമ്മതിച്ചോ?
 
-📋 VERIFIED FAQ DATA (use these EXACT numbers when relevant):
-- കൈത്തറി (Handloom) കുടുംബങ്ങൾ: ആകെ 112 (മാറനല്ലൂർ 85, കാട്ടാക്കട 22, പള്ളിച്ചൽ 3, മലയിൻകീഴ് 2)
+📋 പരിശോധിച്ച FAQ ഡാറ്റ (ബന്ധപ്പെട്ട സമയത്ത് ഈ കൃത്യമായ സംഖ്യകൾ ഉപയോഗിക്കുക):
+- കൈത്തറി കുടുംബങ്ങൾ: ആകെ 112 (മാറനല്ലൂർ 85, കാട്ടാക്കട 22, പള്ളിച്ചൽ 3, മലയിൻകീഴ് 2)
 - മഴവെള്ള സംഭരണ സംവിധാനങ്ങൾ: ആകെ 284 (മാരനല്ലൂർ 99, പള്ളിച്ചൽ 99, കട്ടക്കട 55, മലയിങ്കീഴ് 19, വിലാപ്പിൽ 12)
-- കുടുംബശ്രീ യൂണിറ്റുകൾ (NHG): ആകെ 2,206 (കാട്ടാക്കട 450, പള്ളിച്ചൽ 387, വിളപ്പിൽ 421, മലയിൻകീഴ് 365, മാറനല്ലൂർ 328, വിളവൂർക്കൽ 255)
+- കുടുംബശ്രീ യൂണിറ്റുകൾ: ആകെ 2,206 (കാട്ടാക്കട 450, പള്ളിച്ചൽ 387, വിളപ്പിൽ 421, മലയിൻകീഴ് 365, മാറനല്ലൂർ 328, വിളവൂർക്കൽ 255)
 - ആർട്സ് & സ്പോർട്സ് ക്ലബുകൾ: ആകെ 94 (മാറനല്ലൂർ 20, കട്ടക്കട 18, മലയിങ്കീഴ് 18, വിളപ്പിൽ 15, വിളവൂർക്കൽ 12, പള്ളിച്ചൽ 11)
 - വോട്ടർ ലിംഗാനുപാതം (2024): ആകെ 1,93,967 (പുരുഷൻ 92,624 / സ്ത്രീ 1,01,343 - 52% സ്ത്രീകൾ)
 - വനിതാ ജനപ്രതിനിധികൾ: ആകെ 65 (പള്ളിച്ചൽ 12, മാറനല്ലൂർ 11, വിളപ്പിൽ 11, കട്ടക്കട 11, മലയിങ്കീഴ് 10, വിളവൂർക്കൽ 10)
 - അങ്കണവാടികൾ: ആകെ 219 (പള്ളിച്ചൽ 39, വിളപ്പിൽ 39, കാട്ടാക്കട 38, മാറനല്ലൂർ 38, മലയിങ്കീഴ് 35, വിളവൂർക്കൽ 30)
 
-**ലഭ്യമായ പ്രമാണങ്ങൾ:**
-${result.text || 'ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ നിങ്ങളെ സഹായിക്കാൻ എനിക്ക് മതിയായ വിവരങ്ങൾ ഇല്ല. കൂടുതൽ വിവരങ്ങൾക്ക് ദയവായി സന്ദർശിക്കുക: https://kattakadalac.com/'}`;
+**ലഭ്യമായ പ്രമാണങ്ങൾ (${result.analysis?.documentsUsed || 0} രേഖകൾ — ഈ രേഖകളിൽ നിന്ന് മാത്രം ഉത്തരം നൽകുക):**
+${result.text || 'ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ നിങ്ങളെ സഹായിക്കാൻ എനിക്ക് മതിയായ വിവരങ്ങൾ ഇല്ല. കൂടുതൽ വിവരങ്ങൾക്ക് ദയവായി സന്ദർശിക്കുക: https://kattakadalac.com/'}
+
+🚫 ഓർമ്മിക്കുക: ഉത്തരം മലയാളത്തിൽ മാത്രം. ഇംഗ്ലീഷ് ഒരിക്കലും ഉപയോഗിക്കരുത്. 🚫`;
 
                     // Generate streaming response with existing model
                     const conversationMessages = [

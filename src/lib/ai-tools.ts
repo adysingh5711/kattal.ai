@@ -376,7 +376,39 @@ export async function executeEnvironmentalDataTool(params: {
 }
 
 /**
- * Generate a human-readable summary of the environmental data
+ * Malayalam display names for environmental factors
+ */
+const FACTOR_DISPLAY_NAMES_ML: Record<string, string> = {
+    'temperature': 'താപനില',
+    'humidity': 'ആർദ്രത',
+    'rainfall': 'മഴ',
+    'wind_speed': 'കാറ്റിന്റെ വേഗത',
+    'pressure': 'അന്തരീക്ഷ മർദ്ദം',
+    'visibility': 'ദൃശ്യപരത',
+    'uv_index': 'യു.വി. സൂചിക',
+    'air_quality': 'വായു ഗുണനിലവാര സൂചിക'
+};
+
+/**
+ * Malayalam display names for Kerala cities
+ */
+const CITY_NAMES_ML: Record<string, string> = {
+    'thiruvananthapuram': 'തിരുവനന്തപുരം',
+    'kattakada': 'കാട്ടാക്കട',
+    'neyyattinkara': 'നെയ്യാറ്റിൻകര',
+    'kollam': 'കൊല്ലം',
+    'alappuzha': 'ആലപ്പുഴ',
+    'kochi': 'കൊച്ചി',
+    'thrissur': 'തൃശ്ശൂർ',
+    'palakkad': 'പാലക്കാട്',
+    'malappuram': 'മലപ്പുറം',
+    'kozhikode': 'കോഴിക്കോട്',
+    'kannur': 'കണ്ണൂർ',
+    'kasaragod': 'കാസർഗോഡ്'
+};
+
+/**
+ * Generate a human-readable summary of the environmental data in Malayalam
  */
 function generateDataSummary(
     city: string,
@@ -385,23 +417,27 @@ function generateDataSummary(
     endDate: string
 ): string {
     const summaryParts: string[] = [];
+    const cityNameMl = CITY_NAMES_ML[city.toLowerCase()] || city;
+    const startDateFormatted = new Date(startDate).toLocaleDateString('ml-IN');
+    const endDateFormatted = new Date(endDate).toLocaleDateString('ml-IN');
 
-    summaryParts.push(`Environmental data for ${city.charAt(0).toUpperCase() + city.slice(1)} from ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}:`);
+    summaryParts.push(`${cityNameMl} - ${startDateFormatted} മുതൽ ${endDateFormatted} വരെയുള്ള പരിസ്ഥിതി വിവരങ്ങൾ:`);
 
     for (const [factor, data] of Object.entries(results)) {
         const stats = data.statistics;
         const factorInfo = data.naturalFactorInfo;
+        const factorNameMl = FACTOR_DISPLAY_NAMES_ML[factor] || factor;
 
         if (stats.count > 0 && factorInfo) {
             const unit = factorInfo.unit;
             summaryParts.push(
-                `\n• ${factorInfo.displayName}: Latest: ${stats.latest}${unit}, ` +
-                `Average: ${stats.average}${unit}, ` +
-                `Range: ${stats.min}${unit} - ${stats.max}${unit} ` +
-                `(${stats.count} readings)`
+                `\n• ${factorNameMl}: ഏറ്റവും പുതിയത്: ${stats.latest}${unit}, ` +
+                `ശരാശരി: ${stats.average}${unit}, ` +
+                `പരിധി: ${stats.min}${unit} - ${stats.max}${unit} ` +
+                `(${stats.count} വായനകൾ)`
             );
         } else {
-            summaryParts.push(`\n• ${factor}: No data available`);
+            summaryParts.push(`\n• ${factorNameMl}: വിവരങ്ങൾ ലഭ്യമല്ല`);
         }
     }
 
