@@ -9,6 +9,11 @@ export async function createClient() {
         serverSupabaseConfig.url,
         serverSupabaseConfig.publishableKey,
         {
+            auth: {
+                // Token refresh: ensures server-side also refreshes tokens
+                autoRefreshToken: true,
+                persistSession: true,
+            },
             cookies: {
                 getAll() {
                     return cookieStore.getAll()

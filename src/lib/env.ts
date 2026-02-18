@@ -105,7 +105,7 @@ export const env = (() => {
             CHUNK_OVERLAP: number;
         };
     } catch (error) {
-        console.error('❌ Invalid environment variables:', error);
+        console.error('❌ Invalid environment variables. Check your .env file.');
         throw new Error('Invalid environment variables');
     }
 })();

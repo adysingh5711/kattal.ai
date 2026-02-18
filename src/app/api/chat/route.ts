@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callChain } from "@/lib/langchain";
 import { showErrorInChat } from "@/lib/error-messages";
+import { logger } from "@/lib/logger";
 
 interface Message {
     role: "user" | "assistant";
@@ -24,7 +25,6 @@ export async function POST(req: NextRequest) {
             );
             return NextResponse.json({
                 error: errorDetails.userMessage,
-                technicalError: errorDetails.technicalMessage
             }, { status: 400 });
         }
 
@@ -38,13 +38,12 @@ export async function POST(req: NextRequest) {
 
         const responseTime = Date.now() - startTime;
 
-        // Log performance metrics for production monitoring
-        console.log(`📈 API Performance: ${responseTime}ms, ${result.analysis?.documentsUsed || 0} docs retrieved`);
+        // Log performance metrics server-side only
+        logger.info(`API Performance: ${responseTime}ms, ${result.analysis?.documentsUsed || 0} docs retrieved`, 'api/chat');
 
         // Add performance headers for monitoring
         const response = NextResponse.json(result);
         response.headers.set('X-Response-Time', `${responseTime}ms`);
-        response.headers.set('X-Documents-Retrieved', `${result.analysis?.documentsUsed || 0}`);
         response.headers.set('X-Cache-Status', result.cached ? 'HIT' : 'MISS');
 
         return response;
@@ -59,11 +58,10 @@ export async function POST(req: NextRequest) {
                 timestamp: new Date().toISOString()
             }
         );
-        console.error(`❌ API Error after ${responseTime}ms:`, errorDetails.technicalMessage);
+        logger.error(`API Error after ${responseTime}ms: ${errorDetails.technicalMessage}`, 'api/chat');
         return NextResponse.json(
             {
                 error: errorDetails.userMessage,
-                technicalError: errorDetails.technicalMessage
             },
             { status: 500 }
         );

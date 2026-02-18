@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
     try {
@@ -25,6 +26,9 @@ export async function POST(request: Request) {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
 
         if (userError || !user) {
+            logger.warn('Reset password attempted without valid session', 'auth/reset-password', {
+                error: userError?.message ?? 'no user session',
+            });
             return NextResponse.json(
                 { error: "Invalid or expired reset link. Please request a new password reset." },
                 { status: 401 }
@@ -37,17 +41,29 @@ export async function POST(request: Request) {
         });
 
         if (error) {
-            console.error('Reset password error:', error);
-            return NextResponse.json({ error: error.message }, { status: 400 });
+            logger.error('Password update failed', 'auth/reset-password', {
+                userId: user.id,
+                error: error.message,
+            });
+            return NextResponse.json(
+                { error: "Unable to reset password. Please try again." },
+                { status: 400 }
+            );
         }
+
+        logger.info('Password reset successfully', 'auth/reset-password', {
+            userId: user.id,
+        });
 
         return NextResponse.json({
             message: "Password has been reset successfully.",
         });
     } catch (error) {
-        console.error('Reset password API error:', error);
+        logger.error('Reset password API error', 'auth/reset-password', {
+            error: error instanceof Error ? error.message : String(error),
+        });
         return NextResponse.json(
-            { error: "Internal server error" },
+            { error: "Something went wrong. Please try again later." },
             { status: 500 }
         );
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
     try {
@@ -20,19 +21,29 @@ export async function POST(request: Request) {
         });
 
         if (error) {
-            console.error('Signin error:', error);
-            return NextResponse.json({ error: error.message }, { status: 400 });
+            logger.error('Sign-in failed', 'auth/signin', {
+                error: error.message,
+            });
+            // Return generic error — don't reveal whether email exists or password is wrong
+            return NextResponse.json(
+                { error: "Invalid email or password" },
+                { status: 401 }
+            );
         }
 
         return NextResponse.json({
             message: "Signed in successfully",
-            user: data.user,
-            session: data.session,
+            user: {
+                id: data.user?.id,
+                email: data.user?.email,
+            },
         });
     } catch (error) {
-        console.error('Signin API error:', error);
+        logger.error('Sign-in API error', 'auth/signin', {
+            error: error instanceof Error ? error.message : String(error),
+        });
         return NextResponse.json(
-            { error: "Internal server error" },
+            { error: "Something went wrong. Please try again later." },
             { status: 500 }
         );
     }

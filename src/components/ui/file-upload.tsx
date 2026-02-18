@@ -48,8 +48,8 @@ export const FileUpload = ({
     multiple: false,
     noClick: true,
     onDrop: handleFileChange,
-    onDropRejected: (fileRejections) => {
-      console.log(fileRejections);
+    onDropRejected: () => {
+      // File rejection is handled by the UI, no client-side logging needed
     },
     // Adding required props to satisfy TypeScript
     onDragEnter: () => { },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getBaseUrl } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
     try {
@@ -33,28 +34,33 @@ export async function POST(request: Request) {
         });
 
         if (error) {
-            console.error('Signup error:', error);
-            return NextResponse.json({ error: error.message }, { status: 400 });
+            logger.error('Sign-up failed', 'auth/signup', {
+                error: error.message,
+            });
+            // Return a generic error — don't reveal whether the email is already registered
+            return NextResponse.json(
+                { error: "Unable to create account. Please check your details and try again." },
+                { status: 400 }
+            );
         }
 
         // Check if user needs to confirm email
         if (data.user && !data.user.email_confirmed_at) {
             return NextResponse.json({
                 message: "Please check your email to confirm your account",
-                user: data.user,
                 needsEmailConfirmation: true,
             });
         }
 
         return NextResponse.json({
             message: "Account created successfully",
-            user: data.user,
-            session: data.session,
         });
     } catch (error) {
-        console.error('Signup API error:', error);
+        logger.error('Sign-up API error', 'auth/signup', {
+            error: error instanceof Error ? error.message : String(error),
+        });
         return NextResponse.json(
-            { error: "Internal server error" },
+            { error: "Something went wrong. Please try again later." },
             { status: 500 }
         );
     }

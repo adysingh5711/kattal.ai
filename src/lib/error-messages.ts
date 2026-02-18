@@ -1,7 +1,9 @@
 /**
  * Malayalam error messages for user-friendly frontend display
- * Technical errors are logged in English to console
+ * Technical errors are logged server-side only via structured logger
  */
+
+import { logger } from './logger';
 
 export interface ErrorContext {
     error: Error | string;
@@ -11,7 +13,7 @@ export interface ErrorContext {
 
 export interface MalayalamError {
     userMessage: string; // Friendly Malayalam message for user
-    technicalMessage: string; // English technical message for console
+    technicalMessage: string; // English technical message for server logs
     errorCode?: string;
 }
 
@@ -25,12 +27,10 @@ export function getMalayalamErrorMessage(context: ErrorContext): MalayalamError 
 
     // Only log technical details when there's an actual error (not during normal operations)
     if (error.message && !error.message.includes('success') && !error.message.includes('completed')) {
-        console.error('🚨 Technical Error Details:', {
+        logger.error('Technical error details', contextInfo || 'error-messages', {
             message: error.message,
-            stack: error.stack,
             context: contextInfo,
-            additionalInfo: context.additionalInfo,
-            timestamp: new Date().toISOString()
+            ...(context.additionalInfo ?? {}),
         });
     }
 

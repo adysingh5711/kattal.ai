@@ -384,6 +384,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                 width={500}
                                 height={400}
                                 className="opacity-20 dark:opacity-20 object-contain select-none"
+                                style={{ width: "auto", height: "auto" }}
                                 priority
                                 draggable={false}
                             />

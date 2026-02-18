@@ -3,6 +3,7 @@ import { callChain } from "@/lib/langchain";
 import { streamingModel } from "@/lib/llm";
 import { SystemMessage, HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
 import { showErrorInChat } from "@/lib/error-messages";
+import { logger } from "@/lib/logger";
 
 interface Message {
     role: "user" | "assistant";
@@ -211,7 +212,6 @@ export async function POST(req: NextRequest) {
             return new Response(
                 JSON.stringify({
                     error: errorDetails.userMessage,
-                    technicalError: errorDetails.technicalMessage
                 }),
                 { status: 400, headers: { "Content-Type": "application/json" } }
             );
@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
 
         // Allow English queries but warn that response will be in Malayalam
         if (hasEnglishOnly) {
-            console.log(`⚠️  English query detected, will respond in Malayalam: "${question}"`);
+            logger.info(`English query detected, will respond in Malayalam`, 'api/chat/stream', { query: question.substring(0, 60) });
         } else if (!malayalamRegex.test(question)) {
             return new Response(JSON.stringify({
                 error: "ദയവായി മലയാളത്തിൽ അല്ലെങ്കിൽ ഇംഗ്ലീഷിൽ ചോദിക്കുക (Please ask in Malayalam or English)"
@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        console.log(`🔍 Malayalam query: "${question.slice(0, 100)}..."`);
+        logger.info(`Query received`, 'api/chat/stream', { queryPreview: question.slice(0, 60) });
 
         const chatHistory = messages.slice(0, -1).map(m =>
             `${m.role === "user" ? "Human" : "Assistant"}: ${m.content}`
@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
         // Check for direct special responses (identity, political) to avoid LLM hallucination
         const specialResponse = checkSpecialQueries(question);
         if (specialResponse) {
-            console.log(`🎯 Direct special response provided for: ${question}`);
+            logger.info('Direct special response matched', 'api/chat/stream', { queryPreview: question.slice(0, 60) });
 
             const stream = new ReadableStream({
                 start(controller) {
@@ -444,7 +444,7 @@ ${result.text || 'ക്ഷമിക്കണം, ഈ വിഷയത്തി�
                             timestamp: new Date().toISOString()
                         }
                     );
-                    console.error('❌ Error in chat stream:', errorDetails.technicalMessage);
+                    logger.error(`Stream processing error: ${errorDetails.technicalMessage}`, 'api/chat/stream');
                     const errorEvent: StreamEvent = {
                         type: 'error',
                         error: errorDetails.userMessage // Send Malayalam message to frontend
@@ -472,11 +472,10 @@ ${result.text || 'ക്ഷമിക്കണം, ഈ വിഷയത്തി�
                 timestamp: new Date().toISOString()
             }
         );
-        console.error('❌ Error in chat stream API:', errorDetails.technicalMessage);
+        logger.error(`Chat stream API error: ${errorDetails.technicalMessage}`, 'api/chat/stream');
         return new Response(
             JSON.stringify({
                 error: errorDetails.userMessage,
-                technicalError: errorDetails.technicalMessage
             }),
             {
                 status: 500,
