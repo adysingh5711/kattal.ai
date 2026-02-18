@@ -33,8 +33,31 @@ interface StreamEvent {
  * Check if query matches FAQ data, identity questions, or known political facts.
  * Matching queries bypass the full RAG pipeline (no expander, no retrieval, no LLM).
  */
+/** Predefined reply for greeting messages (English + Malayalam). */
+const GREETING_RESPONSE =
+    "ഹായ്! ഇന്ന് നിന്നെ എങ്ങനെ സഹായിക്കാം? കാട്ടാക്കട നിയോജക മണ്ഡലം, വികസനം, പദ്ധതികൾ, എം.എൽ.എ. എന്നിവയെക്കുറിച്ച് എന്തും ചോദിക്കാം.";
+
+/** Match when the message is only a short greeting (no real question). */
+function isGreeting(text: string): boolean {
+    const trimmed = text.trim();
+    if (trimmed.length > 50) return false;
+    const lower = trimmed.toLowerCase().replace(/\s+/g, " ");
+    const greetingPatterns = [
+        /^(hi|hello|hey|howdy|greetings?|hiya)\s*[!.]?$/i,
+        /^good\s+(morning|afternoon|evening|day)\s*[!.]?$/i,
+        /^(നമസ്കാരം|നമസ്തേ|ഹായ്|ഹലോ|ഹേയ്)\s*[!.]?$/,
+        /^(hi|hello|hey)\s+(there|all)\s*[!.]?$/i,
+    ];
+    return greetingPatterns.some((re) => re.test(lower.trim()));
+}
+
 function checkSpecialQueries(query: string): string | null {
     const lowerQuery = query.toLowerCase();
+
+    // === GREETINGS ===
+    if (isGreeting(query)) {
+        return GREETING_RESPONSE;
+    }
 
     // === IDENTITY QUESTIONS ===
     if (lowerQuery.includes('who are you') || lowerQuery.includes('നീ ആരാണ്') ||
