@@ -1,3 +1,4 @@
+import 'server-only';
 // import { createRetrievalChain } from "langchain/chains/retrieval";
 // import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
 // import { createHistoryAwareRetriever } from "langchain/chains/history_aware_retriever";

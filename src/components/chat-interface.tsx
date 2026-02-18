@@ -190,6 +190,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
 
                     let sources: Array<{ source: string; relevance: number; usedFor: string; contentType: 'text' | 'table' | 'chart' | 'image'; pageReference?: string }> = [];
                     let hasError = false;
+                    let pendingClear = false; // Track if clear_message fired — next content should replace, not append
 
                     if (reader) {
                         try {
@@ -237,22 +238,17 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                                                     return updated
                                                 })
                                             } else if (data.type === 'clear_message') {
-                                                // Clearing previous message - no need to log normal operation
-                                                // Clear the previous message content
-                                                assistantMessage!.content = ""
-                                                setChatHistories(prev => {
-                                                    const updated = { ...prev }
-                                                    const messages = [...(updated[selectedChatId] || [])]
-                                                    const lastMessage = messages[messages.length - 1]
-                                                    if (lastMessage && lastMessage.sender === 'assistant') {
-                                                        lastMessage.content = ""
-                                                    }
-                                                    updated[selectedChatId] = messages
-                                                    return updated
-                                                })
+                                                // Mark that next content event should REPLACE, not append
+                                                // Don't clear immediately — let the next content event do an atomic swap
+                                                pendingClear = true
                                             } else if (data.type === 'content') {
-                                                // Update message content
-                                                assistantMessage!.content += data.content
+                                                // If clear was pending, REPLACE content (atomic swap from loading → final)
+                                                if (pendingClear) {
+                                                    assistantMessage!.content = data.content
+                                                    pendingClear = false
+                                                } else {
+                                                    assistantMessage!.content += data.content
+                                                }
                                                 setChatHistories(prev => {
                                                     const updated = { ...prev }
                                                     const messages = [...(updated[selectedChatId] || [])]

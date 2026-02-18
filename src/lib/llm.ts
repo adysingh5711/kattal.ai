@@ -1,3 +1,4 @@
+import 'server-only';
 import { ChatOpenAI } from "@langchain/openai";
 import { env } from './env';
 

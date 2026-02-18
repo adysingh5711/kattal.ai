@@ -1,3 +1,4 @@
+import 'server-only';
 import { Pinecone } from "@pinecone-database/pinecone";
 import { env } from "./env";
 import crypto from 'crypto';

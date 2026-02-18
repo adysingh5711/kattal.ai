@@ -19,11 +19,14 @@ interface LogEntry {
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
-/** Sensitive keys that should be redacted from log data */
+/** Sensitive keys that should be redacted from log data (production-safe) */
 const SENSITIVE_KEYS = new Set([
     'password', 'token', 'secret', 'api_key', 'apikey',
     'authorization', 'cookie', 'session', 'credit_card',
     'ssn', 'access_token', 'refresh_token',
+    // Env / API key names (never log values)
+    'openai_api_key', 'pinecone_api_key', 'database_url',
+    'openrouter_api_key', 'aws_api_key', 'supabase_key',
 ]);
 
 /**

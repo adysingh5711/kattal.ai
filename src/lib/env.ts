@@ -25,6 +25,9 @@ ENVIRONMENT VARIABLES SECURITY GUIDE:
 ⚠️  IMPORTANT: DATABASE_URL ≠ NEXT_PUBLIC_SUPABASE_URL
    - DATABASE_URL: postgresql://user:pass@host:port/db (SENSITIVE!)
    - NEXT_PUBLIC_SUPABASE_URL: https://project.supabase.co (PUBLIC)
+
+🔒 PRODUCTION: Set all secrets in your host (e.g. Vercel → Settings → Environment Variables).
+   Do not commit .env; .env* is gitignored. This file returns {} on the client so keys never bundle.
 */
 
 // Environment variables schema
