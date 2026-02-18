@@ -44,77 +44,97 @@
     }
 }
 
-/* Enhanced Markdown rendering styles for chat messages */
-.prose {
+/* markdown-body: lean replacement for Tailwind prose, with tight paragraph spacing */
+/* Base font size: 1.125rem for readable output */
+.markdown-body {
+    font-size: 1.125rem;
+}
+
+/* Ensure bold and italic always render — safety net against Tailwind purging */
+.markdown-body strong,
+.markdown-body b {
+    font-weight: 700;
+}
+
+.markdown-body em,
+.markdown-body i {
+    font-style: italic;
+}
+
+.markdown-body {
     color: inherit;
     line-height: 1.6;
 }
 
-.prose h1,
-.prose h2,
-.prose h3,
-.prose h4,
-.prose h5,
-.prose h6 {
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
     color: inherit;
     font-weight: 600;
     line-height: 1.3;
 }
 
-.prose h1 {
+.markdown-body h1 {
     font-size: 1.5rem;
-    margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
-}
-
-.prose h2 {
-    font-size: 1.25rem;
     margin-top: 1.25rem;
     margin-bottom: 0.5rem;
 }
 
-.prose h3 {
-    font-size: 1.125rem;
+.markdown-body h2 {
+    font-size: 1.25rem;
     margin-top: 1rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.375rem;
 }
 
-.prose h4,
-.prose h5,
-.prose h6 {
-    font-size: 1rem;
+.markdown-body h3 {
+    font-size: 1.125rem;
     margin-top: 0.75rem;
     margin-bottom: 0.25rem;
 }
 
-.prose p {
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Tight paragraph spacing — the main fix for unnecessary line breaks */
+.markdown-body p {
     margin-top: 0;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
     line-height: 1.6;
+}
+
+.markdown-body p:last-child {
+    margin-bottom: 0;
 }
 
 /* Compact list styling */
-.prose ul,
-.prose ol {
-    margin-top: 0.25rem;
-    margin-bottom: 0.5rem;
+.markdown-body ul,
+.markdown-body ol {
+    margin-top: 0.125rem;
+    margin-bottom: 0.25rem;
     padding-left: 1.5rem;
 }
 
-.prose li {
-    margin-top: 0.125rem;
-    margin-bottom: 0.125rem;
-    line-height: 1.6;
+.markdown-body li {
+    margin-top: 0;
+    margin-bottom: 0;
+    line-height: 1.5;
 }
 
-/* Override paragraph margins inside list items */
-.prose li p {
+/* No extra margin for paragraphs inside list items */
+.markdown-body li p {
     margin-top: 0;
     margin-bottom: 0;
 }
 
-
-.prose code {
+.markdown-body code {
     color: inherit;
     font-size: 0.875rem;
     font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
@@ -124,35 +144,35 @@
     border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.dark .prose code {
+.dark .markdown-body code {
     background-color: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-.prose pre {
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
+.markdown-body pre {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
     background-color: rgba(0, 0, 0, 0.05);
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 0.5rem;
     overflow-x: auto;
 }
 
-.dark .prose pre {
+.dark .markdown-body pre {
     background-color: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-.prose pre code {
+.markdown-body pre code {
     background: none;
     border: none;
     padding: 0;
     font-size: 0.875rem;
 }
 
-.prose blockquote {
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
+.markdown-body blockquote {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
     color: inherit;
     border-left: 4px solid rgba(59, 130, 246, 0.3);
     background-color: rgba(59, 130, 246, 0.05);
@@ -161,73 +181,100 @@
     font-style: italic;
 }
 
-.dark .prose blockquote {
+.dark .markdown-body blockquote {
     background-color: rgba(59, 130, 246, 0.1);
 }
 
-.prose table {
-    margin-top: 0.75rem;
-    margin-bottom: 0.75rem;
+.markdown-body table {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
     border-collapse: collapse;
     width: 100%;
 }
 
-.prose th,
-.prose td {
+.markdown-body th,
+.markdown-body td {
     border: 1px solid rgba(0, 0, 0, 0.1);
     padding: 0.5rem 0.75rem;
     text-align: left;
 }
 
-.dark .prose th,
-.dark .prose td {
+.dark .markdown-body th,
+.dark .markdown-body td {
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-.prose th {
+.markdown-body th {
     background-color: rgba(0, 0, 0, 0.05);
     font-weight: 600;
 }
 
-.dark .prose th {
+.dark .markdown-body th {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-.prose tr:hover {
+.markdown-body tr:hover {
     background-color: rgba(0, 0, 0, 0.02);
 }
 
-.dark .prose tr:hover {
+.dark .markdown-body tr:hover {
     background-color: rgba(255, 255, 255, 0.02);
 }
 
-.prose a {
+.markdown-body a {
     color: rgb(59, 130, 246);
     text-decoration: underline;
     text-underline-offset: 2px;
     transition: color 0.2s ease;
 }
 
-.prose a:hover {
+.markdown-body a:hover {
     color: rgb(37, 99, 235);
 }
 
-.dark .prose a {
+.dark .markdown-body a {
     color: rgb(96, 165, 250);
 }
 
-.dark .prose a:hover {
+.dark .markdown-body a:hover {
     color: rgb(147, 197, 253);
 }
 
-.prose hr {
-    margin: 1.5rem 0;
+.markdown-body hr {
+    margin: 1rem 0;
     border: none;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.dark .prose hr {
+.dark .markdown-body hr {
     border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .markdown-body {
+        font-size: 1.125rem;
+    }
+
+    .markdown-body h1 {
+        font-size: 1.25rem;
+    }
+
+    .markdown-body h2 {
+        font-size: 1.125rem;
+    }
+
+    .markdown-body h3 {
+        font-size: 1rem;
+    }
+
+    .markdown-body pre {
+        font-size: 0.75rem;
+    }
+
+    .markdown-body table {
+        font-size: 0.75rem;
+    }
 }
 
 /* Syntax highlighting styles */

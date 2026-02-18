@@ -49,7 +49,7 @@ function CopyButton({ code }: { code: string }) {
 
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
     return (
-        <div className={cn("prose prose-sm max-w-none dark:prose-invert", className)}>
+        <div className={cn("markdown-body text-lg leading-relaxed", className)}>
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[
@@ -105,26 +105,29 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                             </h6>
                         )
                     },
-                    // Simple paragraph with minimal styling
+                    // Paragraph: suppress extra vertical margin so prose doesn't double-space
                     p: ({ children, ...props }) => {
                         return (
                             <p
-                                className="prose-paragraph leading-relaxed my-0"
+                                className="mb-1 last:mb-0 leading-relaxed"
                                 {...props}
                             >
                                 {children}
                             </p>
                         );
                     },
-                    // Enhanced list styles with compact spacing
+                    // Suppress bare <br> tags — LLMs often emit these for single newlines
+                    // which ReactMarkdown renders as visible blank lines
+                    br: () => null,
+                    // List styles with tight spacing
                     ul: ({ children }) => {
-                        return <ul className="list-disc list-inside">{children}</ul>
+                        return <ul className="list-disc list-inside mb-1 space-y-0">{children}</ul>
                     },
                     ol: ({ children }) => {
-                        return <ol className="list-decimal list-inside">{children}</ol>
+                        return <ol className="list-decimal list-inside mb-1 space-y-0">{children}</ol>
                     },
                     li: ({ children, ...props }) => {
-                        return <li className="my-0" {...props}>{children}</li>
+                        return <li className="my-0 leading-snug" {...props}>{children}</li>
                     },
                     // Enhanced code styles with copy button
                     code: ({ children, className, ...props }) => {
@@ -183,9 +186,9 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
                             </a>
                         )
                     },
-                    // Enhanced strong/bold styles
+                    // Bold: use font-bold (700) so it's visually distinct from regular text
                     strong: ({ children }) => {
-                        return <strong className="font-semibold text-foreground">{children}</strong>
+                        return <strong className="font-bold">{children}</strong>
                     },
                     // Enhanced emphasis/italic styles
                     em: ({ children }) => {
