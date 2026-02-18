@@ -292,6 +292,89 @@ class SimplePerformanceOptimizer {
 
 // Optimized response synthesizer
 class SimpleResponseSynthesizer {
+
+    /**
+     * Smart context builder: keeps whole documents, sorted by relevance score,
+     * de-duplicates overlapping chunks, and fits within the budget without
+     * chopping mid-sentence.
+     */
+    private buildSmartContext(
+        documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>,
+        maxLength: number
+    ): { context: string; docsUsed: number; docsDropped: number } {
+        if (documents.length === 0) {
+            return { context: '', docsUsed: 0, docsDropped: 0 };
+        }
+
+        // 1. Sort by relevance score (highest first) — Pinecone score is in metadata
+        const sorted = [...documents].sort((a, b) => {
+            const scoreA = Number(a.metadata?.score ?? 0);
+            const scoreB = Number(b.metadata?.score ?? 0);
+            return scoreB - scoreA; // descending
+        });
+
+        // 2. De-duplicate overlapping chunks (>60% overlap = skip the lower-scored one)
+        const deduped: typeof sorted = [];
+        for (const doc of sorted) {
+            const content = doc.pageContent.trim();
+            if (!content) continue;
+
+            const isDuplicate = deduped.some(existing => {
+                const existingContent = existing.pageContent.trim();
+                // Check if one is a substantial substring of the other
+                const shorter = content.length < existingContent.length ? content : existingContent;
+                const longer = content.length >= existingContent.length ? content : existingContent;
+                if (shorter.length < 50) return false; // too short to judge
+                // Check overlap: take the first 60% of the shorter text
+                const checkLen = Math.floor(shorter.length * 0.6);
+                const checkStr = shorter.substring(0, checkLen);
+                return longer.includes(checkStr);
+            });
+
+            if (!isDuplicate) {
+                deduped.push(doc);
+            }
+        }
+
+        const dedupedCount = sorted.length - deduped.length;
+        if (dedupedCount > 0) {
+            console.log(`🧹 De-duplicated ${dedupedCount} overlapping chunks`);
+        }
+
+        // 3. Greedily pack whole documents until budget is exhausted
+        const separator = '\n\n---\n\n';
+        let totalLength = 0;
+        const selected: string[] = [];
+
+        for (const doc of deduped) {
+            const piece = doc.pageContent.trim();
+            const addedLength = piece.length + (selected.length > 0 ? separator.length : 0);
+
+            if (totalLength + addedLength > maxLength) {
+                // If we haven't selected anything yet, include at least the top doc (truncated)
+                if (selected.length === 0) {
+                    selected.push(piece.substring(0, maxLength));
+                    console.log(`⚠️ Top document alone exceeded budget, truncated to ${maxLength} chars`);
+                }
+                break;
+            }
+
+            selected.push(piece);
+            totalLength += addedLength;
+        }
+
+        const docsDropped = deduped.length - selected.length;
+        if (docsDropped > 0) {
+            console.log(`📄 Context budget: kept ${selected.length}/${deduped.length} documents (${totalLength} chars), dropped ${docsDropped} lowest-relevance docs`);
+        }
+
+        return {
+            context: selected.join(separator),
+            docsUsed: selected.length,
+            docsDropped
+        };
+    }
+
     async synthesizeResponse(query: string, analysis: QueryAnalysis, documents: Array<{ pageContent: string; metadata?: Record<string, unknown> }>, chatHistory?: string) {
         // Detect if user wants detailed/comprehensive information
         const detailedKeywords = ['all', 'detailed', 'complete', 'comprehensive', 'full', 'everything',
@@ -299,33 +382,32 @@ class SimpleResponseSynthesizer {
         const queryLower = query.toLowerCase();
         const isDetailedQuery = detailedKeywords.some(keyword => queryLower.includes(keyword));
 
-        // Use extended context for detailed queries (16000 chars vs 8000)
-        const maxContextLength = isDetailedQuery ? 16000 : 8000;
+        // Increased context limits: 16K normal, 28K detailed (was 8K/16K)
+        const maxContextLength = isDetailedQuery ? 28000 : 16000;
 
         if (isDetailedQuery) {
             console.log(`📚 Detailed query detected - using extended context (${maxContextLength} chars)`);
         }
 
-        let context = documents.map(doc => doc.pageContent).join('\n\n');
+        // Smart context building: keeps whole docs, sorted by relevance, de-duped
+        const { context, docsUsed, docsDropped } = this.buildSmartContext(documents, maxContextLength);
 
-        // Truncate context if too long
-        if (context.length > maxContextLength) {
-            context = context.substring(0, maxContextLength) + '...';
-            console.log(`🔍 Context truncated from ${documents.map(doc => doc.pageContent).join('\n\n').length} to ${context.length} characters`);
+        if (docsDropped > 0 || docsUsed < documents.length) {
+            console.log(`🔍 Smart context: ${docsUsed} docs used, ${docsDropped} dropped, ${context.length} chars`);
         }
 
         // Smart chat history processing - balance context vs performance
         let chatHistoryContext = '';
         if (chatHistory && analysis.queryType === 'FOLLOW_UP') {
             // For follow-up queries, include more chat history
-            const maxHistoryLength = 2000;
+            const maxHistoryLength = 3000;
             const truncatedHistory = chatHistory.length > maxHistoryLength
                 ? '...' + chatHistory.slice(-maxHistoryLength)
                 : chatHistory;
             chatHistoryContext = `\n\nCHAT HISTORY (for context):\n${truncatedHistory}\n`;
         } else if (chatHistory) {
-            // For other queries, include only recent context
-            const recentHistory = chatHistory.split('\n').slice(-4).join('\n'); // Last 4 lines
+            // For other queries, include recent context (last 6 lines)
+            const recentHistory = chatHistory.split('\n').slice(-6).join('\n');
             if (recentHistory.length > 0) {
                 chatHistoryContext = `\n\nRECENT CONTEXT:\n${recentHistory}\n`;
             }
@@ -352,7 +434,7 @@ IMPORTANT INSTRUCTIONS:
 - IMPORTANT: Prioritize constitutional summary statistics (like "11343 hectares" for total area) over individual property listings or ward-level details unless specifically asked for granular data.
 - If you find a total number like "11343" for Kattakada's area, emphasize that it is the total area.
 
-CONTEXT:
+CONTEXT (${docsUsed} documents):
 ${context}${chatHistoryContext}
 
 Question: ${query}
@@ -406,7 +488,7 @@ Provide a comprehensive answer STRICTLY in Malayalam Script (മലയാളം 
                 synthesizedResponse: responseText,
                 responseStyle: 'factual',
                 confidence: 0.8,
-                completeness: 'complete' as const,
+                completeness: docsDropped > 0 ? 'partial' as const : 'complete' as const,
                 sourceAttribution: documents.map(doc => ({
                     source: String(doc.metadata?.source || 'unknown'),
                     relevance: 0.8,
@@ -414,7 +496,7 @@ Provide a comprehensive answer STRICTLY in Malayalam Script (മലയാളം 
                     contentType: 'text' as const,
                     pageReference: String(doc.metadata?.page || '1')
                 })),
-                reasoningChain: ['Optimized response synthesis with hallucination check']
+                reasoningChain: [`Smart context: ${docsUsed}/${documents.length} docs, ${context.length} chars, ${docsDropped} dropped`]
             };
         } catch (error) {
             console.error(`❌ LLM synthesis failed:`, error);
@@ -532,53 +614,143 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
             }
         }
 
-        // Step 1.55: Predefined response for opinion-based questions about MLA I.B. Sateesh
-        // This handles questions like "how is IB Sateesh", "is Kattakada MLA good", "are people happy with MLA", etc.
-        const isMlaOpinionQuery = () => {
+        // Step 1.55: FAQ + Predefined Answer Precheck
+        // Matches FAQ data (from public/docs/faq.md), identity questions, and IB Sateesh opinion queries.
+        // Matching queries skip query expansion AND retrieval entirely for instant responses.
+        const checkPredefinedAnswer = (): { text: string; queryType: string } | null => {
             const queryLower = sanitizedQuestion.toLowerCase();
+
+            // --- Identity questions ---
+            if (queryLower.includes('who are you') || queryLower.includes('നീ ആരാണ്') ||
+                queryLower.includes('ആരാണ് നീ') || queryLower.includes('നിങ്ങൾ ആരാണ്') ||
+                queryLower.includes('what are you') || queryLower.includes('introduce yourself') ||
+                queryLower.includes('നിങ്ങളെ പരിചയപ്പെടുത്തൂ')) {
+                return {
+                    text: 'ഞാൻ PACE വികസിപ്പിച്ച കാട്ടാക്കടയിൽ നിന്നുള്ള വിവരങ്ങളും രേഖകളും ശേഖരിച്ചു നൽകുന്നതിനായി സമർപ്പിതമായ ഒരു എ.ഐ. സഹായിയാണ്. കാട്ടാക്കട നിയോജക മണ്ഡലത്തെക്കുറിച്ചുള്ള ചോദ്യങ്ങൾക്ക് ഞാൻ ഉത്തരം നൽകാൻ ശ്രമിക്കുന്നു.',
+                    queryType: 'identity_query'
+                };
+            }
+
+            // --- IB Sateesh opinion queries ---
             const mlaKeywords = ['ib sateesh', 'i.b. sateesh', 'i.b sateesh', 'ib satish', 'i b sateesh',
                 'ഐ.ബി. സതീഷ്', 'ഐബി സതീഷ്', 'സതീഷ്', 'sateesh', 'satish'];
             const mlaRoleKeywords = ['kattakada mla', 'കാട്ടക്കട എം.എൽ.എ', 'കാട്ടക്കട mla', 'mla of kattakada',
-                'കാട്ടക്കടയുടെ എം.എൽ.എ', 'നിലവിലെ എംഎൽഎ', 'current mla'];
+                'കാട്ടാക്കട mla', 'കാട്ടാക്കട എം.എൽ.എ', 'കാട്ടക്കടയുടെ എം.എൽ.എ', 'നിലവിലെ എംഎൽഎ', 'current mla'];
             const opinionKeywords = ['how is', 'how good', 'is he good', 'is she good', 'opinion', 'happy with',
                 'satisfied with', 'performance', 'doing', 'work', 'എങ്ങനെ', 'നല്ലതാണോ', 'സന്തോഷം', 'പ്രവർത്തനം',
                 'good leader', 'bad leader', 'effective', 'corrupt', 'honest', 'popular', 'like', 'dislike',
                 'അഭിപ്രായം', 'നേതാവ്', 'പ്രവൃത്തി', 'ജനപ്രിയം', 'സത്യസന്ധത'];
-
-            const hasMlaReference = mlaKeywords.some(kw => queryLower.includes(kw.toLowerCase())) ||
+            const hasMlaRef = mlaKeywords.some(kw => queryLower.includes(kw.toLowerCase())) ||
                 mlaRoleKeywords.some(kw => queryLower.includes(kw.toLowerCase()));
-            const hasOpinionContext = opinionKeywords.some(kw => queryLower.includes(kw.toLowerCase()));
+            const hasOpinion = opinionKeywords.some(kw => queryLower.includes(kw.toLowerCase()));
+            if (hasMlaRef && hasOpinion) {
+                return {
+                    text: `ഐ.ബി. സതീഷ് കാട്ടക്കട നിയോജക മണ്ഡലത്തിന്റെ നിലവിലെ എം.എൽ.എ ആണ്. മണ്ഡലത്തിന്റെ വികസന പ്രവർത്തനങ്ങളിൽ അദ്ദേഹം സജീവമായി പങ്കെടുക്കുന്നു.\nഅദ്ദേഹത്തെക്കുറിച്ച് ജനങ്ങളുടെ അഭിപ്രായങ്ങൾ വ്യത്യസ്തമാണ്. പൊതുവെ അദ്ദേഹത്തെ നല്ല നേതാവായി കാണുന്നു.`,
+                    queryType: 'opinion_query'
+                };
+            }
 
-            return hasMlaReference && hasOpinionContext;
+            // --- FAQ: Handloom families ---
+            if ((queryLower.includes('കൈത്തറി') || queryLower.includes('handloom')) &&
+                (queryLower.includes('കുടുംബ') || queryLower.includes('family') || queryLower.includes('families') ||
+                    queryLower.includes('എത്ര') || queryLower.includes('how many'))) {
+                return {
+                    text: `കാട്ടാക്കട നിയോജക മണ്ഡലത്തിലെ രേഖകൾ പ്രകാരം, 112 കുടുംബങ്ങളാണ് കൈത്തറി (Handloom) വ്യവസായവുമായി ബന്ധപ്പെട്ട് പ്രവർത്തിക്കുന്നത്.\n\nവിവിധ പഞ്ചായത്തുകളിലെ കണക്കുകൾ:\n- മാറനല്ലൂർ: 85\n- കാട്ടാക്കട: 22\n- പള്ളിച്ചൽ: 3\n- മലയിൻകീഴ്: 2\n- വിളപ്പിൻ, വിളവൂർക്കൽ: 0\n\nആകെ 112 കുടുംബങ്ങളാണ് ഈ മേഖലയിൽ പ്രവർത്തിക്കുന്നത്.`,
+                    queryType: 'faq_handloom'
+                };
+            }
+
+            // --- FAQ: Rainwater harvesting ---
+            if ((queryLower.includes('മഴവെള്ള') || queryLower.includes('rainwater') || queryLower.includes('rain water')) &&
+                (queryLower.includes('സംഭരണ') || queryLower.includes('harvesting') || queryLower.includes('എത്ര') ||
+                    queryLower.includes('how many'))) {
+                return {
+                    text: `കട്ടക്കട അസംബ്ലി മണ്ഡലത്തിൽ ആകെ 284 മഴവെള്ള സംഭരണ സംവിധാനങ്ങൾ നിലവിലുണ്ട്.\n\nഗ്രാമപഞ്ചായത്ത് അടിസ്ഥാനത്തിലുള്ള വിവരങ്ങൾ:\n- മാരനല്ലൂർ: 99\n- പള്ളിച്ചൽ: 99\n- കട്ടക്കട: 55\n- മലയിങ്കീഴ്: 19\n- വിലാപ്പിൽ: 12\n- വിലവൂർക്കൽ: 0\n\nആകെ 284 മഴവെള്ള സംഭരണ സംവിധാനങ്ങൾ രേഖപ്പെടുത്തിയിരിക്കുന്നു.`,
+                    queryType: 'faq_rainwater'
+                };
+            }
+
+            // --- FAQ: Kudumbashree units ---
+            if ((queryLower.includes('കുടുംബശ്രീ') || queryLower.includes('kudumbashree') || queryLower.includes('kudumbasree')) &&
+                (queryLower.includes('യൂണിറ്റ') || queryLower.includes('unit') || queryLower.includes('എത്ര') ||
+                    queryLower.includes('how many') || queryLower.includes('nhg') || queryLower.includes('എൻ.എച്ച്'))) {
+                return {
+                    text: `കാട്ടാക്കട നിയോജക മണ്ഡലത്തിൽ ആകെ 2,206 കുടുംബശ്രീ യൂണിറ്റുകൾ (എൻ.എച്ച്‌.ജി./അയൽക്കൂട്ടങ്ങൾ) പ്രവർത്തിച്ചുവരുന്നു.\n\nപഞ്ചായത്ത് അടിസ്ഥാനത്തിൽ:\n- കാട്ടാക്കട: 450\n- മലയിൻകീഴ്: 365\n- മാറനല്ലൂർ: 328\n- പള്ളിച്ചൽ: 387\n- വിളപ്പിൽ: 421\n- വിളവൂർക്കൽ: 255\n\nആകെ: 2,206`,
+                    queryType: 'faq_kudumbashree'
+                };
+            }
+
+            // --- FAQ: Arts & Sports clubs ---
+            if ((queryLower.includes('ആർട്സ്') || queryLower.includes('സ്പോർട്സ്') || queryLower.includes('ക്ലബ്') ||
+                queryLower.includes('arts') || queryLower.includes('sports') || queryLower.includes('club')) &&
+                (queryLower.includes('എത്ര') || queryLower.includes('how many') || queryLower.includes('ആകെ') ||
+                    queryLower.includes('total') || queryLower.includes('count'))) {
+                return {
+                    text: `കട്ടക്കട നിയമസഭാ മണ്ഡലത്തിൽ ആകെ 94 ആർട്സ് ആൻഡ് സ്പോർട്സ് ക്ലബുകൾ പ്രവർത്തിക്കുന്നു.\n\nപഞ്ചായത്ത് അടിസ്ഥാനത്തിൽ:\n- കട്ടക്കട: 18\n- മലയിങ്കീഴ്: 18\n- മാറനല്ലൂർ: 20\n- പള്ളിച്ചൽ: 11\n- വിളപ്പിൽ: 15\n- വിളവൂർക്കൽ: 12\n\nആകെ: 94`,
+                    queryType: 'faq_arts_sports'
+                };
+            }
+
+            // --- FAQ: Voter gender ratio ---
+            if ((queryLower.includes('വോട്ടർ') || queryLower.includes('voter') || queryLower.includes('vote')) &&
+                (queryLower.includes('ലിംഗ') || queryLower.includes('gender') || queryLower.includes('പുരുഷ') ||
+                    queryLower.includes('സ്ത്രീ') || queryLower.includes('male') || queryLower.includes('female') ||
+                    queryLower.includes('ratio') || queryLower.includes('അനുപാതം'))) {
+                return {
+                    text: `കട്ടക്കട മണ്ഡലത്തിലെ വോട്ടർമാരിൽ സ്ത്രീകളാണ് പുരുഷന്മാരെക്കാൾ കൂടുതലുള്ളത്.\n\nവർഷങ്ങളിലെ ലിംഗാനുപാതം:\n- 2011: പുരുഷൻ 79,160 | സ്ത്രീ 87,146 | ആകെ 1,66,306\n- 2016: പുരുഷൻ 89,559 | സ്ത്രീ 97,833 | ആകെ 1,87,392\n- 2021: പുരുഷൻ 93,750 | സ്ത്രീ 1,02,072 | ആകെ 1,95,822\n- 2024: പുരുഷൻ 92,624 | സ്ത്രീ 1,01,343 | ആകെ 1,93,967\n\nഎല്ലാ വർഷത്തിലും സ്ത്രീ വോട്ടർമാരുടെ എണ്ണം പുരുഷന്മാരെക്കാൾ കൂടുതലാണ്. 2024 ലോകസഭ തെരഞ്ഞെടുപ്പിലെ 1,93,967 വോട്ടർമാരിൽ 52% സ്ത്രീകളാണ്.`,
+                    queryType: 'faq_voter_gender'
+                };
+            }
+
+            // --- FAQ: Women representatives ---
+            if ((queryLower.includes('വനിതാ') || queryLower.includes('women') || queryLower.includes('female')) &&
+                (queryLower.includes('ജനപ്രതിനിധി') || queryLower.includes('representative') || queryLower.includes('പ്രതിനിധി') ||
+                    queryLower.includes('elected') || queryLower.includes('member'))) {
+                return {
+                    text: `മണ്ഡലത്തിലെ ആറ് ഗ്രാമപഞ്ചായത്തുകളിലായി ആകെ 65 വനിതാ ജനപ്രതിനിധികൾ പ്രവർത്തിക്കുന്നു.\n\nപഞ്ചായത്ത് അടിസ്ഥാനത്തിൽ:\n- മലയിങ്കീഴ്: 10\n- മാറനല്ലൂർ: 11\n- പള്ളിച്ചൽ: 12\n- വിളപ്പിൽ: 11\n- വിളവൂർക്കൽ: 10\n- കട്ടക്കട: 11\n\nആകെ: 65`,
+                    queryType: 'faq_women_reps'
+                };
+            }
+
+            // --- FAQ: Anganwadis ---
+            if (queryLower.includes('അങ്കണവാടി') || queryLower.includes('anganwadi') || queryLower.includes('anganvadi') ||
+                queryLower.includes('angenwadi') || queryLower.includes('icds')) {
+                return {
+                    text: `മണ്ഡലത്തിലെ ആറ് ഗ്രാമപഞ്ചായത്തുകളിലായി ആകെ 219 അങ്കണവാടികൾ പ്രവർത്തിക്കുന്നു.\nഅവയിൽ 132 പഞ്ചായത്ത് കെട്ടിടത്തിൽ, 2 പൊതുസ്ഥലങ്ങളിൽ, 79 വാടക കെട്ടിടങ്ങളിൽ പ്രവർത്തിക്കുന്നു.\n\nപഞ്ചായത്ത് അടിസ്ഥാനത്തിൽ:\n- കാട്ടാക്കട: 38\n- മലയിങ്കീഴ്: 35\n- മാറനല്ലൂർ: 38\n- പള്ളിച്ചൽ: 39\n- വിളപ്പിൽ: 39\n- വിളവൂർക്കൽ: 30\n\nആകെ: 219`,
+                    queryType: 'faq_anganwadi'
+                };
+            }
+
+            return null;
         };
 
-        if (isMlaOpinionQuery()) {
-            console.log('🎯 Opinion-based MLA query detected, returning neutral predefined response');
+        const predefinedAnswer = checkPredefinedAnswer();
+        if (predefinedAnswer) {
+            console.log(`🎯 Predefined answer matched (${predefinedAnswer.queryType}), skipping expander & retrieval`);
             return {
-                text: `ഐ.ബി. സതീഷ് കാട്ടക്കട നിയോജക മണ്ഡലത്തിന്റെ നിലവിലെ എം.എൽ.എ ആണ്. മണ്ഡലത്തിന്റെ വികസന പ്രവർത്തനങ്ങളിൽ അദ്ദേഹം സജീവമായി പങ്കെടുക്കുന്നു.
-അദ്ദേഹത്തെക്കുറിച്ച് ജനങ്ങളുടെ അഭിപ്രായങ്ങൾ വ്യത്യസ്തമാണ്. പൊതുവെ അദ്ദേഹത്തെ നല്ല നേതാവായി കാണുന്നു.`,
+                text: predefinedAnswer.text,
                 sources: [],
                 analysis: {
-                    queryType: 'opinion_query',
+                    queryType: predefinedAnswer.queryType,
                     complexity: 1,
                     retrievalStrategy: 'predefined_response',
                     documentsUsed: 0,
                     crossReferences: [],
-                    responseStyle: 'neutral_factual',
-                    qualityScore: 0.95,
+                    responseStyle: 'predefined_faq',
+                    qualityScore: 0.98,
                     confidence: 1.0,
                     completeness: 1.0,
                     processingTime: Date.now() - overallStartTime
                 },
                 quality: {
-                    overallScore: 0.95,
+                    overallScore: 0.98,
                     factualAccuracy: 1.0,
                     completeness: 1.0,
-                    coherence: 0.95,
+                    coherence: 0.98,
                     issues: [],
                     improvements: []
                 },
-                reasoning: ['Predefined neutral response for opinion-based MLA queries'],
+                reasoning: [`Predefined FAQ/identity answer for ${predefinedAnswer.queryType} — no expansion or retrieval needed`],
                 cached: false
             };
         }
