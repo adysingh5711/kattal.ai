@@ -437,7 +437,7 @@ const ChatInterface = forwardRef<ChatInterfaceHandle, ChatInterfaceProps>(
                             {messages.map((message) => (
                                 <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
                                     <div
-                                        className={`max-w-[80%] rounded-2xl px-4 py-2 ${message.sender === "user"
+                                        className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm sm:text-base ${message.sender === "user"
                                             ? "bg-blue-500 text-primary-foreground rounded-br-none dark:text-white"
                                             : "bg-muted rounded-bl-none"
                                             }`}

@@ -1,41 +1,32 @@
-import dotenv from 'dotenv';
 import { z } from 'zod';
 
-// Only load dotenv on server side
-if (typeof window === 'undefined') {
-    dotenv.config();
-}
-
 /*
-ENVIRONMENT VARIABLES SECURITY GUIDE:
+ENVIRONMENT VARIABLES — PUBLIC USAGE
 ====================================
+App is designed for public deployment: anyone can use it. No user GCP login.
+
+For Gemini (public API): set GEMINI_API_KEY only (from https://aistudio.google.com/apikey).
+Do NOT set GOOGLE_CLOUD_PROJECT / GOOGLE_CLOUD_LOCATION in production unless you run
+on your own GCP with a service account.
+
+Vercel (Vertex AI): Do NOT set GOOGLE_APPLICATION_CREDENTIALS to a file path (it won't exist).
+Instead set GOOGLE_APPLICATION_CREDENTIALS_JSON to the full contents of your service account
+JSON (paste the whole file in Vercel env). The app writes it to a temp file at runtime; the
+value is server-only and never exposed to the client.
 
 🚫 NEVER EXPOSE TO CLIENT (Server-side only):
-- DATABASE_URL: Contains sensitive database connection string
-- OPENAI_API_KEY: Contains API secrets
-- PINECONE_API_KEY: Contains API secrets
-- AWS_API_KEY: Contains API secrets
-- Other API keys and sensitive credentials
+- DATABASE_URL, OPENAI_API_KEY, PINECONE_API_KEY, GEMINI_API_KEY, other API keys
 
-✅ SAFE FOR CLIENT (Can be exposed):
-- NEXT_PUBLIC_SUPABASE_URL: Public Supabase project URL
-- NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: Public anonymous key
-- Any variable prefixed with NEXT_PUBLIC_
+✅ SAFE FOR CLIENT: NEXT_PUBLIC_* only.
 
-⚠️  IMPORTANT: DATABASE_URL ≠ NEXT_PUBLIC_SUPABASE_URL
-   - DATABASE_URL: postgresql://user:pass@host:port/db (SENSITIVE!)
-   - NEXT_PUBLIC_SUPABASE_URL: https://project.supabase.co (PUBLIC)
-
-🔒 PRODUCTION: Set all secrets in your host (e.g. Vercel → Settings → Environment Variables).
-   Do not commit .env; .env* is gitignored. This file returns {} on the client so keys never bundle.
+🔒 PRODUCTION: Set secrets in your host (e.g. Vercel). Do not commit .env.
 */
 
 // Environment variables schema
 const envSchema = z.object({
-    // Node environment
     NODE_ENV: z.enum(['development', 'production', 'test']).optional().default('development'),
 
-    // LLM provider/model
+    // LLM (main RAG pipeline)
     LLM_PROVIDER: z.string().trim().min(1, 'LLM_PROVIDER is required'),
     LLM_MODEL: z.string().trim().min(1, 'LLM_MODEL is required'),
 
@@ -44,6 +35,23 @@ const envSchema = z.object({
     OPENROUTER_API_KEY: z.string().trim().min(1, 'OPENROUTER_API_KEY is required').optional(),
     PINECONE_API_KEY: z.string().trim().min(1, 'PINECONE_API_KEY is required'),
     AWS_API_KEY: z.string().trim().min(1, 'AWS_API_KEY is required').optional(),
+
+    // --- Public Gemini (for everyone; no GCP login) ---
+    /** Gemini API key from https://aistudio.google.com/apikey — set this for public usage. */
+    GEMINI_API_KEY: z.string().trim().min(1).optional(),
+    /** Alias for GEMINI_API_KEY. */
+    GOOGLE_CLOUD_API_KEY: z.string().trim().min(1).optional(),
+    /** Model for Gemini, e.g. gemini-2.0-flash. Optional. */
+    GEMINI_GROUNDING_MODEL: z.string().trim().min(1).optional(),
+
+    // --- Optional: Vertex AI (Vercel: use GOOGLE_APPLICATION_CREDENTIALS_JSON, not a file path) ---
+    GOOGLE_CLOUD_PROJECT: z.string().trim().min(1).optional(),
+    GOOGLE_CLOUD_LOCATION: z.string().trim().min(1).optional(),
+    /** Full service account JSON string (for Vercel). Never logged or exposed. */
+    GOOGLE_APPLICATION_CREDENTIALS_JSON: z.string().trim().min(1).optional(),
+    VERTEX_MODEL_ID: z.string().trim().min(1).optional(),
+    VERTEX_AI_FILE_SEARCH_STORE_NAMES: z.string().trim().min(1).optional(),
+    VERTEX_RAG_CORPUS: z.string().trim().min(1).optional(),
 
     // Supabase Configuration
     DATABASE_URL: z.string().trim().min(1, 'DATABASE_URL is required'),
