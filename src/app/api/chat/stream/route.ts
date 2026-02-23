@@ -61,57 +61,47 @@ async function mergeEnforceAndStream(
 
     // Build the source section — only include sections that have content
     const sourcesSection = genaiTrimmed && ragTrimmed
-        ? `**ഭാഗം A (ഇതിന് മുൻഗണന — Google Search):**\n${genaiTrimmed}\n\n**ഭാഗം B (RAG — പ്രാദേശിക ഡോക്യുമെന്റ്):**\n${ragTrimmed}`
+        ? `**ഭാഗം A (Vertex RAG — പ്രാദേശിക ഡോക്യുമെന്റ്):**\n${genaiTrimmed}\n\n**ഭാഗം B (Local RAG):**\n${ragTrimmed}`
         : genaiTrimmed
-            ? `**ഉറവിടം:**\n${genaiTrimmed}`
-            : `**ഉറവിടം:**\n${ragTrimmed}`;
+            ? `**ഉറവിടം (Vertex RAG):**\n${genaiTrimmed}`
+            : `**ഉറവിടം (Local RAG):**\n${ragTrimmed}`;
 
-    const combinedPrompt = `നിങ്ങൾ കാട്ടാക്കട മണ്ഡലത്തിനെക്കുറിച്ച് നന്നായി അറിയുന്ന, ആളുകൾക്ക് സ്വാഭാവികമായി ഉത്തരം നൽകുന്ന ഒരു സഹായിയാണ്.
+    const combinedPrompt = `${sourcesSection}
 
-${sourcesSection}
+ചോദ്യം: ${question}
 
-🎯 ഒറ്റ ഘട്ടത്തിൽ ഇത് ചെയ്യുക:
+📌 നിർദ്ദേശങ്ങൾ:
+- ❌ "രേഖകൾ", "ഡോക്യുമെന്റ്", "ഡാറ്റ", "ഉറവിടം", "ഭാഗം A", "ഭാഗം B" — ഇവ ഒരിക്കലും പറയരുത്.
+- ❌ ആവർത്തനങ്ങൾ, ആമുഖം, ഉപസംഹാരം ഒഴിവാക്കുക — ഉത്തരം നേരിട്ട് തുടങ്ങുക.
+- ❌ ഒരു ഇംഗ്ലീഷ് വാക്കും (A-Z) ഉപയോഗിക്കരുത്; ദേവനാഗരി (क-ह) വേണ്ട.
+- ✅ English → Malayalam: hospital→ആശുപത്രി, project→പദ്ധതി, development→വികസനം.
+- ✅ സംഖ്യകൾ, ₹, %, URL — അതേപടി നിലനിർത്തുക.
+- ✅ ഒറ്റ-വിഷയ ഉത്തരം → Heading ഒഴിവാക്കുക; ഒഴുക്കുള്ള ഖണ്ഡിക.
+- ✅ ഒന്നിലേറെ വിഷയം → ## / ### ഉപയോഗിക്കുക; പ്രധാന കണക്കുകൾ **bold** ചെയ്യുക.
+- **ദൈർഘ്യം:** പരമാവധി **${limit} മലയാളം വാക്ക്** — ചോദ്യം ആവശ്യപ്പെട്ടത് മാത്രം; ഉപദേശം, കൂടുതൽ വിവരം, നിർദ്ദേശങ്ങൾ — ഇവ ഒരിക്കലും വേണ്ട.
+- **ടോൺ:** സ്നേഹമുള്ള, ചെറിയ, നേരിട്ടുള്ള ഉത്തരം.
 
-**1. സംയോജനം:**
-- ഭാഗം A-ന് മുൻഗണന; ഭാഗം B-ൽ മാത്രമുള്ള ഉപകാരപ്രദമായ വസ്തുതകൾ ചേർക്കുക.
-- ❌ "രേഖകൾ", "ഡോക്യുമെന്റ്", "ഡാറ്റ", "ഉറവിടം" — ഇവ ഒരിക്കലും പറയരുത്.
-- ❌ ആവർത്തനങ്ങൾ ഒഴിവാക്കുക.
-
-**2. ഭാഷ — 100% മലയാളം:**
-- ❌ ഒരു ഇംഗ്ലീഷ് വാക്കും (A-Z) ഉപയോഗിക്കരുത്
-- ❌ ദേവനാഗരി (क-ഹ) ഒരിക്കലും വേണ്ട
-- ✅ English → Malayalam: hospital→ആശുപത്രി, project→പദ്ധതി, development→വികസനം, government→സർക്കാർ
-- ✅ സംഖ്യകൾ, ₹, %, URL — അതേപടി നിലനിർത്തുക
-
-**3. ഫോർമാറ്റ് — ലളിതമായ Markdown:**
-- ഒറ്റ-വിഷയ ഉത്തരം → Heading ഒഴിവാക്കുക; ഒഴുക്കുള്ള ഖണ്ഡിക/കൾ
-- ഒന്നിലേറെ വിഷയം → ## / ### ഉപയോഗിക്കുക
-- പ്രധാന കണക്കുകൾ, തുകകൾ → **ഇങ്ങനെ** bold ചെയ്യുക
-- ലിസ്റ്റ് ചെയ്യേണ്ടവ → - bullet
-
-**4. ദൈർഘ്യം:**
-- ഈ ചോദ്യം "${label}" ആണ് → ഉത്തരം **${limit} മലയാളം വാക്കിൽ** ഒതുക്കുക.
-- ആവശ്യമുള്ളത് പറഞ്ഞ ശേഷം ഉടൻ നിർത്തുക.
-
-**5. ടോൺ:**
-- ✅ "ഇവിടെ 219 അങ്കണവാടികൾ ഉണ്ട്" — ഒരു ഗ്രാമവാസി സ്നേഹത്തോടെ ഉത്തരം നൽകുന്ന പോലെ
-- ❌ ഔദ്യോഗിക/യൂണിഫോം ഭാഷ വേണ്ട
-
-ഉത്തരം (${limit} വാക്കിൽ, ശുദ്ധ മലയാളം Markdown):`;
+ഉത്തരം (ആമുഖം ഇല്ലാതെ, പരമാവധി ${limit} വാക്ക്, ശുദ്ധ മലയാളം):`;
 
     try {
         const stream = await streamingModel.stream([
             new SystemMessage(`നിങ്ങൾ PACE വികസിപ്പിച്ച കാട്ടാക്കട നിയോജക മണ്ഡലത്തിന്റെ ഡിജിറ്റൽ സഹായിയാണ്.
+
+🎯 ഉത്തര ശൈലി:
+- ചോദിച്ചത് മാത്രം; ഉപദേശം, നിർദ്ദേശം, അധിക വിവരം — ഒരിക്കലും വേണ്ട.
+- ആമുഖം, ഉപസംഹാരം, "ഇപ്പോൾ ഞാൻ...", "ഓർക്കുക..." — ഇവ ഒഴിവാക്കുക.
+- ഊഷ്മളം, ചെറുത്, നേരിട്ട് — ഒരു നല്ല അയൽക്കാരൻ ഉത്തരം നൽകുന്ന പോലെ.
 
 🚫 ഭാഷ — മലയാളം മാത്രം:
 - ഒരു ഇംഗ്ലീഷ് വാക്കും (A-Z) ഉപയോഗിക്കരുത്
 - ദേവനാഗരി (Hindi) ഒരിക്കലും വേണ്ട
 - സംഖ്യകൾ, ₹, %, URL — അതേപടി നിലനിർത്തുക
 
-🚫 കൃത്യത:
-- അറിയാത്ത കണക്കുകൾ ഊഹിക്കരുത്
-- കേരളം / ഇന്ത്യ / പൊതു അറിവ് ഉൾപ്പെടുത്തരുത്
-- ഉത്തരം ഇല്ലെങ്കിൽ: "ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ ഇപ്പോൾ ഉത്തരമില്ല. കൂടുതൽ വിവരങ്ങൾക്ക്: https://kattakadalac.com/"
+- 🚫 കൃത്യത:
+- **നൽകിയിട്ടുള്ള ഉറവിടങ്ങളിൽ (Source) ഇല്ലാത്ത ഒരു വിവരവും പറയരുത്.**
+- സ്വന്തം അറിവോ പൊതു അറിവോ (External Knowledge) ഉപയോഗിക്കരുത്.
+- അറിയാത്ത കണക്കുകൾ ഊഹിക്കരുത്.
+- ഉത്തരം ഉറവിടങ്ങളിൽ ഇല്ലെങ്കിൽ മാത്രം: "ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ ഇപ്പോൾ നൽകിയിട്ടുള്ള രേഖകളിൽ ഉത്തരമില്ല. കൂടുതൽ വിവരങ്ങൾക്ക്: https://kattakadalac.com/"
 
 **ആരാണ് നിങ്ങൾ:** "ഞാൻ PACE വികസിപ്പിച്ച, കാട്ടാക്കട മണ്ഡലത്തിന്റെ ഡിജിറ്റൽ സഹായിയാണ്!"
 
@@ -140,7 +130,9 @@ ${sourcesSection}
             if (text.length > 0) {
                 hasContent = true;
                 // Strip any stray Devanagari that slipped through
-                const clean = text.replace(/[\u0900-\u097F]+/g, '').replace(/\s{2,}/g, ' ');
+                // Strip stray Devanagari; collapse only horizontal whitespace (spaces/tabs),
+                // NOT newlines — preserving \n\n (paragraphs) and \n- (bullets) for Markdown.
+                const clean = text.replace(/[\u0900-\u097F]+/g, '').replace(/[ \t]{2,}/g, ' ');
                 const event: StreamEvent = { type: 'content', content: clean };
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
             }
@@ -231,6 +223,12 @@ export async function POST(req: NextRequest) {
             `${m.role === "user" ? "Human" : "Assistant"}: ${m.content} `
         ).join("\n");
 
+        // Structured history for Vertex AI multi-turn context (last 3 turns max to keep tokens reasonable)
+        const structuredHistory = messages.slice(0, -1).slice(-3).map(m => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+        }));
+
         // Check for direct special responses (identity, political) to avoid LLM hallucination
         const specialResponse = checkSpecialQueries(question);
         if (specialResponse) {
@@ -283,7 +281,7 @@ export async function POST(req: NextRequest) {
                     // const contextPromise = callChain({ question, chatHistory }); // <-- Pinecone / local RAG
 
                     // Vertex AI RAG (primary retrieval source)
-                    const genaiPromise = streamVertexGeminiWithGrounding(question);
+                    const genaiPromise = streamVertexGeminiWithGrounding(question, undefined, structuredHistory);
 
                     // Stub result so the rest of the pipeline (loading events, sources, etc.) is unchanged
                     const result = {
@@ -323,6 +321,14 @@ export async function POST(req: NextRequest) {
                         `mergeEnforceAndStream: VertexAI=${Boolean(genaiText)} (${(genaiText ?? '').length} chars)`,
                         'api/chat/stream'
                     );
+
+                    // LOG THE FIRST RESULT (GenAI/Grounding) for visualization
+                    if (genaiText) {
+                        logger.info('RAW GENAI RESULT', 'api/chat/stream', {
+                            query: question.slice(0, 100),
+                            rawResult: genaiText
+                        });
+                    }
 
                     // Clear the loading indicator right before streaming the answer
                     const loadingCompleteEvent: StreamEvent = {

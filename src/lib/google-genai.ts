@@ -86,7 +86,21 @@ async function getVertexAccessToken(): Promise<string> {
  * Build the Vertex AI request body.
  * RAG corpus is attached via tools[].retrieval if VERTEX_RAG_CORPUS is set.
  */
-function buildVertexBody(question: string, systemInstruction: string): Record<string, unknown> {
+interface ChatTurn { role: 'user' | 'assistant'; content: string; }
+
+/** Strip raw GCS storage paths (gs://...) that Vertex sometimes leaks into grounding output. */
+function stripStoragePaths(text: string): string {
+    return text
+        .replace(/gs:\/\/[^\s,\)\]]+/g, '')   // remove gs://bucket/path tokens
+        .replace(/[ \t]{2,}/g, ' ')             // collapse extra spaces
+        .trim();
+}
+
+function buildVertexBody(
+    question: string,
+    systemInstruction: string,
+    history: ChatTurn[] = []
+): Record<string, unknown> {
     const tools: unknown[] = [];
 
     if (RAG_CORPUS) {
@@ -101,12 +115,16 @@ function buildVertexBody(question: string, systemInstruction: string): Record<st
         logger.info(`Vertex RAG corpus attached: ${RAG_CORPUS.split('/').pop()}`, 'google-genai');
     }
 
+    // Build multi-turn contents: prior turns + current question
+    const historyContents = history.map(turn => ({
+        role: turn.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: turn.content }],
+    }));
+
     return {
         contents: [
-            {
-                role: 'user',
-                parts: [{ text: question }],
-            },
+            ...historyContents,
+            { role: 'user', parts: [{ text: question }] },
         ],
         systemInstruction: {
             role: 'system',
@@ -128,7 +146,11 @@ function buildVertexBody(question: string, systemInstruction: string): Record<st
 }
 
 /** Call the Vertex AI generateContent REST endpoint and return the full response text. */
-async function callVertexRest(question: string, systemInstruction: string): Promise<string | null> {
+async function callVertexRest(
+    question: string,
+    systemInstruction: string,
+    history: ChatTurn[] = []
+): Promise<string | null> {
     const token = await getVertexAccessToken();
     const url = `${VERTEX_BASE}:generateContent`;
 
@@ -138,7 +160,7 @@ async function callVertexRest(question: string, systemInstruction: string): Prom
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(buildVertexBody(question, systemInstruction)),
+        body: JSON.stringify(buildVertexBody(question, systemInstruction, history)),
     });
 
     if (!res.ok) {
@@ -151,18 +173,18 @@ async function callVertexRest(question: string, systemInstruction: string): Prom
     const data: any = await res.json();
 
     // Extract text from all parts across all candidates
-    const text: string = (data.candidates ?? [])
+    const rawText: string = (data.candidates ?? [])
         .flatMap((c: { content?: { parts?: { text?: string }[] } }) =>
             (c.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '')
         )
         .join('');
 
-    if (!text.trim()) {
+    if (!rawText.trim()) {
         logger.warn('Vertex AI returned an empty response body.', 'google-genai');
         return null;
     }
 
-    // Log grounding sources if present (useful for debugging)
+    // Log grounding sources (debug only — never expose gs:// paths to users)
     const chunks: { retrievedContext?: { uri?: string; title?: string } }[] =
         data.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
     if (chunks.length > 0) {
@@ -172,19 +194,32 @@ async function callVertexRest(question: string, systemInstruction: string): Prom
         );
     }
 
-    return text.trim();
+    // Strip any leaked GCS storage paths before returning
+    return stripStoragePaths(rawText);
 }
 
 // ─── AI Studio fallback (API key, no RAG corpus) ─────────────────────────────
 
-async function callAiStudioRest(question: string, systemInstruction: string): Promise<string | null> {
+async function callAiStudioRest(
+    question: string,
+    systemInstruction: string,
+    history: ChatTurn[] = []
+): Promise<string | null> {
     const apiKey = (process.env.GEMINI_API_KEY ?? process.env.GOOGLE_CLOUD_API_KEY)?.trim();
     if (!apiKey) return null;
 
     const url = `${AISTUDIO_BASE}/${MODEL}:generateContent?key=${apiKey}`;
 
+    const historyContents = history.map(turn => ({
+        role: turn.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: turn.content }],
+    }));
+
     const body = {
-        contents: [{ role: 'user', parts: [{ text: question }] }],
+        contents: [
+            ...historyContents,
+            { role: 'user', parts: [{ text: question }] },
+        ],
         systemInstruction: { role: 'system', parts: [{ text: systemInstruction }] },
         generationConfig: { temperature: 0.4, maxOutputTokens: 8192 },
     };
@@ -203,22 +238,23 @@ async function callAiStudioRest(question: string, systemInstruction: string): Pr
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = await res.json();
-    const text: string = (data.candidates ?? [])
+    const rawText: string = (data.candidates ?? [])
         .flatMap((c: { content?: { parts?: { text?: string }[] } }) =>
             (c.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '')
         )
         .join('');
 
-    return text.trim() || null;
+    return stripStoragePaths(rawText) || null;
 }
 
 // ─── Public API (unchanged signature — route.ts imports this) ─────────────────
 
 const DEFAULT_SYSTEM =
-    'You are a helpful assistant for Kattakada constituency, Kerala. ' +
-    'Answer ONLY using information from the provided RAG corpus / documents. ' +
-    'If the answer is not in the corpus, say you do not know. ' +
-    'Prefer answering in Malayalam when the user asks in Malayalam or about local topics.';
+    'You are a highly precise digital assistant for Kattakada constituency, Kerala. ' +
+    'STRICT RULE: Answer ONLY using information from the provided documents. ' +
+    'DO NOT use any external knowledge about Kerala, India, or general facts. ' +
+    'If the exact answer is not found in the provided documents, you MUST say: "ക്ഷമിക്കണം, ഈ വിഷയത്തിൽ ഇപ്പോൾ നൽകിയിട്ടുള്ള രേഖകളിൽ ഉത്തരമില്ല. കൂടുതൽ വിവരങ്ങൾക്ക്: https://kattakadalac.com/" ' +
+    'Be extremely careful with dates and names. Respond exclusively in Malayalam.';
 
 /**
  * Call Vertex AI Gemini with RAG corpus grounding (primary) or AI Studio (fallback).
@@ -229,7 +265,8 @@ const DEFAULT_SYSTEM =
  */
 export async function streamVertexGeminiWithGrounding(
     question: string,
-    systemInstruction?: string
+    systemInstruction?: string,
+    history: ChatTurn[] = []
 ): Promise<string | null> {
     const sysInstruction = systemInstruction
         ? `${DEFAULT_SYSTEM} ${systemInstruction}`
@@ -238,8 +275,8 @@ export async function streamVertexGeminiWithGrounding(
     // Primary: Vertex AI with service account + RAG corpus
     if (PROJECT && LOCATION) {
         try {
-            logger.info(`Calling Vertex AI (${MODEL}) via REST...`, 'google-genai');
-            const result = await callVertexRest(question, sysInstruction);
+            logger.info(`Calling Vertex AI (${MODEL}) via REST... (history turns: ${history.length})`, 'google-genai');
+            const result = await callVertexRest(question, sysInstruction, history);
             if (result) {
                 logger.info(`Vertex AI responded (${result.length} chars)`, 'google-genai');
                 return result;
@@ -258,7 +295,7 @@ export async function streamVertexGeminiWithGrounding(
     if (apiKey) {
         try {
             logger.info(`Falling back to AI Studio / public Gemini API (${MODEL})`, 'google-genai');
-            return await callAiStudioRest(question, sysInstruction);
+            return await callAiStudioRest(question, sysInstruction, history);
         } catch (err) {
             logger.warn(
                 `AI Studio call failed: ${err instanceof Error ? err.message : String(err)}`,
