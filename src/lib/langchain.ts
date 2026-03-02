@@ -18,6 +18,7 @@ import {
 } from "./ai-tools";
 import { getCachedQuery, setCachedQuery, logCachePerformance } from "./query-cache";
 import { env } from "./env";
+import { logger } from "./logger";
 
 // Chat history utility functions
 function extractRecentContext(chatHistory: string, maxLines: number = 4): string {
@@ -141,6 +142,11 @@ Optimized Search Query:`;
             if (expanded.length > query.length * 5 && query.length > 10) {
                 return query;
             }
+
+            logger.info('RAW LLM RESULT: Query Expansion', 'langchain', {
+                originalQuery: query,
+                expandedQuery: expanded
+            });
 
             return expanded;
         } catch (e) {
@@ -338,23 +344,26 @@ export function buildSmartContext(
     }
 
     // 3. Greedily pack whole documents until budget is exhausted
-    const separator = '\n\n---\n\n';
+    const headerSeparator = '\n\n---\n\n';
     let totalLength = 0;
     const selected: string[] = [];
 
-    for (const doc of deduped) {
+    for (let i = 0; i < deduped.length; i++) {
+        const doc = deduped[i];
         const piece = doc.pageContent.trim();
-        const addedLength = piece.length + (selected.length > 0 ? separator.length : 0);
+        const source = String(doc.metadata?.source || 'അജ്ഞാത ഉറവിടം');
+        const header = `[രേേഖ ${i + 1}] (ഉറവിടം: ${source})\n`;
+        const addedLength = piece.length + header.length + (selected.length > 0 ? headerSeparator.length : 0);
 
         if (totalLength + addedLength > maxLength) {
             if (selected.length === 0) {
-                selected.push(piece.substring(0, maxLength));
+                selected.push(`${header}${piece.substring(0, maxLength - header.length)}`);
                 console.log(`⚠️ Top document alone exceeded budget, truncated to ${maxLength} chars`);
             }
             break;
         }
 
-        selected.push(piece);
+        selected.push(`${header}${piece}`);
         totalLength += addedLength;
     }
 
@@ -364,7 +373,7 @@ export function buildSmartContext(
     }
 
     return {
-        context: selected.join(separator),
+        context: selected.join(headerSeparator),
         docsUsed: selected.length,
         docsDropped
     };
@@ -658,11 +667,24 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         // Manual expansion for Statistical Queries to ensure Malayalam Keywords are included
         if (analysis.queryType === 'STATISTICAL') {
             console.log('📊 Statistical query detected, appending Malayalam statistical terms...');
-            if (/area|land|how much/i.test(sanitizedQuestion)) searchParam += " ആകെ ഭൂവിസ്തൃതി വിസ്തൃതി ഹെക്ടർ റിപ്പോർട്ട് (Total Area in Hectares Report)";
-            if (/population|people|how many/i.test(sanitizedQuestion)) searchParam += " ആകെ ജനസംഖ്യ റിപ്പോർട്ട് (Total Population Report)";
-            if (/literacy/i.test(sanitizedQuestion)) searchParam += " സാക്ഷരത (Literacy)";
-            if (/density/i.test(sanitizedQuestion)) searchParam += " ജനസാന്ദ്രത (Density)";
-            if (/house|home/i.test(sanitizedQuestion)) searchParam += " വീടുകൾ ഭവനങ്ങൾ (Houses)";
+            const lowerQuery = sanitizedQuestion.toLowerCase();
+
+            // Area/Land queries
+            if (lowerQuery.includes('area') || lowerQuery.includes('land') || lowerQuery.includes('hectare') || lowerQuery.includes('വിസ്തൃതി')) {
+                searchParam += " ആകെ ഭൂവിസ്തൃതി വിസ്തൃതി ഹെക്ടർ റിപ്പോർട്ട് (Total Area in Hectares Report)";
+            }
+            // Population queries - only if specifically about people/population
+            if (lowerQuery.includes('population') || lowerQuery.includes('people') ||
+                (lowerQuery.includes('how many') && !lowerQuery.includes('pond') && !lowerQuery.includes('hospital') && !lowerQuery.includes('school'))) {
+                searchParam += " ആകെ ജനസംഖ്യ റിപ്പോർട്ട് (Total Population Report)";
+            }
+            // Water/Pond queries
+            if (lowerQuery.includes('pond') || lowerQuery.includes('water') || lowerQuery.includes('lake') || lowerQuery.includes('കുളം') || lowerQuery.includes('ജലം')) {
+                searchParam += " ആകെ കുളങ്ങൾ ജലസ്രോതസ്സുകൾ തടാകങ്ങൾ (Total Ponds Water Sources Lakes Report)";
+            }
+            if (lowerQuery.includes('literacy') || lowerQuery.includes('സാക്ഷരത')) searchParam += " സാക്ഷരത (Literacy)";
+            if (lowerQuery.includes('density') || lowerQuery.includes('ജനസാന്ദ്രത')) searchParam += " ജനസാന്ദ്രത (Density)";
+            if (lowerQuery.includes('house') || lowerQuery.includes('home') || lowerQuery.includes('ഭവനം')) searchParam += " വീടുകൾ ഭവനങ്ങൾ (Houses)";
         }
 
         try {
@@ -694,10 +716,40 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         const detailedKeywords = ['all', 'detailed', 'complete', 'comprehensive', 'full', 'everything',
             'എല്ലാ', 'വിശദമായ', 'മുഴുവൻ', 'പൂർണ്ണമായ', 'സമ്പൂർണ്ണ', 'list all', 'tell me everything'];
         const isDetailedQuery = detailedKeywords.some(keyword => searchParam.toLowerCase().includes(keyword));
-        const retrievalK = isDetailedQuery ? 20 : 12; // More documents for detailed queries
+
+        // Detect broad topic queries that need more documents for comprehensive answers
+        // These are multi-faceted topics where relevant info is spread across many chunks
+        const broadTopicKeywords = [
+            // English broad topics
+            'school', 'education', 'college', 'university', 'student',
+            'water', 'drinking water', 'irrigation', 'pond', 'well',
+            'road', 'bridge', 'highway', 'construction', 'building',
+            'project', 'projects', 'development', 'initiative', 'scheme',
+            'tourism', 'temple', 'heritage', 'culture',
+            'agriculture', 'farming', 'cultivation', 'crop',
+            'sports', 'stadium', 'playground',
+            'welfare', 'housing', 'electrification', 'solar',
+            'what are', 'tell me about', 'list', 'describe',
+            // Malayalam broad topics
+            'സ്കൂൾ', 'വിദ്യാഭ്യാസം', 'കോളേജ്', 'വിദ്യാലയം', 'സർവ്വകലാശാല',
+            'ജലം', 'കുടിവെള്ളം', 'ജലസേചനം', 'കുളം', 'കിണർ',
+            'റോഡ്', 'പാലം', 'ദേശീയപാത', 'നിർമ്മാണം', 'കെട്ടിടം',
+            'പദ്ധതി', 'പദ്ധതികൾ', 'വികസനം', 'പ്രവർത്തനങ്ങൾ',
+            'ടൂറിസം', 'ക്ഷേത്രം', 'പൈതൃകം', 'സംസ്കാരം',
+            'കൃഷി', 'കൃഷിക്കാർ', 'വിള',
+            'കായികം', 'സ്റ്റേഡിയം', 'കളിസ്ഥലം',
+            'ക്ഷേമം', 'ഭവനം', 'വൈദ്യുതി', 'സോളാർ',
+            'എന്തൊക്കെ', 'പറയൂ', 'വിവരിക്കുക', 'പട്ടിക'
+        ];
+        const isBroadTopicQuery = broadTopicKeywords.some(keyword => searchParam.toLowerCase().includes(keyword));
+
+        // Determine retrievalK: detailed=24, broad topic=20, normal=12
+        const retrievalK = isDetailedQuery ? 24 : (isBroadTopicQuery ? 20 : 12);
 
         if (isDetailedQuery) {
             console.log(`📚 Detailed query detected - retrieving ${retrievalK} documents`);
+        } else if (isBroadTopicQuery) {
+            console.log(`🔍 Broad topic query detected - retrieving ${retrievalK} documents`);
         }
 
         try {
@@ -863,8 +915,8 @@ export async function callChain({ question, chatHistory }: callChainArgs) {
         // Step 3: Build smart context from retrieved documents (NO LLM CALL)
         // The streaming model in route.ts handles the actual response generation.
         // This eliminates the previous double-LLM-call bottleneck.
-        // Reuses isDetailedQuery from retrieval step above
-        const maxContextLength = isDetailedQuery ? 28000 : 16000;
+        // Reuses isDetailedQuery and isBroadTopicQuery from retrieval step above
+        const maxContextLength = isDetailedQuery ? 28000 : (isBroadTopicQuery ? 24000 : 16000);
 
         const { context, docsUsed, docsDropped } = buildSmartContext(retrievalResult.documents, maxContextLength);
         console.log(`📄 Context ready: ${docsUsed} docs, ${context.length} chars${docsDropped > 0 ? `, ${docsDropped} dropped` : ''}`);
