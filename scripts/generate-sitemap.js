@@ -25,6 +25,12 @@ const config = {
       lastmod: new Date().toISOString().split('T')[0]
     },
     {
+      path: '/about',
+      priority: '0.8',
+      changefreq: 'monthly',
+      lastmod: new Date().toISOString().split('T')[0]
+    },
+    {
       path: '/chat',
       priority: '0.9',
       changefreq: 'daily',
@@ -32,7 +38,7 @@ const config = {
     },
     {
       path: '/upload',
-      priority: '0.8',
+      priority: '0.7',
       changefreq: 'monthly',
       lastmod: new Date().toISOString().split('T')[0]
     }

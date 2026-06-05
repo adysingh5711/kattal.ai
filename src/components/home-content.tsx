@@ -702,6 +702,8 @@ export default function HomeContent() {
 
                         <div className="text-center md:text-right text-xs text-muted-foreground order-3">
                             <p className="flex flex-wrap items-center justify-center md:justify-end gap-2">
+                                <a href="/about" className="hover:underline underline-offset-4 transition-colors">About</a>
+                                <span className="text-muted-foreground/30">|</span>
                                 <span>An initiative by IB Satheesh, MLA | Developed by PACE</span>
                                 <span className="text-muted-foreground/30">|</span>
                                 <Image src="/PACE Logo.png" alt="PACE" width={40} height={16} className="h-4 w-auto object-contain dark:invert opacity-80" style={{ width: "auto", height: "auto" }} />

@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import StructuredData from "./structured-data";
 import { env } from "@/lib/env";
+
+const GA_ID = "G-SRRMP58KRZ";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -73,8 +76,8 @@ export const metadata: Metadata = {
     title: 'Kaattaal AI - Know All about Kattakada LAC Instantly',
     description: "Kaattaal AI is India's First AI Powered LAC Information System developed by PACE Tech as per the ideology of Adv.I.B.Satheesh MLA for Kattakada Legislative Assembly Constituency.",
     images: ['/logo.png'],
-    creator: '@kattalai',
-    site: '@kattalai',
+    creator: '@singhaditya5711',
+    site: '@singhaditya5711',
   },
   robots: {
     index: true,
@@ -86,11 +89,6 @@ export const metadata: Metadata = {
       'max-image-preview': 'large',
       'max-snippet': -1,
     },
-  },
-  verification: {
-    google: 'your-google-verification-code',
-    yandex: 'your-yandex-verification-code',
-    yahoo: 'your-yahoo-verification-code',
   },
   manifest: '/manifest.json',
   icons: [
@@ -182,6 +180,19 @@ export default function RootLayout({
         <meta name="ai:applications" content="Government services, research analysis, educational institutions, business intelligence, policy understanding" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {/* Google Analytics */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="gtag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_ID}');
+          `}
+        </Script>
         <StructuredData />
         {children}
         <Analytics />

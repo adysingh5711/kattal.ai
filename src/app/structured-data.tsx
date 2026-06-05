@@ -1,237 +1,179 @@
 import Script from 'next/script'
-import { env } from '@/lib/env'
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kaattaal.ai.in'
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Kaattaal AI",
+  "url": SITE_URL,
+  "logo": {
+    "@type": "ImageObject",
+    "url": `${SITE_URL}/logo.png`,
+    "width": 512,
+    "height": 512
+  },
+  "description": "India's First AI Powered LAC Information System for Kattakada Legislative Assembly Constituency, developed by PACE Tech as per the ideology of Adv. I.B. Satheesh MLA.",
+  "foundingDate": "2026",
+  "sameAs": [
+    "https://x.com/singhaditya5711",
+    "https://linkedin.com/in/singhaditya5711",
+    "https://www.youtube.com/@singhaditya5711"
+  ],
+  "knowsAbout": [
+    "Kattakada Legislative Assembly Constituency",
+    "Kerala Government Services",
+    "District Development Data",
+    "Artificial Intelligence",
+    "Natural Language Processing"
+  ],
+  "areaServed": {
+    "@type": "AdministrativeArea",
+    "name": "Kattakada Legislative Assembly Constituency",
+    "containedIn": {
+      "@type": "State",
+      "name": "Kerala",
+      "containedIn": {
+        "@type": "Country",
+        "name": "India"
+      }
+    }
+  }
+}
+
+const webApplicationSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Kaattaal AI",
+  "description": "Kaattaal AI is India's First AI Powered LAC Information System. Ask questions about Kattakada constituency in plain English or Malayalam and get instant, accurate answers from official documents.",
+  "url": SITE_URL,
+  "applicationCategory": "GovernmentApplication",
+  "operatingSystem": "Web Browser",
+  "browserRequirements": "Requires JavaScript. Requires HTML5.",
+  "softwareVersion": "1.0.0",
+  "inLanguage": ["en", "ml"],
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "INR",
+    "availability": "https://schema.org/InStock"
+  },
+  "featureList": [
+    "AI-powered natural language chat interface",
+    "PDF and document processing",
+    "Vector search and semantic retrieval",
+    "Malayalam and English language support",
+    "Responsive design for all devices",
+    "Dark and light mode"
+  ],
+  "screenshot": `${SITE_URL}/kattal.png`,
+  "author": {
+    "@type": "Organization",
+    "name": "PACE Tech",
+    "url": SITE_URL
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Kaattaal AI",
+    "url": SITE_URL
+  },
+  "about": [
+    {
+      "@type": "GovernmentService",
+      "name": "Kattakada LAC Information",
+      "description": "Access to government services, development data, and constituency information for Kattakada Legislative Assembly Constituency"
+    },
+    {
+      "@type": "Thing",
+      "name": "Retrieval Augmented Generation (RAG)",
+      "description": "AI technology combining vector search with large language models to provide accurate, source-grounded answers"
+    }
+  ],
+  "audience": {
+    "@type": "Audience",
+    "audienceType": [
+      "Residents of Kattakada",
+      "Government Officials",
+      "Researchers",
+      "Students",
+      "Journalists"
+    ]
+  }
+}
+
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is Kaattaal AI?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Kaattaal AI is India's first AI-powered LAC (Legislative Assembly Constituency) Information System for Kattakada. It lets citizens instantly access district information, government services, and development statistics by asking questions in plain English or Malayalam."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What information can I access through Kaattaal AI?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "You can access development project data, government service information, infrastructure statistics, welfare scheme details, and constituency-specific records for Kattakada Legislative Assembly Constituency through natural language conversation."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does Kaattaal AI work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Kaattaal AI uses Retrieval Augmented Generation (RAG) technology. It processes official documents into a vector database and uses large language models to retrieve and synthesize accurate, source-grounded answers to your questions in real time."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Kaattaal AI support Malayalam?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Kaattaal AI fully supports both English and Malayalam. You can ask questions and receive responses in either language, making constituency information accessible to all residents."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Who developed Kaattaal AI?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Kaattaal AI was developed by PACE Tech as per the ideology of Adv. I.B. Satheesh, MLA for Kattakada Legislative Assembly Constituency, with Trinity as community partner."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Kaattaal AI free to use?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, Kaattaal AI is free for all citizens. Create an account with your email or Google account to start asking questions about Kattakada."
+      }
+    }
+  ]
+}
 
 export default function StructuredData() {
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "Kaattaal AI",
-    "description": "Kaattaal AI is India's First AI Powered LAC Information System developed by PACE Tech as per the ideology of Adv. I.B.Satheesh MLA for Kattakada Legislative Assembly Constituency.",
-    "url": env.NEXT_PUBLIC_SITE_URL || "https://kaattaal.ai.in",
-    "applicationCategory": "ProductivityApplication",
-    "operatingSystem": "Web Browser",
-    "browserRequirements": "Requires JavaScript. Requires HTML5.",
-    "softwareVersion": "1.0.0",
-    "author": {
-      "@type": "Organization",
-      "name": "Kaattaal AI Team",
-      "url": env.NEXT_PUBLIC_SITE_URL || "https://kaattaal.ai.in",
-      "member": {
-        "@type": "Person",
-        "name": "Aditya Singh",
-        "url": "https://linkedin.com/in/singhaditya5711",
-        "jobTitle": "Lead Developer",
-        "worksFor": {
-          "@type": "Organization",
-          "name": "Kaattaal AI"
-        }
-      }
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Kaattaal AI",
-      "url": "https://kaattaal.ai.in"
-    },
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD",
-      "availability": "https://schema.org/InStock"
-    },
-    "featureList": [
-      "AI-powered chat interface",
-      "PDF document processing",
-      "Vector search and retrieval",
-      "Multi-language support",
-      "Responsive design",
-      "Dark/light mode"
-    ],
-    "screenshot": "https://kaattaal.ai.in/kattal.png",
-    "softwareRequirements": "Modern web browser with JavaScript enabled",
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.8",
-      "ratingCount": "150",
-      "bestRating": "5",
-      "worstRating": "1"
-    },
-    "review": [
-      {
-        "@type": "Review",
-        "reviewRating": {
-          "@type": "Rating",
-          "ratingValue": "5",
-          "bestRating": "5"
-        },
-        "author": {
-          "@type": "Person",
-          "name": "Government Official"
-        },
-        "reviewBody": "Kaattaal AI has revolutionized how we access district information. The AI chat interface makes complex data easily understandable."
-      },
-      {
-        "@type": "Review",
-        "reviewRating": {
-          "@type": "Rating",
-          "ratingValue": "5",
-          "bestRating": "5"
-        },
-        "author": {
-          "@type": "Person",
-          "name": "Research Analyst"
-        },
-        "reviewBody": "Excellent tool for processing and understanding large PDF documents. The vector search is incredibly accurate."
-      }
-    ],
-    "mainEntity": {
-      "@type": "SoftwareApplication",
-      "name": "Kaattaal AI Chat Interface",
-      "description": "AI-powered chat interface for interacting with PDF documents and district information",
-      "url": "https://kaattaal.ai.in/chat",
-      "applicationCategory": "Chat Application",
-      "operatingSystem": "Web Browser"
-    },
-    "about": [
-      {
-        "@type": "Thing",
-        "name": "Artificial Intelligence",
-        "description": "AI-powered document processing and chat interface"
-      },
-      {
-        "@type": "Thing",
-        "name": "Document Analysis",
-        "description": "Advanced PDF processing and text extraction"
-      },
-      {
-        "@type": "Thing",
-        "name": "Vector Search",
-        "description": "Semantic search using Pinecone vector database"
-      },
-      {
-        "@type": "Thing",
-        "name": "District Information",
-        "description": "Access to government data and development statistics"
-      }
-    ],
-    "audience": {
-      "@type": "Audience",
-      "audienceType": [
-        "Government Officials",
-        "Researchers",
-        "Students",
-        "Business Professionals",
-        "General Public"
-      ]
-    },
-    "educationalUse": [
-      "Research",
-      "Data Analysis",
-      "Document Understanding",
-      "Information Retrieval"
-    ],
-    "learningResourceType": [
-      "Interactive Resource",
-      "Chat Interface",
-      "Document Processor",
-      "Knowledge Base"
-    ],
-    "teaches": [
-      "Document Analysis",
-      "Data Interpretation",
-      "Information Retrieval",
-      "AI Interaction"
-    ],
-    "educationalAlignment": [
-      {
-        "@type": "AlignmentObject",
-        "alignmentType": "teaches",
-        "targetName": "Digital Literacy",
-        "educationalFramework": "21st Century Skills"
-      },
-      {
-        "@type": "AlignmentObject",
-        "alignmentType": "teaches",
-        "targetName": "Information Technology",
-        "educationalFramework": "STEM Education"
-      }
-    ],
-    // GenAI Optimization Properties
-    "aiCapabilities": [
-      "Natural Language Processing",
-      "Document Understanding",
-      "Semantic Search",
-      "Knowledge Retrieval",
-      "Multi-language Support",
-      "Context Awareness"
-    ],
-    "aiUseCases": [
-      "Government Document Analysis",
-      "Research Data Processing",
-      "Educational Content Understanding",
-      "Business Intelligence",
-      "Policy Document Review",
-      "Statistical Data Interpretation"
-    ],
-    "aiTechnologies": [
-      "LangChain",
-      "Pinecone Vector Database",
-      "OpenAI GPT Models",
-      "Retrieval Augmented Generation (RAG)",
-      "Vector Embeddings",
-      "Semantic Search Algorithms"
-    ],
-    "aiFeatures": {
-      "chatInterface": true,
-      "pdfProcessing": true,
-      "vectorSearch": true,
-      "multiLanguage": true,
-      "realTimeResponse": true,
-      "contextAwareness": true
-    },
-    "aiPerformance": {
-      "responseTime": "Real-time",
-      "accuracy": "High",
-      "scalability": "Enterprise-grade",
-      "reliability": "99.9% uptime"
-    },
-    "aiApplications": {
-      "government": "District information access",
-      "education": "Research and learning",
-      "business": "Document analysis",
-      "research": "Data interpretation",
-      "public": "Information discovery"
-    },
-    // Enhanced Educational Properties
-    "educationalLevel": ["Intermediate", "Advanced"],
-    "inLanguage": ["en", "ml"],
-    "accessibilityFeature": [
-      "Screen Reader Compatible",
-      "Keyboard Navigation",
-      "High Contrast Mode",
-      "Responsive Design"
-    ],
-    "accessibilityHazard": "none",
-    "accessibilityControl": [
-      "fullKeyboardControl",
-      "fullMouseControl"
-    ],
-    // Technical Properties for AI Understanding
-    "programmingLanguage": "TypeScript",
-    "framework": "Next.js",
-    "database": "Pinecone",
-    "aiModel": "OpenAI GPT",
-    "deployment": "Vercel",
-    "architecture": "Serverless",
-    "api": "RESTful",
-    "security": "HTTPS, API Key Authentication",
-    "compliance": "GDPR Ready, Data Privacy"
-  }
-
   return (
-    <Script
-      id="structured-data"
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-    />
+    <>
+      <Script
+        id="structured-data-org"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <Script
+        id="structured-data-app"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webApplicationSchema) }}
+      />
+      <Script
+        id="structured-data-faq"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+    </>
   )
 }

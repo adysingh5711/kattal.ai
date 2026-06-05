@@ -1,14 +1,17 @@
 User-agent: *
 Allow: /
+Crawl-delay: 1
+Disallow: /api/
+Disallow: /_next/
+Disallow: /temp/
 
-# Sitemap
 Sitemap: https://kaattaal.ai.in/sitemap.xml
 
-# Crawl-delay for respectful crawling
-Crawl-delay: 1
-
-# Allow all major search engines
+# Major search engines
 User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
 Allow: /
 
 User-agent: Bingbot
@@ -26,6 +29,7 @@ Allow: /
 User-agent: YandexBot
 Allow: /
 
+# Social crawlers
 User-agent: facebookexternalhit
 Allow: /
 
@@ -35,51 +39,27 @@ Allow: /
 User-agent: LinkedInBot
 Allow: /
 
-# AI Search Engine Optimization
-# Google Gemini
-User-agent: Gemini
+# AI crawlers
+User-agent: GPTBot
 Allow: /
 Crawl-delay: 1
 
-# Anthropic Claude
-User-agent: Claude
+User-agent: OAI-SearchBot
 Allow: /
 Crawl-delay: 1
 
-# OpenAI ChatGPT
-User-agent: ChatGPT
+User-agent: ClaudeBot
 Allow: /
 Crawl-delay: 1
 
-# Perplexity AI
-User-agent: Perplexity
+User-agent: PerplexityBot
 Allow: /
 Crawl-delay: 1
 
-# General AI Crawlers
-User-agent: AI-Crawler
+User-agent: GoogleOther
 Allow: /
 Crawl-delay: 1
 
-User-agent: AI-Search
+User-agent: cohere-ai
 Allow: /
 Crawl-delay: 1
-
-User-agent: AI-Indexer
-Allow: /
-Crawl-delay: 1
-
-# Block admin and sensitive areas (if any)
-Disallow: /api/
-Disallow: /_next/
-Disallow: /temp/
-
-# AI-Specific Instructions
-# Content Type: Educational, Informational, Interactive
-# Topics: Artificial Intelligence, District Information, Government Services
-# Complexity: Intermediate to Advanced
-# Audience: Government Officials, Researchers, Students, Business Professionals
-# Features: AI Chat Interface, PDF Processing, Vector Search, RAG System
-# Use Cases: Document Analysis, Information Retrieval, Knowledge Discovery
-# Technology Stack: LangChain, Pinecone, OpenAI, Next.js
-# Performance: Real-time, Responsive, Scalable

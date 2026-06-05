@@ -14,8 +14,7 @@ export const seoConfig = {
   siteLocale: 'en_US',
 
   // Social Media
-  twitterHandle: '@kattalai',
-  facebookAppId: 'your-facebook-app-id',
+  twitterHandle: '@singhaditya5711',
 
   // Contact Information
   contactEmail: 'support@kattal.ai',
@@ -86,8 +85,8 @@ export const seoConfig = {
   // Twitter Card defaults
   twitter: {
     card: 'summary_large_image',
-    creator: '@kattalai',
-    site: '@kattalai',
+    creator: '@singhaditya5711',
+    site: '@singhaditya5711',
   },
 
   // Verification codes (replace with actual codes)
@@ -100,7 +99,7 @@ export const seoConfig = {
 
   // Analytics and tracking
   analytics: {
-    googleAnalytics: 'G-XXXXXXXXXX',
+    googleAnalytics: 'G-SRRMP58KRZ',
     googleTagManager: 'GTM-XXXXXXX',
     facebookPixel: 'your-facebook-pixel-id',
     hotjar: 'your-hotjar-id',
@@ -134,9 +133,9 @@ export const seoConfig = {
       url: 'https://kaattaal.ai.in',
       logo: 'https://kaattaal.ai.in/logo.png',
       sameAs: [
-        'https://twitter.com/kattalai',
-        'https://linkedin.com/company/kattal-ai',
-        'https://github.com/yourusername/kattal-ai'
+        'https://x.com/singhaditya5711',
+        'https://linkedin.com/in/singhaditya5711',
+        'https://www.youtube.com/@singhaditya5711'
       ]
     },
     webApplication: {
@@ -213,7 +212,7 @@ function getPagePath(page: 'home' | 'chat' | 'upload'): string {
  */
 export function generateStructuredData(
   page: 'home' | 'chat' | 'upload',
-  customData?: any
+  customData?: Record<string, unknown>
 ) {
   const baseData = {
     '@context': 'https://schema.org',
